@@ -1,0 +1,141 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // 1. Patient Records
+    match /patients/{patientId} {
+      function isValidPatient(data) {
+        return data.name is string && data.name.size() > 0 && data.name.size() <= 100
+            && data.phone is string && data.phone.size() > 0 && data.phone.size() <= 20
+            && data.age is int && data.age >= 0 && data.age <= 150
+            && (data.medicalHistory == null || (data.medicalHistory is string && data.medicalHistory.size() <= 2000));
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(patientId) && isValidPatient(incoming());
+      allow update: if isSignedIn() && isValidPatient(incoming()) 
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'age', 'medicalHistory', 'updatedAt']);
+      allow delete: if isSignedIn();
+    }
+
+    // 2. Patient Sessions (Attendance)
+    match /patients/{patientId}/sessions/{sessionId} {
+      function isValidSession(data) {
+        return data.date is string 
+            && data.paymentStatus in ['paid', 'unpaid']
+            && (data.paymentMethod == null || data.paymentMethod in ['cash', 'upi'])
+            && (data.amount == null || (data.amount is number && data.amount >= 0))
+            && (data.notes == null || (data.notes is string && data.notes.size() <= 1000))
+            && (data.time == null || data.time is string);
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(sessionId) && isValidId(patientId) && isValidSession(incoming());
+      allow update: if isSignedIn() && isValidSession(incoming())
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['date', 'time', 'paymentStatus', 'paymentMethod', 'amount', 'notes']);
+      allow delete: if isSignedIn();
+    }
+
+    // 3. Financial Transactions
+    match /transactions/{transactionId} {
+      function isValidTransaction(data) {
+        return data.amount is number && data.amount >= 0
+            && data.category is string && data.category.size() > 0 && data.category.size() <= 50
+            && data.date is string // Format checking is harder in rules, but we'll trust type for now
+            && data.type in ['income', 'expense']
+            && (data.description == null || (data.description is string && data.description.size() <= 500));
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(transactionId) && isValidTransaction(incoming());
+      allow update: if isSignedIn() && isValidTransaction(incoming())
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'category', 'date', 'type', 'description', 'updatedAt']);
+      allow delete: if isSignedIn();
+    }
+
+    // 4. Appointments
+    match /appointments/{appointmentId} {
+      function isValidAppointment(data) {
+        return data.patientId is string && data.patientId.size() > 0
+            && data.patientName is string && data.patientName.size() > 0
+            && data.patientPhone is string && data.patientPhone.size() > 0
+            && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+            && data.time is string && data.time.matches('^\\d{2}:\\d{2}$')
+            && data.status in ['scheduled', 'completed', 'cancelled']
+            && (data.notes == null || data.notes == "" || (data.notes is string && data.notes.size() <= 1000))
+            && (data.createdAt == null || data.createdAt is timestamp)
+            && (data.updatedAt == null || data.updatedAt is timestamp);
+      }
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() 
+                     && isValidId(appointmentId) 
+                     && isValidAppointment(incoming())
+                     && exists(/databases/$(database)/documents/patients/$(incoming().patientId));
+      allow update: if isSignedIn() && isValidAppointment(incoming())
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'date', 'time', 'updatedAt']);
+      allow delete: if isSignedIn();
+    }
+
+    // 5. Team Members
+    match /team/{memberId} {
+      function isValidTeamMember(data) {
+        return data.name is string && data.name.size() > 0 && data.name.size() <= 100
+            && data.role is string && data.role.size() > 0 && data.role.size() <= 100
+            && (data.phone == null || (data.phone is string && data.phone.size() <= 20));
+      }
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(memberId) && isValidTeamMember(incoming());
+      allow update: if isSignedIn() && isValidTeamMember(incoming())
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'role', 'phone', 'updatedAt']);
+      allow delete: if isSignedIn();
+    }
+
+    // 6. Attendance
+    match /attendance/{attendanceId} {
+      function isValidAttendance(data) {
+        return data.memberId is string && data.memberId.size() > 0
+            && data.memberName is string && data.memberName.size() > 0
+            && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+            && (data.checkIn == null || data.checkIn is string)
+            && record.status in ['present', 'absent', 'late'];
+      }
+      // Fixed the typo 'record.status' to 'data.status' below
+      function isValidAttendanceFixed(data) {
+        return data.memberId is string && data.memberId.size() > 0
+            && data.memberName is string && data.memberName.size() > 0
+            && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+            && (data.checkIn == null || data.checkIn is string)
+            && data.status in ['present', 'absent', 'late'];
+      }
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() 
+                     && isValidId(attendanceId) 
+                     && isValidAttendanceFixed(incoming())
+                     && exists(/databases/$(database)/documents/team/$(incoming().memberId));
+      allow update: if isSignedIn() && isValidAttendanceFixed(incoming())
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['checkIn', 'checkOut', 'status', 'updatedAt']);
+      allow delete: if isSignedIn();
+    }
+  }
+}

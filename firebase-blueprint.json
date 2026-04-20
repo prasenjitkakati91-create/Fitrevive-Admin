@@ -1,0 +1,117 @@
+{
+  "entities": {
+    "Patient": {
+      "title": "Patient",
+      "description": "Information about a patient at the clinic",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the patient" },
+        "phone": { "type": "string", "description": "Contact phone number" },
+        "age": { "type": "integer", "description": "Age of the patient" },
+        "medicalHistory": { "type": "string", "description": "Post-surgical rehab notes and medical history" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "phone", "age"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A financial record (income or expense)",
+      "type": "object",
+      "properties": {
+        "amount": { "type": "number", "description": "Transaction amount" },
+        "category": { "type": "string", "description": "Consultation, Equipment, Rent, etc." },
+        "date": { "type": "string", "format": "date" },
+        "type": { "type": "string", "enum": ["income", "expense"], "description": "Type of transaction" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["amount", "category", "date", "type"]
+    },
+    "Session": {
+      "title": "Session",
+      "description": "A physiotherapy session or visit for a patient",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "time": { "type": "string", "format": "time" },
+        "notes": { "type": "string" },
+        "paymentStatus": { "type": "string", "enum": ["paid", "unpaid"] },
+        "paymentMethod": { "type": "string", "enum": ["cash", "upi"] },
+        "amount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["date", "paymentStatus"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "A scheduled patient appointment",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "patientName": { "type": "string" },
+        "patientPhone": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "time": { "type": "string", "format": "time" },
+        "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled"] },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientId", "date", "time", "status"]
+    },
+    "TeamMember": {
+      "title": "Team Member",
+      "description": "Staff member at the clinic",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "role"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Attendance log for a team member",
+      "type": "object",
+      "properties": {
+        "memberId": { "type": "string" },
+        "memberName": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "checkIn": { "type": "string" },
+        "checkOut": { "type": "string" },
+        "status": { "type": "string", "enum": ["present", "absent", "late"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["memberId", "date", "status"]
+    }
+  },
+  "firestore": {
+    "/patients/{patientId}": {
+      "schema": "Patient",
+      "description": "Collection of patient records"
+    },
+    "/patients/{patientId}/sessions/{sessionId}": {
+      "schema": "Session",
+      "description": "Attendance/session logs for a specific patient"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Collection of financial transactions"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Scheduled appointments"
+    },
+    "/team/{memberId}": {
+      "schema": "TeamMember",
+      "description": "Clinic staff"
+    },
+    "/attendance/{attendanceId}": {
+      "schema": "Attendance",
+      "description": "Staff attendance records"
+    }
+  }
+}

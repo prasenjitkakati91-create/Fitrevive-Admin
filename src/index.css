@@ -1,0 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-primary: #0EA5E9;
+  --color-primary-dark: #0284C7;
+  --color-accent: #0F172A;
+  --color-sidebar: #0F172A;
+  --color-nav-active: rgba(255, 255, 255, 0.05);
+  --color-border: #F1F5F9;
+  --color-bg: #FFFFFF;
+}
+
+@layer base {
+  body {
+    @apply antialiased text-slate-800 font-sans;
+    background-color: #F8FAFC;
+    letter-spacing: -0.015em;
+  }
+  
+  h1, h2, h3, h4 {
+    @apply text-slate-900 font-bold tracking-tight;
+  }
+
+  .mono {
+    @apply font-mono tracking-tighter;
+  }
+}
+
+.animate-in {
+  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Glassmorphism & High-End Effects */
+.glass {
+  @apply bg-white/70 backdrop-blur-md border border-white/20;
+}
+
+.glass-dark {
+  @apply bg-slate-950/80 backdrop-blur-xl border border-white/10;
+}
+
+.glow {
+  box-shadow: 0 0 20px -5px var(--color-primary);
+}
+
+/* Redefined Components */
+.stat-card {
+  @apply bg-white p-6 rounded-[32px] border border-slate-100/80 shadow-[0_8px_30px_rgb(0,0,0,0.02)] transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] hover:-translate-y-1.5 flex flex-col gap-1.5 relative overflow-hidden;
+}
+
+.stat-card::after {
+  content: '';
+  @apply absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 transition-opacity;
+}
+
+.stat-card:hover::after {
+  @apply opacity-100;
+}
+
+.panel {
+  @apply bg-white rounded-[40px] border border-slate-100/50 flex flex-col overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.015)];
+}
+
+.panel-header {
+  @apply px-10 py-8 border-b border-slate-50 flex justify-between items-center bg-white/80 backdrop-blur-sm sticky top-0 z-10;
+}
+
+.data-table th {
+  @apply text-left bg-slate-50/30 px-8 py-5 text-slate-400 font-bold text-[10px] uppercase tracking-[0.15em] border-b border-slate-100;
+}
+
+.data-table td {
+  @apply px-8 py-6 border-b border-slate-50 text-[14px] text-slate-700 font-medium transition-colors hover:bg-slate-50/30;
+}
+
+.display-heading {
+  @apply font-extrabold tracking-[-0.05em] leading-tight;
+}
+
+.sidebar-item {
+  @apply flex items-center gap-3 px-6 py-4.5 rounded-2xl font-bold transition-all duration-300 relative overflow-hidden;
+}
+
+.sidebar-item-active {
+  @apply bg-white/10 text-white shadow-[0_4px_20px_rgba(0,0,0,0.2)];
+}
+
+.sidebar-item-active::before {
+  content: '';
+  @apply absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-primary rounded-r-full shadow-[0_0_15px_var(--color-primary)];
+}
