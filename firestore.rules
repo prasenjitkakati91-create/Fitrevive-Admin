@@ -81,7 +81,7 @@ service cloud.firestore {
             && data.patientName is string && data.patientName.size() > 0
             && data.patientPhone is string && data.patientPhone.size() > 0
             && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
-            && data.time is string && data.time.matches('^\\d{2}:\\d{2}$')
+            && data.time is string && data.time.matches('^\\d{2}:\\d{2} [AP]M$')
             && data.status in ['scheduled', 'completed', 'cancelled']
             && (data.notes == null || data.notes == "" || (data.notes is string && data.notes.size() <= 1000))
             && (data.createdAt == null || data.createdAt is timestamp)
@@ -102,12 +102,17 @@ service cloud.firestore {
       function isValidTeamMember(data) {
         return data.name is string && data.name.size() > 0 && data.name.size() <= 100
             && data.role is string && data.role.size() > 0 && data.role.size() <= 100
-            && (data.phone == null || (data.phone is string && data.phone.size() <= 20));
+            && (data.staffId == null || (data.staffId is string && data.staffId.size() <= 30))
+            && (data.phone == null || (data.phone is string && data.phone.size() <= 20))
+            && (data.email == null || (data.email is string && data.email.size() <= 150))
+            && (data.isActive == null || data.isActive is bool)
+            && (data.createdAt == null || data.createdAt is timestamp)
+            && (data.updatedAt == null || data.updatedAt is timestamp);
       }
       allow read: if isSignedIn();
       allow create: if isSignedIn() && isValidId(memberId) && isValidTeamMember(incoming());
       allow update: if isSignedIn() && isValidTeamMember(incoming())
-                     && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'role', 'phone', 'updatedAt']);
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'role', 'staffId', 'phone', 'email', 'isActive', 'updatedAt']);
       allow delete: if isSignedIn();
     }
 
