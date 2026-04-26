@@ -498,7 +498,7 @@ const Dashboard = ({
   const ledgerIncome = transactions.filter(t => t.date === ledgerDate && t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
   const ledgerExpense = transactions.filter(t => t.date === ledgerDate && t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
 
-  const searchedPatients = patients.filter(p => p.phone.includes(patientSearch) || p.name.toLowerCase().includes(patientSearch.toLowerCase())).slice(0, 5);
+  const searchedPatients = patients.filter(p => p.phone.includes(patientSearch) || p.name.toLowerCase().includes(patientSearch.toLowerCase()) || p.id.toLowerCase().includes(patientSearch.toLowerCase())).slice(0, 5);
 
   const handleQuickBill = async () => {
     if (!quickBill.patientId) {
@@ -902,19 +902,12 @@ const Dashboard = ({
               <div className="flex-1 relative flex items-center">
                  <Search className="absolute left-6 w-5 h-5 text-slate-400" />
                  <input 
-                   placeholder="Search Patient by Name, Phone or Staff ID..." 
+                   placeholder="Search Patient by Name, Phone or ID..." 
                    value={patientSearch}
                    onChange={e => setPatientSearch(e.target.value)}
                    className="w-full bg-transparent pl-16 pr-6 py-5 text-lg font-bold text-slate-800 outline-none placeholder:text-slate-300"
                  />
               </div>
-              <button 
-                onClick={() => setTab('patients')}
-                className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-6 rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20 active:scale-95"
-              >
-                <Plus className="w-5 h-5" />
-                <span className="hidden sm:inline">New Patient</span>
-              </button>
             </div>
 
             {patientSearch && (
@@ -2279,8 +2272,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
             
             <div className="p-8 overflow-y-auto custom-scrollbar">
               <form id="new-patient-form" onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="col-span-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="col-span-1 sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Full Name</label>
                     <input required placeholder="E.g. John Doe" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" value={newPatient.name} onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })} />
                   </div>
@@ -2292,7 +2285,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Age</label>
                     <input type="number" min="0" placeholder="Years" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" value={newPatient.age} onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })} />
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1 sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Gender</label>
                     <div className="flex gap-3">
                       {['Male', 'Female', 'Other'].map(g => (
@@ -2303,18 +2296,18 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
                       ))}
                     </div>
                   </div>
-                  <div className="col-span-2 relative">
+                  <div className="col-span-1 sm:col-span-2 relative">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Condition / Primary Complaint</label>
                     <input list="conditions" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" placeholder="Select or type..." value={newPatient.condition} onChange={(e) => setNewPatient({ ...newPatient, condition: e.target.value })} />
                     <datalist id="conditions">
                       {presetConditions.map((c, i) => <option key={i} value={c} />)}
                     </datalist>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1 sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Address</label>
                     <textarea placeholder="Line 1, City, Zip..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm min-h-[60px]" value={newPatient.address} onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })}></textarea>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1 sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Medical History Notes</label>
                     {role !== 'manager' ? (
                       <textarea placeholder="Past surgeries, diabetic history, BP..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm min-h-[80px]" value={newPatient.medicalHistory} onChange={(e) => setNewPatient({ ...newPatient, medicalHistory: e.target.value })}></textarea>
@@ -2431,7 +2424,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
              
              <div className="p-8 overflow-y-auto">
                <form id="session-form" onSubmit={handleSessionSubmit} className="space-y-6">
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Date</label>
                         <input type="date" required value={newSession.date} onChange={e => setNewSession({...newSession, date: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" />
@@ -2453,7 +2446,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
                        ))}
                      </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Amount (₹)</label>
                         <input type="number" min="0" required value={newSession.amount} onChange={e => setNewSession({...newSession, amount: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" />
@@ -3496,7 +3489,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Base Amount (₹)</label>
                         <input required type="number" min="0" value={newTx.amount} onChange={e => setNewTx({...newTx, amount: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-lg font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 font-mono" />
@@ -3514,7 +3507,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
                      </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Category</label>
                         <select value={newTx.category} onChange={e => setNewTx({...newTx, category: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer">
@@ -3532,7 +3525,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
                         </select>
                      </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Date</label>
                         <input type="date" value={newTx.date} onChange={e => setNewTx({...newTx, date: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100" />
@@ -4383,8 +4376,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify }: { pat
   const apptsForDate = appointments.filter(a => {
     const dateMatch = a.date === selectedDate;
     const statusMatch = statusFilter === 'all' || a.status === statusFilter;
-    const therapistMatch = therapistFilter === 'all' || a.therapistId === therapistFilter;
-    return dateMatch && statusMatch && therapistMatch;
+    return dateMatch && statusMatch;
   });
 
   const getSlotStatus = (slotTime: string) => {
@@ -4443,7 +4435,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify }: { pat
 
       setNewAppt({ 
         patientId: '', 
-        therapistId: therapistFilter !== 'all' ? therapistFilter : '',
+        therapistId: '',
         time: targetTime, 
         sessionType: 'Consultation',
         notes: '' 
@@ -4554,22 +4546,10 @@ const AppointmentManager = ({ patients, appointments, members, onNotify }: { pat
         </div>
         
         <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
-             <button 
-               onClick={() => setViewType('day')}
-               className={cn("px-4 py-1.5 rounded-lg text-xs font-black transition-all", viewType === 'day' ? "bg-white shadow-sm text-blue-600" : "text-slate-400 hover:text-slate-600")}
-             >
-               Day View
-             </button>
-             <button 
-               onClick={() => setViewType('week')}
-               className={cn("px-4 py-1.5 rounded-lg text-xs font-black transition-all", viewType === 'week' ? "bg-white shadow-sm text-blue-600" : "text-slate-400 hover:text-slate-600")}
-             >
-               Week
-             </button>
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 hidden">
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 hidden">
              <User2 className="w-4 h-4 text-slate-400" />
              <select 
                value={therapistFilter}
@@ -4599,8 +4579,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify }: { pat
         </div>
       </header>
 
-      {viewType === 'day' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4">
           {slots.map(slot => {
             const occupiedAppts = appointments.filter(a => a.date === selectedDate && a.time === slot && a.status !== 'cancelled');
             const slotAppts = apptsForDate.filter(a => a.time === slot);
@@ -4710,88 +4689,6 @@ const AppointmentManager = ({ patients, appointments, members, onNotify }: { pat
             );
           })}
         </div>
-      ) : (
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-           <div className="overflow-x-auto">
-              <table className="w-full border-collapse min-w-[1000px]">
-                 <thead>
-                    <tr className="bg-slate-50/50">
-                       <th className="w-24 p-4 border-b border-slate-100 text-xs font-black text-slate-400 uppercase tracking-widest text-left">Time</th>
-                       {Array.from({ length: 7 }).map((_, i) => {
-                          const date = new Date(selectedDate);
-                          date.setDate(date.getDate() + i);
-                          const isToday = date.toISOString().substring(0, 10) === new Date().toISOString().substring(0, 10);
-                          return (
-                            <th key={i} className={cn("p-4 border-b border-l border-slate-100 min-w-[140px]", isToday ? "bg-blue-50/30" : "")}>
-                               <div className="flex flex-col items-center gap-1">
-                                  <span className={cn("text-[10px] font-black uppercase tracking-widest", isToday ? "text-blue-600" : "text-slate-400")}>
-                                     {date.toLocaleDateString('en-US', { weekday: 'short' })}
-                                  </span>
-                                  <span className={cn("text-lg font-black", isToday ? "text-blue-600" : "text-slate-800")}>
-                                     {date.getDate()}
-                                  </span>
-                               </div>
-                            </th>
-                          );
-                       })}
-                    </tr>
-                 </thead>
-                 <tbody>
-                    {slots.map(slot => (
-                       <tr key={slot} className="group">
-                          <td className="p-4 border-b border-slate-50 text-xs font-bold text-slate-500 bg-slate-50/30 tabular-nums">{slot}</td>
-                          {Array.from({ length: 7 }).map((_, i) => {
-                             const date = new Date(selectedDate);
-                             date.setDate(date.getDate() + i);
-                             const dateStr = date.toISOString().substring(0, 10);
-                             const dayAppts = appointments.filter(a => a.date === dateStr && a.time === slot);
-                             
-                             return (
-                               <td 
-                                 key={i} 
-                                 onClick={() => dayAppts.length === 0 && openApptModal(null, slot, dateStr)}
-                                 className={cn(
-                                   "p-2 border-b border-l border-slate-50 h-24 vertical-top group-hover:bg-slate-50/50 transition-colors relative",
-                                   dayAppts.length === 0 ? "cursor-pointer" : ""
-                                 )}
-                               >
-                                  <div className="space-y-1">
-                                     {dayAppts.map(appt => (
-                                        <div 
-                                          key={appt.id} 
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            openApptModal(appt);
-                                          }}
-                                          className={cn(
-                                            "p-2 rounded-lg text-[10px] font-bold cursor-pointer transition-all hover:scale-105 shadow-sm",
-                                            appt.status === 'completed' ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
-                                            appt.status === 'cancelled' ? "bg-rose-50 text-rose-700 border border-rose-100" :
-                                            "bg-blue-600 text-white shadow-blue-100"
-                                          )}
-                                        >
-                                           <div className="truncate">{appt.patientName}</div>
-                                           <div className="opacity-80 flex items-center gap-1 mt-0.5"><Activity className="w-2 h-2" /> {appt.sessionType}</div>
-                                        </div>
-                                     ))}
-                                     {dayAppts.length === 0 && (
-                                       <div className="h-full min-h-[40px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all pointer-events-none">
-                                         <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shadow-sm">
-                                           <Plus className="w-4 h-4" />
-                                         </div>
-                                       </div>
-                                     )}
-                                  </div>
-                               </td>
-                             );
-                          })}
-                       </tr>
-                    ))}
-                 </tbody>
-              </table>
-           </div>
-        </div>
-      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm transition-all animate-in fade-in duration-300">
@@ -5552,8 +5449,8 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                 </div>
               )}
               
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2 col-span-2 sm:col-span-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="space-y-2 col-span-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
                   <input 
                     type="text" 
@@ -5564,7 +5461,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all"
                   />
                 </div>
-                <div className="space-y-2 col-span-2 sm:col-span-1">
+                <div className="space-y-2 col-span-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Role Type</label>
                   <select 
                     value={newMember.role} 
@@ -5576,7 +5473,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                     <option value="manager">Manager</option>
                   </select>
                 </div>
-                <div className="space-y-2 col-span-2">
+                <div className="space-y-2 col-span-1 sm:col-span-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
                   <input 
                     type="email" 
@@ -5588,7 +5485,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all disabled:opacity-50"
                   />
                 </div>
-                <div className="space-y-2 col-span-2 sm:col-span-1">
+                <div className="space-y-2 col-span-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
                   <input 
                     type="tel" 
@@ -5598,9 +5495,9 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all"
                   />
                 </div>
-                <div className="space-y-2 col-span-2">
+                <div className="space-y-2 col-span-1 sm:col-span-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Account Setup Mode</label>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                      <button 
                        type="button"
                        onClick={() => setNewMember({...newMember, password: 'INVITE_ONLY'})}
@@ -5627,7 +5524,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                 </div>
 
                 {newMember.password !== 'INVITE_ONLY' && (
-                  <div className="space-y-2 col-span-2">
+                  <div className="space-y-2 col-span-1 sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                       {editingMember ? 'Password (Stored for Admin)' : 'Initial Password'}
                     </label>
@@ -5720,7 +5617,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                      <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mt-1">{selectedMember.role}</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Staff ID</div>
                         <div className="text-sm font-black text-slate-800">{selectedMember.staffId || 'N/A'}</div>
@@ -5729,12 +5626,12 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Phone</div>
                         <div className="text-sm font-black text-slate-800">{selectedMember.phone || 'Not Provided'}</div>
                      </div>
-                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 col-span-2">
+                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 col-span-1 sm:col-span-2">
                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Email Address</div>
                         <div className="text-sm font-black text-slate-800">{selectedMember.email}</div>
                      </div>
                      {selectedMember.password && (
-                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 col-span-2 flex justify-between items-center">
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 col-span-1 sm:col-span-2 flex justify-between items-center">
                            <div>
                               <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Password</div>
                               <div className="text-sm font-black text-slate-800 tracking-wider">
@@ -6958,16 +6855,16 @@ export default function App() {
       </div>
 
       {/* Global Notifications */}
-      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
+      <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-[100] flex flex-col items-end gap-3 pointer-events-none">
         <AnimatePresence>
           {notifications.map(n => (
             <motion.div
               key={n.id}
-              initial={{ opacity: 0, x: 50, scale: 0.9 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 20, scale: 0.9 }}
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.9 }}
               className={cn(
-                "px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border pointer-events-auto",
+                "w-full sm:w-auto px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border pointer-events-auto",
                 n.type === 'success' ? "bg-white border-emerald-100 text-emerald-800" : "bg-white border-rose-100 text-rose-800"
               )}
             >
