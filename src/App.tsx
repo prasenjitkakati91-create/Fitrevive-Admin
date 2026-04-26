@@ -2288,8 +2288,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
 
       {/* NEW PATIENT MODAL */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-[60] animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] pb-safe animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
             <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white">
               <div>
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">{editPatientId ? 'Edit Patient Profile' : 'Add New Patient'}</h3>
@@ -2358,8 +2358,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
 
       {/* HISTORY MODAL (Kept the same structural flow) */}
       {showHistoryModal && selectedPatient && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 animate-in fade-in">
+          <div className="bg-white rounded-t-[2rem] sm:rounded-3xl w-full max-w-4xl max-h-[95dvh] sm:max-h-[90vh] pb-safe flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95">
             <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                <div className="flex items-center gap-5">
                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600 flex items-center justify-center font-black text-xl ring-4 ring-slate-50 border border-blue-100">
@@ -2440,8 +2440,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
 
       {/* SESSION MODAL */}
       {showSessionModal && selectedPatient && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-[60] animate-in fade-in">
+          <div className="bg-white rounded-t-[2rem] sm:rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] pb-safe animate-in slide-in-from-bottom sm:zoom-in-95">
              <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                 <div>
                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Log Session</h3>
@@ -3374,8 +3374,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
       </div>
 
       {showBillingModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[24px] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-[100] p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-[2rem] sm:rounded-[24px] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] pb-safe animate-in slide-in-from-bottom sm:zoom-in-95">
              <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                 <div>
                   <h3 className="text-xl font-black text-slate-800 tracking-tight">Generate Unpaid Bills</h3>
@@ -3507,8 +3507,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
 
       {/* New Transaction Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[24px] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-[100] p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-[2rem] sm:rounded-[24px] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] pb-safe animate-in slide-in-from-bottom sm:zoom-in-95">
              <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white">
                 <div>
                   <h3 className="text-xl font-black text-slate-800 tracking-tight">New Transaction</h3>
@@ -4754,11 +4754,11 @@ const AppointmentManager = ({ patients, appointments, members, onNotify }: { pat
         </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm transition-all animate-in fade-in duration-300">
+        <div className="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 backdrop-blur-sm transition-all animate-in fade-in duration-300">
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-[2rem] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-100"
+            className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] border border-slate-100"
           >
             <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white">
                <div className="flex items-center gap-4">
@@ -5496,11 +5496,11 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
       </div>
 
       {showMemberModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-300">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 animate-in fade-in duration-300">
           <motion.div 
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col border border-slate-100"
+            className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] overflow-y-auto border border-slate-100 pb-safe"
           >
             <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
               <div>
@@ -5661,7 +5661,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
             <motion.div 
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
-              className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-100"
+              className="relative w-full sm:w-[480px] bg-white h-[100dvh] sm:h-full shadow-2xl flex flex-col border-l border-slate-100 sm:rounded-l-3xl overflow-hidden"
             >
                <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
                   <div className="flex items-center gap-3">
