@@ -136,6 +136,8 @@ interface Patient {
   condition: string;
   address?: string;
   medicalHistory: string;
+  unpaidSessionsCount?: number;
+  unpaidAmount?: number;
 }
 
 interface Session {
@@ -429,11 +431,13 @@ const Dashboard = ({
   const todayAppts = appointments.filter(a => a.date === todayDate && a.status !== 'cancelled').sort((a, b) => a.time.localeCompare(b.time));
   const todayCompleted = useMemo(() => appointments.filter(a => a.date === todayDate && a.status === 'completed').length, [appointments, todayDate]);
   
-  // Pending payments: Completed sessions today without a matching income transaction
-  const todayPendingPayments = useMemo(() => {
-    const todayIncomePatients = new Set(transactions.filter(t => t.date === todayDate && t.type === 'income').map(t => t.patientId));
-    return appointments.filter(a => a.date === todayDate && a.status === 'completed' && !todayIncomePatients.has(a.patientId)).length;
-  }, [appointments, transactions, todayDate]);
+  // Pending payments: Sum of all unpaid sessions and amounts across all patients
+  const { pendingPaymentsCount, pendingPaymentsAmount } = useMemo(() => {
+    return patients.reduce((acc, p) => ({
+      pendingPaymentsCount: acc.pendingPaymentsCount + (p.unpaidSessionsCount || 0),
+      pendingPaymentsAmount: acc.pendingPaymentsAmount + (p.unpaidAmount || 0)
+    }), { pendingPaymentsCount: 0, pendingPaymentsAmount: 0 });
+  }, [patients]);
 
   // Live Activity Feed
   const liveActivity = useMemo(() => {
@@ -865,9 +869,9 @@ const Dashboard = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-2xl font-black text-slate-900">{todayPendingPayments}</span>
+              <span className="text-2xl font-black text-slate-900">₹{pendingPaymentsAmount.toLocaleString()}</span>
               <span className="text-[10px] font-bold text-rose-600 px-1.5 py-0.5 bg-rose-50 rounded-full flex items-center gap-0.5">
-                <AlertCircle className="w-3 h-3" /> Due
+                <AlertCircle className="w-3 h-3" /> {pendingPaymentsCount} Due
               </span>
             </div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Pending Payments</p>
@@ -1217,7 +1221,7 @@ const Dashboard = ({
           {[
             { label: "Today's Queue", value: todayAppts.length, icon: Calendar, color: "blue" },
             { label: "Completed", value: todayCompleted, icon: CheckCircle2, color: "emerald" },
-            { label: "Unpaid Sessions", value: todayPendingPayments, icon: AlertCircle, color: "amber" },
+            { label: "Unpaid Sessions", value: pendingPaymentsCount, icon: AlertCircle, color: "amber" },
             { label: "Follow-ups Due", value: followUpsCount, icon: History, color: "indigo" },
           ].map((card, i) => (
             <div key={i} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
@@ -1776,7 +1780,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
         paymentStatus: 'paid', paymentMethod: 'cash', amount: '500', notes: ''
       });
     } catch (err: any) {
-      onNotify(err.message || "Failed to log session.", "error");
+      console.error(err);
+      onNotify(String(err) + " | " + err.message, "error");
     }
   };
 
@@ -1826,7 +1831,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
       else if (lastVisit && (now.getTime() - new Date(lastVisit).getTime()) < 30 * 24 * 60 * 60 * 1000) status = 'Active';
       else if (!lastVisit && !nextAppointment) status = 'Active'; 
       
-      const isPending = (p.id.length + (p.age || 0)) % 5 === 0; 
+      const isPending = (p.unpaidSessionsCount || 0) > 0;
       const paymentStatus = isPending ? 'Pending' : 'Paid';
       
       const initials = p.name ? p.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'PT';
@@ -1880,8 +1885,9 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
     const total = enrichedPatients.length;
     const active = enrichedPatients.filter(p => p.status === 'Active' || p.status === 'In Treatment').length;
     const newThisMonth = enrichedPatients.filter(p => (p.name.length % 3 === 0)).length;
-    const pendingPayments = enrichedPatients.filter(p => p.paymentStatus === 'Pending').length;
-    return { total, active, newThisMonth, pendingPayments };
+    const pendingPayments = enrichedPatients.reduce((acc, p) => acc + (p.unpaidSessionsCount || 0), 0);
+    const pendingPaymentsAmount = enrichedPatients.reduce((acc, p) => acc + (p.unpaidAmount || 0), 0);
+    return { total, active, newThisMonth, pendingPayments, pendingPaymentsAmount };
   }, [enrichedPatients]);
 
   const highlightText = (text: string, highlight: string) => {
@@ -1982,8 +1988,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
              <Clock3 className="w-6 h-6" />
            </div>
            <div>
-             <span className="text-[10px] uppercase tracking-widest font-black text-slate-400">Pending Payments</span>
-             <div className="text-2xl font-black text-slate-800">{dashboardStats.pendingPayments}</div>
+             <span className="text-[10px] uppercase tracking-widest font-black text-slate-400">Pending Payments ({dashboardStats.pendingPayments})</span>
+             <div className="text-2xl font-black text-slate-800">₹{dashboardStats.pendingPaymentsAmount.toLocaleString()}</div>
            </div>
         </div>
       </div>

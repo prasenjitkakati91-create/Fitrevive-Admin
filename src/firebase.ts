@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserSessionPersistence } from 'firebase/auth';
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, updateDoc, deleteDoc, Timestamp, onSnapshot, where, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, updateDoc, deleteDoc, Timestamp, onSnapshot, where, writeBatch, increment } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
@@ -136,6 +136,8 @@ export const savePatient = async (patientData: {
   const patientsRef = collection(db, 'patients');
   return addDoc(patientsRef, {
     ...patientData,
+    unpaidSessionsCount: 0,
+    unpaidAmount: 0,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now()
   });
@@ -176,7 +178,12 @@ export const logSession = async (
   const sessionsRef = collection(db, 'patients', patientId, 'sessions');
   const sessionDocRef = doc(sessionsRef);
   batch.set(sessionDocRef, {
-    ...sessionData,
+    date: sessionData.date,
+    time: sessionData.time || null,
+    notes: sessionData.notes || null,
+    paymentStatus: sessionData.paymentStatus,
+    paymentMethod: sessionData.paymentMethod || null,
+    amount: sessionData.amount || null,
     createdAt: Timestamp.now()
   });
 
@@ -188,10 +195,22 @@ export const logSession = async (
       amount: sessionData.amount,
       category: 'Therapy Session',
       date: sessionData.date,
+      time: sessionData.time || null,
       type: 'income',
       description: `Payment from ${patientName} (${sessionData.paymentMethod?.toUpperCase() || 'Other'})`,
+      patientId: patientId || null,
+      paymentMethod: sessionData.paymentMethod || null,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
+    });
+  }
+
+  // 3. If unpaid, increment the patient's unpaid logic
+  if (sessionData.paymentStatus === 'unpaid') {
+    const patientRef = doc(db, 'patients', patientId);
+    batch.update(patientRef, {
+      unpaidSessionsCount: increment(1),
+      unpaidAmount: increment(sessionData.amount || 0)
     });
   }
 
@@ -246,6 +265,13 @@ export const payUnpaidSessions = async (
       updatedAt: Timestamp.now()
     });
   }
+
+  // Update patient's unpaid counters (decrement)
+  const patientRef = doc(db, 'patients', patientId);
+  batch.update(patientRef, {
+    unpaidSessionsCount: increment(-sessionIds.length),
+    unpaidAmount: increment(-totalAmount)
+  });
 
   await batch.commit();
   return txId;
