@@ -63,6 +63,7 @@ import {
   Lock,
   Stethoscope,
   HelpCircle,
+  Settings
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -82,7 +83,7 @@ import {
   Bar
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, updateProfile } from 'firebase/auth';
 import { 
   auth, 
   signIn, 
@@ -225,6 +226,13 @@ const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, 
         { id: 'reports', label: 'Reports', icon: FileText, roles: ['admin'] },
       ]
     },
+    {
+      title: 'Preferences',
+      roles: ['admin', 'manager', 'therapist'],
+      items: [
+        { id: 'settings', label: 'Settings', icon: Settings, roles: ['admin', 'manager', 'therapist'] },
+      ]
+    }
   ];
 
   const filteredSections = sections
@@ -3745,8 +3753,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
                   </div>
 
                   {/* Services Table */}
-                  <div className="overflow-hidden rounded-2xl border border-[#f1f5f9] shadow-sm">
-                     <table className="w-full text-left border-collapse">
+                  <div className="overflow-x-auto w-full rounded-2xl border border-[#f1f5f9] shadow-sm mb-6">
+                     <table className="w-full text-left border-collapse min-w-[500px]">
                         <thead className="bg-[#f8fafc] border-b border-[#f1f5f9]">
                            <tr>
                               <th className="px-6 py-4 text-[10px] font-black text-[#64748b] uppercase tracking-widest">Service Description</th>
@@ -6697,6 +6705,100 @@ const ROLE_PERMISSIONS = {
   therapist: ['dashboard', 'patients', 'attendance', 'sessions']
 } as const;
 
+const SettingsView = ({ user, onNotify, onLogout }: { user: User, onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, onLogout: () => void }) => {
+  const [displayName, setDisplayName] = useState(user.displayName || '');
+  const [photoURL, setPhotoURL] = useState(user.photoURL || '');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      await updateProfile(user, {
+        displayName: displayName,
+        photoURL: photoURL
+      });
+      onNotify("Profile updated successfully!", "success");
+    } catch (error: any) {
+      onNotify(error.message || "Failed to update profile", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <header className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-slate-100">
+        <div>
+           <h1 className="text-2xl font-black text-slate-800 tracking-tight">Settings & Profile</h1>
+           <p className="text-sm font-bold tracking-tight text-slate-400 mt-1">Manage your account and preferences.</p>
+        </div>
+      </header>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+            <h2 className="text-lg font-black text-slate-800 tracking-tight">Your Profile</h2>
+         </div>
+         <div className="p-6">
+            <form onSubmit={handleSave} className="space-y-4 max-w-lg">
+               <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Name</label>
+                  <input 
+                     type="text" 
+                     value={displayName}
+                     onChange={(e) => setDisplayName(e.target.value)}
+                     className="w-full text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 transition-all text-slate-700" 
+                  />
+               </div>
+               <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Photo URL</label>
+                  <input 
+                     type="text" 
+                     value={photoURL}
+                     onChange={(e) => setPhotoURL(e.target.value)}
+                     placeholder="https://example.com/photo.jpg"
+                     className="w-full text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 transition-all text-slate-700" 
+                  />
+               </div>
+               <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Email</label>
+                  <input 
+                     type="text" 
+                     value={user.email || ''}
+                     disabled
+                     className="w-full text-sm font-bold bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 outline-none cursor-not-allowed opacity-70 text-slate-700" 
+                  />
+               </div>
+               <div className="pt-4 flex gap-4">
+                  <button 
+                     type="submit"
+                     disabled={isSaving}
+                     className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all disabled:opacity-70 disabled:cursor-not-allowed flex-1 shadow-md shadow-blue-200"
+                  >
+                     {isSaving ? 'Saving...' : 'Save Profile Details'}
+                  </button>
+               </div>
+            </form>
+         </div>
+      </div>
+
+      <div className="bg-[#fff1f2] rounded-2xl shadow-sm border border-rose-100 overflow-hidden mt-6">
+         <div className="p-6">
+            <h2 className="text-lg font-black text-rose-800 tracking-tight">Danger Zone</h2>
+            <p className="text-sm font-bold text-rose-600/80 mb-4 tracking-tight">Logout of your account or perform other account sensitive actions here.</p>
+            <button 
+               onClick={onLogout}
+               className="bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 font-bold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 w-full md:w-auto"
+            >
+               <LogOut className="w-4 h-4" />
+               Log out of My Account
+            </button>
+         </div>
+      </div>
+    </div>
+  );
+};
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
@@ -6949,6 +7051,7 @@ export default function App() {
             {activeTab === 'attendance' && <AttendanceManager role={role} members={members} currentUserEmail={user?.email || null} onNotify={showNotification} />}
             {activeTab === 'sessions' && role !== 'manager' && <SessionManager appointments={appointments} onNotify={showNotification} />}
             {activeTab === 'reports' && role === 'admin' && <Reports stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} onNotify={showNotification} />}
+            {activeTab === 'settings' && <SettingsView user={user!} onNotify={showNotification} onLogout={logOut} />}
           </div>
         </main>
       </div>
