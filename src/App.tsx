@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+const LogoImage = "https://raw.githubusercontent.com/prasenjitkakati91-create/fit-images/main/logo-2.jpg";
 import { 
   Users, 
   UserPlus,
@@ -249,7 +250,7 @@ const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, 
         <div className={cn("p-6 flex items-center justify-between border-b border-slate-50", isCollapsed ? "px-4" : "")}>
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="w-10 h-10 rounded-xl shrink-0 bg-white flex items-center justify-center shadow-lg shadow-blue-50 border border-slate-100 overflow-hidden">
-               <img src="/logo-2.jpg" alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+               <img src={LogoImage} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
             {!isCollapsed && (
               <div className="flex flex-col animate-in fade-in slide-in-from-left-2 duration-300">
@@ -3534,7 +3535,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
             <div className="flex flex-wrap items-center justify-between gap-4 mb-8 bg-[#ffffff] p-4 rounded-2xl shadow-sm border border-[#e2e8f0] print:hidden">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-white text-[#ffffff] flex items-center justify-center border border-[#e2e8f0] overflow-hidden">
-                  <img src="/logo-2.jpg" alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                  <img src={LogoImage} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                 </div>
                 <div>
                   <h2 className="font-black text-[#1e293b] tracking-tight">Receipt View</h2>
@@ -3581,7 +3582,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
                   <div className="relative z-10 flex flex-col md:flex-row justify-between items-start gap-6">
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 bg-[#ffffff] rounded-2xl flex items-center justify-center shadow-lg transform -rotate-2 hover:rotate-0 transition-transform overflow-hidden border border-[#e2e8f0]">
-                        <img src="/logo-2.jpg" alt="FitRevive Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                        <img src={LogoImage} alt="FitRevive Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                       </div>
                       <div>
                         <h1 className="text-3xl font-black tracking-tighter leading-none mb-1 text-[#1e293b]">FitRevive</h1>
@@ -6834,7 +6835,7 @@ export default function App() {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-white">
          <div className="w-24 h-24 mb-6 animate-pulse">
-            <img src="/logo-2.jpg" alt="FitRevive Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+            <img src={LogoImage} alt="FitRevive Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
          </div>
          <p className="font-black text-slate-800 tracking-tighter text-xl">FITREVIVE OS</p>
          <p className="font-bold text-slate-400 text-xs mt-1 uppercase tracking-widest">Initializing Clinical Environment...</p>
@@ -6877,7 +6878,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center border border-slate-200">
                 <img 
-                  src="/logo-2.jpg" 
+                  src={LogoImage} 
                   alt="FitRevive" 
                   className="w-full h-full object-cover rounded"
                   referrerPolicy="no-referrer"
