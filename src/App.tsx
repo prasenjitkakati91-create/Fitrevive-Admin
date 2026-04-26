@@ -254,7 +254,7 @@ const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, 
             {!isCollapsed && (
               <div className="flex flex-col animate-in fade-in slide-in-from-left-2 duration-300">
                 <span className="text-xl font-black text-slate-800 tracking-tight">FitRevive</span>
-                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest leading-none">Premium Clinic</span>
+                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest leading-none">Physiotherapy Clinic</span>
               </div>
             )}
           </div>
