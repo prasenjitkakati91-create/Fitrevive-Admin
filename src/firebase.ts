@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserSessionPersistence } from 'firebase/auth';
 import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, updateDoc, deleteDoc, Timestamp, onSnapshot, where, writeBatch } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -10,19 +10,116 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 // Secondary app instance specifically used so Admin doesn't get logged out when creating new staff accounts
 const adminApp = initializeApp(firebaseConfig, 'AdminApp');
 const adminAuth = getAuth(adminApp);
+setPersistence(adminAuth, browserSessionPersistence).catch(err => console.error("AdminAuth persistence error:", err));
 
 const googleProvider = new GoogleAuthProvider();
 
 export const signIn = () => signInWithPopup(auth, googleProvider);
-export const signInWithEmail = (email: string, pass: string) => signInWithEmailAndPassword(auth, email, pass);
+export const signInWithEmail = (email: string, pass: string) => {
+  console.log(`[Auth] Attempting sign-in for: ${email}`);
+  return signInWithEmailAndPassword(auth, email, pass);
+};
 export const logOut = () => signOut(auth);
+export const resetPassword = (email: string) => sendPasswordResetEmail(auth, email);
 
-export const checkMemberAuthorization = async (email: string) => {
-  const q = query(collection(db, 'team'), where('email', '==', email));
-  const snapshot = await getDocs(q);
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+export const checkMemberAuthorization = async (identifier: string) => {
+  const cleanId = identifier.trim();
+  const lowerId = cleanId.toLowerCase();
+  const numericOnly = cleanId.replace(/[^0-9]/g, '');
+  const teamRef = collection(db, 'team');
+  
+  // Try email match (exact or lowercased)
+  let q = query(teamRef, where('email', '==', lowerId));
+  let snapshot = await getDocs(q);
+  
+  if (snapshot.empty) {
+    q = query(teamRef, where('email', '==', cleanId));
+    snapshot = await getDocs(q);
+  }
+  
+  // Try staffId match (exact, upper, or numeric normalize)
+  if (snapshot.empty) {
+    const variations = [cleanId, cleanId.toUpperCase(), lowerId];
+    for (const val of variations) {
+      q = query(teamRef, where('staffId', '==', val));
+      snapshot = await getDocs(q);
+      if (!snapshot.empty) break;
+    }
+  }
+
+  // Try phone match
+  if (snapshot.empty) {
+    q = query(teamRef, where('phone', '==', cleanId));
+    snapshot = await getDocs(q);
+  }
+
+  // Final fallback: check all members if numeric only matches OR name matches
+  if (snapshot.empty) {
+    const allMembers = await getDocs(teamRef);
+    const found = allMembers.docs.find(d => {
+      const data = d.data();
+      const p = data.phone || '';
+      const sid = data.staffId || '';
+      const name = data.name || '';
+      
+      return (numericOnly && p.replace(/[^0-9]/g, '') === numericOnly) || 
+             (numericOnly && String(sid).replace(/[^0-9]/g, '') === numericOnly) ||
+             (name.toLowerCase().trim() === lowerId);
+    });
+    if (found) return { id: found.id, ...found.data() };
+  }
+
   if (snapshot.empty) {
     return null;
   }
+  
   return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as any;
 };
 
@@ -101,11 +198,57 @@ export const getSessions = (patientId: string, callback: (sessions: any[]) => vo
   });
 };
 
+export const payUnpaidSessions = async (
+  patientId: string,
+  patientName: string,
+  sessionIds: string[],
+  totalAmount: number,
+  paymentMethod: 'cash' | 'upi',
+  date: string,
+  time: string
+) => {
+  const batch = writeBatch(db);
+  let txId = '';
+
+  // Update all selected sessions
+  sessionIds.forEach(sessionId => {
+    const sessionRef = doc(db, 'patients', patientId, 'sessions', sessionId);
+    batch.update(sessionRef, {
+      paymentStatus: 'paid',
+      paymentMethod: paymentMethod,
+      updatedAt: Timestamp.now()
+    });
+  });
+
+  // Log a single consolidated transaction for the payment
+  if (totalAmount > 0) {
+    const transactionsRef = collection(db, 'transactions');
+    const txDocRef = doc(transactionsRef);
+    txId = txDocRef.id;
+    batch.set(txDocRef, {
+      amount: totalAmount,
+      category: 'Therapy Session',
+      date: date,
+      time: time,
+      type: 'income',
+      description: `Consolidated payment for ${sessionIds.length} session(s) from ${patientName}`,
+      patientId: patientId,
+      paymentMethod: paymentMethod,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
+  }
+
+  await batch.commit();
+  return txId;
+};
+
 // Transaction Services
 export const logTransaction = async (transactionData: { 
   amount: number; 
   category: string; 
   date: string; 
+  time?: string;
   type: 'income' | 'expense'; 
   description?: string;
   patientId?: string;
@@ -117,6 +260,19 @@ export const logTransaction = async (transactionData: {
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now()
   });
+};
+
+export const updateTransaction = async (id: string, transactionData: any) => {
+  const transactionRef = doc(db, 'transactions', id);
+  return updateDoc(transactionRef, {
+    ...transactionData,
+    updatedAt: Timestamp.now()
+  });
+};
+
+export const deleteTransaction = async (id: string) => {
+  const transactionRef = doc(db, 'transactions', id);
+  return deleteDoc(transactionRef);
 };
 
 export const getTransactions = (callback: (transactions: any[]) => void) => {
@@ -212,16 +368,47 @@ export const getAppointments = (callback: (appointments: any[]) => void) => {
 // Team & Attendance Services
 export const saveTeamMember = async (memberData: { name: string; role: string; phone: string; email: string; password?: string }) => {
   const teamRef = collection(db, 'team');
+  const cleanEmail = memberData.email.toLowerCase().trim();
   
   // Create Firebase Auth user via secondary app so current admin is not logged out
-  if (memberData.password) {
+  if (memberData.password && memberData.password !== 'GOOGLE_AUTH' && memberData.password !== 'INVITE_ONLY') {
     try {
-      await createUserWithEmailAndPassword(adminAuth, memberData.email, memberData.password);
+      await createUserWithEmailAndPassword(adminAuth, cleanEmail, memberData.password);
       await signOut(adminAuth);
     } catch (error: any) {
-      if (error.code !== 'auth/email-already-in-use') {
-        throw error;
+      if (error.code === 'auth/email-already-in-use') {
+        console.log("Email already registered in Firebase Auth. Updating record in Firestore only.");
+      } else {
+        throw new Error(`Auth Error: ${error.message}`);
       }
+    }
+  }
+
+  // Check if firestore record exists to prevent duplicates
+  let snap;
+  try {
+    const q = query(teamRef, where('email', '==', cleanEmail));
+    snap = await getDocs(q);
+  } catch (err) {
+    console.warn("Unable to check team existence (perms?):", err);
+  }
+  
+  if (snap && !snap.empty) {
+    // If it exists, update it instead of adding
+    const docId = snap.docs[0].id;
+    try {
+      await updateDoc(doc(db, 'team', docId), {
+        name: memberData.name,
+        role: memberData.role.toLowerCase(),
+        phone: memberData.phone,
+        password: memberData.password,
+        updatedAt: Timestamp.now()
+      });
+      return docId;
+    } catch (err) {
+      console.warn("Firestore update in saveTeamMember failed (possibly permissions):", err);
+      if (!auth.currentUser) return docId; // Return ID anyway if not logged in (sync scenario)
+      throw err;
     }
   }
 
@@ -229,16 +416,24 @@ export const saveTeamMember = async (memberData: { name: string; role: string; p
   const generatedStaffId = 'FR-' + Math.floor(1000 + Math.random() * 9000).toString();
 
   // Save to db
-  return addDoc(teamRef, {
-    name: memberData.name,
-    staffId: generatedStaffId,
-    role: memberData.role.toLowerCase(), // Admin, Receptionist, Therapist
-    phone: memberData.phone,
-    email: memberData.email,
-    isActive: true, // Default active
-    createdAt: Timestamp.now(),
-    updatedAt: Timestamp.now()
-  });
+  try {
+    const docRef = await addDoc(teamRef, {
+      name: memberData.name,
+      staffId: generatedStaffId,
+      role: memberData.role.toLowerCase(), // Admin, Receptionist, Therapist
+      phone: memberData.phone,
+      email: cleanEmail,
+      password: memberData.password, // Store for admin reference
+      isActive: true, // Default active
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
+    return docRef.id;
+  } catch (err) {
+    console.error("Firestore creation in saveTeamMember failed:", err);
+    if (!auth.currentUser) return "temp-id-sync";
+    throw err;
+  }
 };
 
 export const updateTeamMemberStatus = async (id: string, isActive: boolean) => {
@@ -246,6 +441,14 @@ export const updateTeamMemberStatus = async (id: string, isActive: boolean) => {
   return updateDoc(docRef, { 
     isActive,
     updatedAt: Timestamp.now() 
+  });
+};
+
+export const updateTeamMember = async (id: string, data: any) => {
+  const docRef = doc(db, 'team', id);
+  return updateDoc(docRef, {
+    ...data,
+    updatedAt: Timestamp.now()
   });
 };
 
@@ -283,4 +486,41 @@ export const getAttendance = (date: string, callback: (records: any[]) => void) 
     const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(records);
   });
+};
+
+export const getAttendanceRange = (startDate: string, endDate: string, callback: (records: any[]) => void) => {
+  const q = query(
+    collection(db, 'attendance'), 
+    where('date', '>=', startDate), 
+    where('date', '<=', endDate)
+  );
+  return onSnapshot(q, (snapshot) => {
+    const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    callback(records);
+  });
+};
+
+export const clearDatabase = async () => {
+  const collectionsToClear = ['patients', 'appointments', 'transactions', 'attendance'];
+  
+  for (const collectionName of collectionsToClear) {
+    const snapshot = await getDocs(collection(db, collectionName));
+    const batch = writeBatch(db);
+    
+    for (const d of snapshot.docs) {
+      if (collectionName === 'patients') {
+        const sessionsSnapshot = await getDocs(collection(db, 'patients', d.id, 'sessions'));
+        if (!sessionsSnapshot.empty) {
+          const sessionBatch = writeBatch(db);
+          sessionsSnapshot.docs.forEach(s => sessionBatch.delete(s.ref));
+          await sessionBatch.commit();
+        }
+      }
+      batch.delete(d.ref);
+    }
+    
+    if (snapshot.docs.length > 0) {
+      await batch.commit();
+    }
+  }
 };

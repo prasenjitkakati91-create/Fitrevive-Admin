@@ -11,6 +11,13 @@ service cloud.firestore {
       return request.auth != null;
     }
     
+    function isOwner() {
+      return isSignedIn() && (
+        request.auth.token.email == 'prasenjitkakati91@gmail.com' || 
+        request.auth.token.email == 'admin@fitrevive.clinic'
+      );
+    }
+    
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -21,6 +28,11 @@ service cloud.firestore {
 
     function existing() {
       return resource.data;
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if isOwner();
     }
 
     // 1. Patient Records
@@ -53,7 +65,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && isValidId(sessionId) && isValidId(patientId) && isValidSession(incoming());
       allow update: if isSignedIn() && isValidSession(incoming())
-                     && incoming().diff(existing()).affectedKeys().hasOnly(['date', 'time', 'paymentStatus', 'paymentMethod', 'amount', 'notes']);
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['date', 'time', 'paymentStatus', 'paymentMethod', 'amount', 'notes', 'updatedAt']);
       allow delete: if isSignedIn();
     }
 
@@ -62,15 +74,18 @@ service cloud.firestore {
       function isValidTransaction(data) {
         return data.amount is number && data.amount >= 0
             && data.category is string && data.category.size() > 0 && data.category.size() <= 50
-            && data.date is string // Format checking is harder in rules, but we'll trust type for now
+            && data.date is string 
+            && (data.time == null || (data.time is string && data.time.size() <= 10))
             && data.type in ['income', 'expense']
-            && (data.description == null || (data.description is string && data.description.size() <= 500));
+            && (data.description == null || (data.description is string && data.description.size() <= 500))
+            && (data.patientId == null || (data.patientId is string && data.patientId.size() <= 128))
+            && (data.paymentMethod == null || (data.paymentMethod is string && data.paymentMethod.size() <= 50));
       }
 
       allow read: if isSignedIn();
       allow create: if isSignedIn() && isValidId(transactionId) && isValidTransaction(incoming());
       allow update: if isSignedIn() && isValidTransaction(incoming())
-                     && incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'category', 'date', 'type', 'description', 'updatedAt']);
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'category', 'date', 'time', 'type', 'description', 'patientId', 'paymentMethod', 'updatedAt']);
       allow delete: if isSignedIn();
     }
 
@@ -105,14 +120,16 @@ service cloud.firestore {
             && (data.staffId == null || (data.staffId is string && data.staffId.size() <= 30))
             && (data.phone == null || (data.phone is string && data.phone.size() <= 20))
             && (data.email == null || (data.email is string && data.email.size() <= 150))
+            && (data.password == null || (data.password is string && data.password.size() <= 100))
             && (data.isActive == null || data.isActive is bool)
             && (data.createdAt == null || data.createdAt is timestamp)
             && (data.updatedAt == null || data.updatedAt is timestamp);
       }
-      allow read: if isSignedIn();
+      // Allow read for login lookups (finding email by phone/identifier)
+      allow read: if true; 
       allow create: if isSignedIn() && isValidId(memberId) && isValidTeamMember(incoming());
       allow update: if isSignedIn() && isValidTeamMember(incoming())
-                     && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'role', 'staffId', 'phone', 'email', 'isActive', 'updatedAt']);
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'role', 'staffId', 'phone', 'email', 'password', 'isActive', 'updatedAt']);
       allow delete: if isSignedIn();
     }
 
@@ -123,22 +140,14 @@ service cloud.firestore {
             && data.memberName is string && data.memberName.size() > 0
             && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
             && (data.checkIn == null || data.checkIn is string)
-            && record.status in ['present', 'absent', 'late'];
-      }
-      // Fixed the typo 'record.status' to 'data.status' below
-      function isValidAttendanceFixed(data) {
-        return data.memberId is string && data.memberId.size() > 0
-            && data.memberName is string && data.memberName.size() > 0
-            && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
-            && (data.checkIn == null || data.checkIn is string)
             && data.status in ['present', 'absent', 'late'];
       }
       allow read: if isSignedIn();
       allow create: if isSignedIn() 
                      && isValidId(attendanceId) 
-                     && isValidAttendanceFixed(incoming())
+                     && isValidAttendance(incoming())
                      && exists(/databases/$(database)/documents/team/$(incoming().memberId));
-      allow update: if isSignedIn() && isValidAttendanceFixed(incoming())
+      allow update: if isSignedIn() && isValidAttendance(incoming())
                      && incoming().diff(existing()).affectedKeys().hasOnly(['checkIn', 'checkOut', 'status', 'updatedAt']);
       allow delete: if isSignedIn();
     }

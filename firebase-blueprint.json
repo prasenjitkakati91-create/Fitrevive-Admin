@@ -68,9 +68,13 @@
         "name": { "type": "string" },
         "role": { "type": "string" },
         "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "password": { "type": "string" },
+        "staffId": { "type": "string" },
+        "isActive": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["name", "role"]
+      "required": ["name", "role", "email"]
     },
     "Attendance": {
       "title": "Attendance",
