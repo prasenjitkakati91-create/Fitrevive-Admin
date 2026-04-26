@@ -141,6 +141,14 @@ export const savePatient = async (patientData: {
   });
 };
 
+export const updatePatient = async (id: string, patientData: any) => {
+  const docRef = doc(db, 'patients', id);
+  return updateDoc(docRef, {
+    ...patientData,
+    updatedAt: Timestamp.now()
+  });
+};
+
 export const getPatients = (callback: (patients: any[]) => void) => {
   const q = query(collection(db, 'patients'), orderBy('name', 'asc'));
   return onSnapshot(q, (snapshot) => {

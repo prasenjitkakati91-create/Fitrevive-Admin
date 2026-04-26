@@ -91,6 +91,7 @@ import {
   logOut, 
   resetPassword,
   savePatient, 
+  updatePatient,
   getPatients, 
   logSession,
   getSessions,
@@ -1469,6 +1470,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
   const [activeOnly, setActiveOnly] = useState(false);
   
   const [showModal, setShowModal] = useState(false);
+  const [editPatientId, setEditPatientId] = useState<string | null>(null);
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -1713,20 +1715,48 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await savePatient({
-        name: newPatient.name,
-        phone: newPatient.phone,
-        age: parseInt(newPatient.age) || 0,
-        gender: newPatient.gender,
-        condition: newPatient.condition,
-        address: newPatient.address,
-        medicalHistory: newPatient.medicalHistory
-      });
-      onNotify("Patient record created successfully!");
+      if (editPatientId) {
+        await updatePatient(editPatientId, {
+          name: newPatient.name,
+          phone: newPatient.phone,
+          age: parseInt(newPatient.age) || 0,
+          gender: newPatient.gender,
+          condition: newPatient.condition,
+          address: newPatient.address,
+          medicalHistory: newPatient.medicalHistory
+        });
+        onNotify("Patient record updated successfully!");
+        
+        // Also update selected patient if it's the one being edited
+        if (selectedPatient && selectedPatient.id === editPatientId) {
+          setSelectedPatient({
+            ...selectedPatient,
+            name: newPatient.name,
+            phone: newPatient.phone,
+            age: parseInt(newPatient.age) || 0,
+            gender: newPatient.gender,
+            condition: newPatient.condition,
+            address: newPatient.address,
+            medicalHistory: newPatient.medicalHistory
+          });
+        }
+      } else {
+        await savePatient({
+          name: newPatient.name,
+          phone: newPatient.phone,
+          age: parseInt(newPatient.age) || 0,
+          gender: newPatient.gender,
+          condition: newPatient.condition,
+          address: newPatient.address,
+          medicalHistory: newPatient.medicalHistory
+        });
+        onNotify("Patient record created successfully!");
+      }
       setNewPatient({ name: '', phone: '', age: '', gender: 'Male', condition: '', address: '', medicalHistory: '' });
+      setEditPatientId(null);
       setShowModal(false);
     } catch (err: any) {
-      onNotify(err.message || "Failed to create patient.", "error");
+      onNotify(err.message || "Failed to save patient.", "error");
     }
   };
 
@@ -2231,14 +2261,14 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
 
       {/* NEW PATIENT MODAL */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
           <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
             <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white">
               <div>
-                <h3 className="text-xl font-black text-slate-900 tracking-tight">Add New Patient</h3>
-                <p className="text-sm font-medium text-slate-500 mt-1">Enter patient details to create profile.</p>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">{editPatientId ? 'Edit Patient Profile' : 'Add New Patient'}</h3>
+                <p className="text-sm font-medium text-slate-500 mt-1">{editPatientId ? 'Update existing patient details.' : 'Enter patient details to create profile.'}</p>
               </div>
-              <button title="Close Modal" type="button" onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors self-start"><X className="w-5 h-5" /></button>
+              <button title="Close Modal" type="button" onClick={() => { setShowModal(false); setEditPatientId(null); }} className="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors self-start"><X className="w-5 h-5" /></button>
             </div>
             
             <div className="p-8 overflow-y-auto custom-scrollbar">
@@ -2292,8 +2322,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
               </form>
             </div>
             <div className="px-8 py-6 border-t border-slate-100 bg-white flex justify-end gap-3 z-10 shrink-0">
-              <button type="button" onClick={() => setShowModal(false)} className="px-6 py-3 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-colors">Cancel</button>
-              <button type="submit" form="new-patient-form" className="px-8 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-600/20 hover:-translate-y-0.5 transition-all outline-none focus:ring-4 focus:ring-blue-100 flex items-center gap-2">Save Patient <ChevronDown className="w-4 h-4 -rotate-90" /></button>
+              <button type="button" onClick={() => { setShowModal(false); setEditPatientId(null); }} className="px-6 py-3 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-colors">Cancel</button>
+              <button type="submit" form="new-patient-form" className="px-8 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-600/20 hover:-translate-y-0.5 transition-all outline-none focus:ring-4 focus:ring-blue-100 flex items-center gap-2">{editPatientId ? 'Update Patient' : 'Save Patient'} <ChevronDown className="w-4 h-4 -rotate-90" /></button>
             </div>
           </div>
         </div>
@@ -2314,6 +2344,19 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
                  </div>
                </div>
                <div className="flex items-center gap-3">
+                 <button onClick={() => {
+                   setEditPatientId(selectedPatient.id);
+                   setNewPatient({
+                     name: selectedPatient.name,
+                     phone: selectedPatient.phone,
+                     age: selectedPatient.age.toString(),
+                     gender: selectedPatient.gender,
+                     condition: selectedPatient.condition || '',
+                     address: selectedPatient.address || '',
+                     medicalHistory: selectedPatient.medicalHistory || ''
+                   });
+                   setShowModal(true);
+                 }} className="p-2.5 text-slate-500 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 rounded-full transition-colors flex items-center justify-center transform hover:scale-105" title="Edit Profile"><Pencil className="w-5 h-5"/></button>
                  <button onClick={() => { setShowSessionModal(true); }} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all text-sm shadow-md shadow-blue-200 flex items-center gap-2 hover:-translate-y-0.5"><Plus className="w-4 h-4"/> Log Session</button>
                  <button title="Close window" onClick={() => setShowHistoryModal(false)} className="text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
                </div>
@@ -6539,8 +6582,8 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
         className="max-w-[480px] w-full bg-white p-10 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-slate-100 z-10"
       >
         <div className="mb-8 text-center flex flex-col items-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center mb-6 shadow-xl shadow-blue-200">
-             <Activity className="w-9 h-9" />
+          <div className="w-24 h-24 mb-6">
+             <img src={LogoImage} alt="FitRevive Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
           </div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-1">Welcome Back</h1>
           <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em]">FitRevive Portal</p>
