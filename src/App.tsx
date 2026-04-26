@@ -972,9 +972,9 @@ const Dashboard = ({
                   <Plus className="w-4 h-4" /> Book Appointment
                 </button>
              </div>
-             <div className="overflow-x-auto">
-               <table className="w-full">
-                 <thead>
+             <div className="overflow-x-auto w-full">
+               <table className="w-full border-collapse min-w-full md:min-w-[800px]">
+                 <thead className="hidden md:table-header-group">
                    <tr className="bg-slate-50/30 text-left">
                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Time</th>
                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient</th>
@@ -983,25 +983,38 @@ const Dashboard = ({
                      <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Actions</th>
                    </tr>
                  </thead>
-                 <tbody className="divide-y divide-slate-50">
+                 <tbody className="divide-y divide-slate-50 block md:table-row-group">
                    {todayAppts.length > 0 ? todayAppts.map(appt => (
-                     <tr key={appt.id} className="group hover:bg-blue-50/20 transition-all">
-                       <td className="px-8 py-5">
-                         <div className="flex items-center gap-2">
-                           <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                           <span className="font-black text-slate-950 text-base">{appt.time}</span>
+                     <tr key={appt.id} className="group hover:bg-blue-50/20 transition-all block md:table-row pb-4 md:pb-0 pt-2 md:pt-0 border-b border-slate-100 md:border-none relative">
+                       <td className="px-4 md:px-8 py-2 md:py-5 block md:table-cell md:border-none">
+                         <div className="flex items-center justify-between md:justify-start gap-2">
+                           <div className="flex items-center gap-2">
+                             <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                             <span className="font-black text-slate-950 text-base">{appt.time}</span>
+                           </div>
+                           <span className={cn(
+                             "md:hidden px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
+                             appt.status === 'completed' ? "bg-emerald-50 text-emerald-600" :
+                             appt.status === 'cancelled' ? "bg-rose-50 text-rose-600" :
+                             "bg-blue-50 text-blue-600"
+                           )}>
+                             {appt.status}
+                           </span>
                          </div>
                        </td>
-                       <td className="px-8 py-5">
+                       <td className="px-4 md:px-8 py-2 md:py-5 block md:table-cell md:border-none">
                          <div className="flex flex-col">
                            <span className="font-bold text-slate-800 tracking-tight">{appt.patientName}</span>
                            <span className="text-[11px] text-slate-400 font-bold">{appt.sessionType || 'Session'}</span>
                          </div>
                        </td>
-                       <td className="px-8 py-5 text-sm font-bold text-slate-500">
-                         {appt.therapistName || <span className="text-rose-400 italic">Not assigned</span>}
+                       <td className="px-4 py-2 md:px-8 md:py-5 text-sm font-bold text-slate-500 block md:table-cell border-none md:ml-16">
+                         <div className="flex items-center gap-2">
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest md:hidden">Therapist:</span>
+                           {appt.therapistName || <span className="text-rose-400 italic">Not assigned</span>}
+                         </div>
                        </td>
-                       <td className="px-8 py-5">
+                       <td className="hidden md:table-cell px-8 py-5">
                          <span className={cn(
                            "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
                            appt.status === 'completed' ? "bg-emerald-50 text-emerald-600" :
@@ -1011,30 +1024,33 @@ const Dashboard = ({
                            {appt.status}
                          </span>
                        </td>
-                       <td className="px-8 py-5 text-right">
-                         <div className="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {appt.status !== 'completed' && (
-                              <button 
-                                onClick={async () => {
-                                  if (onStatusUpdate) {
-                                    try {
-                                      await onStatusUpdate(appt.id, 'completed');
-                                      onNotify(`Checked in ${appt.patientName}`);
-                                    } catch (err) {
-                                      onNotify("Check-in failed", "error");
+                       <td className="px-4 py-3 md:px-8 md:py-5 md:text-right border-t border-slate-50 md:border-none block md:table-cell md:ml-16">
+                         <div className="flex justify-between md:justify-end items-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                            <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase md:hidden">Actions</span>
+                            <div className="flex items-center gap-2">
+                              {appt.status !== 'completed' && (
+                                <button 
+                                  onClick={async () => {
+                                    if (onStatusUpdate) {
+                                      try {
+                                        await onStatusUpdate(appt.id, 'completed');
+                                        onNotify(`Checked in ${appt.patientName}`);
+                                      } catch (err) {
+                                        onNotify("Check-in failed", "error");
+                                      }
                                     }
-                                  }
-                                }}
-                                className="p-2 hover:bg-emerald-50 rounded-lg text-slate-400 hover:text-emerald-600 transition-all font-bold flex items-center gap-1.5" 
-                                title="Check-in Patient"
-                              >
-                                 <BadgeCheck className="w-4 h-4" />
-                                 <span className="text-[10px] uppercase">Check-in</span>
+                                  }}
+                                  className="p-2 bg-emerald-50 md:bg-transparent md:hover:bg-emerald-50 rounded-lg text-emerald-600 md:text-slate-400 hover:text-emerald-600 transition-all font-bold flex items-center gap-1.5 border border-emerald-200 md:border-transparent" 
+                                  title="Check-in Patient"
+                                >
+                                   <BadgeCheck className="w-4 h-4" />
+                                   <span className="text-[10px] uppercase">Check-in</span>
+                                </button>
+                              )}
+                              <button className="p-2 bg-white md:bg-transparent border border-slate-200 md:border-transparent md:hover:bg-blue-50 rounded-lg text-slate-400 hover:text-blue-600 transition-all" title="View">
+                                 <ArrowUpRight className="w-4 h-4" />
                               </button>
-                            )}
-                            <button className="p-2 hover:bg-blue-50 rounded-lg text-slate-400 hover:text-blue-600 transition-all" title="View">
-                               <ArrowUpRight className="w-4 h-4" />
-                            </button>
+                            </div>
                          </div>
                        </td>
                      </tr>
@@ -2023,11 +2039,11 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
          </div>
       </div>
 
-      {/* Table */}
+      {/* Table / Cards for Mobile */}
       <div className="bg-white border border-slate-100 shadow-sm rounded-3xl overflow-hidden relative">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse min-w-[1000px]">
-            <thead className="bg-slate-50 border-b border-slate-100 sticky top-0 z-10">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full border-collapse min-w-full md:min-w-[1000px]">
+            <thead className="hidden md:table-header-group bg-slate-50 border-b border-slate-100 sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-1/4">Patient</th>
                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact & Age</th>
@@ -2036,25 +2052,30 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
                 <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 relative">
+            <tbody className="divide-y divide-slate-100 relative block md:table-row-group">
               {currentPatients.map((p) => (
                 <React.Fragment key={p.id}>
                   <tr 
                     className={cn(
-                      "group transition-all duration-200 cursor-pointer",
+                      "group transition-all duration-200 cursor-pointer block md:table-row pb-4 md:pb-0 pt-2 md:pt-0 border-b border-slate-100 md:border-none",
                       expandedRow === p.id ? "bg-blue-50/50" : "hover:bg-slate-50 hover:shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-px z-10 relative"
                     )}
                     onClick={() => setExpandedRow(expandedRow === p.id ? null : p.id)}
                   >
-                    <td className="px-6 py-5">
+                    <td className="px-4 py-2 md:px-6 md:py-5 block md:table-cell border-none">
                       <div className="flex items-start gap-4">
                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 flex items-center justify-center font-black text-sm shadow-inner shrink-0 ring-4 ring-white">
                            {p.initials}
                          </div>
-                         <div>
-                           <div className="font-black text-slate-900 text-lg group-hover:text-blue-600 transition-colors flex items-center gap-2">
-                             {highlightText(p.name, searchTerm)}
-                             {expandedRow === p.id ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                         <div className="flex-1">
+                           <div className="font-black text-slate-900 text-lg group-hover:text-blue-600 transition-colors flex items-center justify-between md:justify-start gap-2">
+                             <span>{highlightText(p.name, searchTerm)}</span>
+                             <span className="md:hidden">
+                               {expandedRow === p.id ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                             </span>
+                             <span className="hidden md:inline">
+                               {expandedRow === p.id ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                             </span>
                            </div>
                            <div className="flex items-center gap-2 mt-1">
                              <div className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">ID: {p.id.substring(0, 6)}</div>
@@ -2062,7 +2083,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
                          </div>
                       </div>
                     </td>
-                    <td className="px-6 py-5">
+                    <td className="px-4 py-2 md:px-6 md:py-5 block md:table-cell border-none md:ml-16">
                        <a href={`tel:${p.phone}`} onClick={(e)=>e.stopPropagation()} className="font-mono text-sm text-slate-700 font-bold flex items-center gap-1.5 hover:text-blue-600 transition-colors w-fit">
                           <Phone className="w-3 h-3 text-slate-400" /> {highlightText(p.phone, searchTerm)}
                        </a>
@@ -2072,13 +2093,13 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
                           <span>{p.gender}</span>
                        </div>
                        {p.address && (
-                          <div className="text-[11px] font-medium text-slate-400 mt-1 flex items-start gap-1 max-w-[200px] truncate">
+                          <div className="text-[11px] font-medium text-slate-400 mt-1 flex items-start gap-1 max-w-full md:max-w-[200px] truncate">
                             <MapPin className="w-3 h-3 shrink-0 mt-0.5" />
-                            <span className="truncate">{p.address}</span>
+                            <span className="truncate whitespace-normal line-clamp-1">{p.address}</span>
                           </div>
                        )}
                     </td>
-                    <td className="px-6 py-5 space-y-2">
+                    <td className="px-4 py-2 md:px-6 md:py-5 flex flex-wrap md:block gap-2 block md:table-cell border-none md:ml-16">
                        <div className="flex items-center gap-2 tooltip-trigger" title={`Status: ${p.status}`}>
                          <div className={cn(
                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider border",
@@ -2092,7 +2113,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
                            {p.status}
                          </div>
                        </div>
-                       <div className="flex items-center gap-2">
+                       <div className="flex items-center gap-2 md:mt-2">
                          <div className={cn(
                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border",
                            p.paymentStatus === 'Paid' ? "bg-blue-50 text-blue-600 border-blue-100" : "bg-rose-50 text-rose-600 border-rose-100"
@@ -2101,14 +2122,9 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
                            {p.paymentStatus}
                          </div>
                        </div>
-                       {p.condition && (
-                         <div className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md inline-block max-w-[150px] truncate" title={p.condition}>
-                           {highlightText(p.condition, searchTerm)}
-                         </div>
-                       )}
                     </td>
-                    <td className="px-6 py-5">
-                       <div className="space-y-2">
+                    <td className="px-4 py-2 md:px-6 md:py-5 flex md:block gap-4 block md:table-cell border-none md:ml-16">
+                       <div className="space-y-2 flex-1 md:flex-none">
                           <div>
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Last Visit</span>
                             <div className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
@@ -2116,6 +2132,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
                               {formatRelativeDate(p.lastVisit, p.lastVisitTime) || <span className="text-slate-400 italic">Never</span>}
                             </div>
                           </div>
+                       </div>
+                       <div className="space-y-2 flex-1 md:flex-none">
                           <div>
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Next Appt</span>
                             <div className={cn("text-xs font-bold flex items-center gap-1.5", p.nextAppointment ? "text-emerald-600" : "text-slate-400")}>
@@ -2125,39 +2143,42 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
                           </div>
                        </div>
                     </td>
-                    <td className="px-6 py-5 text-right relative">
-                      <div className="flex items-center justify-end gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300 lg:translate-x-4 lg:group-hover:translate-x-0">
-                         <button onClick={(e) => { e.stopPropagation(); setSelectedPatient(p); setShowHistoryModal(true); }} className="p-2 border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-xl shadow-sm transition-all" title="View Full Profile">
-                            <User2 className="w-4 h-4" />
-                         </button>
-                         <button onClick={(e) => { e.stopPropagation(); onNotify("Feature 'Book Appointment' available in Appointments tab.", "success"); }} className="p-2 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm transition-all" title="Book Appointment">
-                            <CalendarCheck className="w-4 h-4" />
-                         </button>
-                         <button onClick={(e) => { e.stopPropagation(); setSelectedPatient(p); setShowSessionModal(true); }} className="p-2 border border-slate-200 hover:border-purple-300 hover:bg-purple-50 text-slate-400 hover:text-purple-600 rounded-xl shadow-sm transition-all" title="Log Session">
-                            <FileText className="w-4 h-4" />
-                         </button>
+                    <td className="px-4 py-3 md:px-6 md:py-5 border-t border-slate-50 md:border-none block md:table-cell md:ml-16">
+                      <div className="flex md:flex-row items-center justify-between md:justify-end gap-2 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 transform md:translate-x-4 md:group-hover:translate-x-0 w-full md:w-auto">
+                         <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase md:hidden">Actions</span>
+                         <div className="flex gap-2">
+                           <button onClick={(e) => { e.stopPropagation(); setSelectedPatient(p); setShowHistoryModal(true); }} className="p-2 border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-xl shadow-sm transition-all bg-white" title="View Full Profile">
+                              <User2 className="w-5 h-5 md:w-4 md:h-4" />
+                           </button>
+                           <button onClick={(e) => { e.stopPropagation(); onNotify("Feature 'Book Appointment' available in Appointments tab.", "success"); }} className="p-2 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm transition-all bg-white" title="Book Appointment">
+                              <CalendarCheck className="w-5 h-5 md:w-4 md:h-4" />
+                           </button>
+                           <button onClick={(e) => { e.stopPropagation(); setSelectedPatient(p); setShowSessionModal(true); }} className="p-2 border border-slate-200 hover:border-purple-300 hover:bg-purple-50 text-slate-400 hover:text-purple-600 rounded-xl shadow-sm transition-all bg-white" title="Log Session">
+                              <FileText className="w-5 h-5 md:w-4 md:h-4" />
+                           </button>
+                         </div>
                       </div>
                     </td>
                   </tr>
                   
                   {/* EXPANDABLE ROW CONTENT */}
                   {expandedRow === p.id && (
-                    <tr className="bg-blue-50/30 border-b border-blue-100/50">
-                      <td colSpan={5} className="p-0">
-                        <div className="px-8 py-6 animate-in slide-in-from-top-2 fade-in duration-200">
+                    <tr className="bg-blue-50/30 border-b border-blue-100/50 block md:table-row">
+                      <td colSpan={5} className="p-0 block md:table-cell">
+                        <div className="px-4 py-4 md:px-8 md:py-6 animate-in slide-in-from-top-2 fade-in duration-200">
                            <div className="flex items-center justify-between mb-4">
                              <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
                                <Activity className="w-4 h-4 text-blue-500" /> Recent Sessions Overview
                              </h4>
                              <button onClick={() => { setSelectedPatient(p); setShowHistoryModal(true); }} className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 group">
-                               View Full Profile <ChevronDown className="w-3 h-3 -rotate-90 group-hover:translate-x-1 transition-transform" />
+                               View Full Profile <ChevronDown className="w-3 h-3 -rotate-90 group-hover:translate-x-1 transition-transform hidden sm:block" />
                              </button>
                            </div>
                            
                            {/* Fetch history for this expanded row specifically? 
                                We are using global patientHistory which might cause a flash. 
                                Since we fetch it globally, we display it: */}
-                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                              {patientHistory.slice(0, 3).map((session, sidx) => (
                                <div key={sidx} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow cursor-pointer" onClick={() => { setSelectedPatient(p); setShowHistoryModal(true); }}>
                                  <div className="flex justify-between items-start mb-2">
@@ -3239,9 +3260,9 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
         </div>
 
         {/* Ledger Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[700px]">
-            <thead className="bg-white border-b border-slate-100">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left border-collapse min-w-full md:min-w-[700px]">
+            <thead className="hidden md:table-header-group bg-white border-b border-slate-100">
               <tr>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type & Category</th>
@@ -3251,22 +3272,29 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
                 <th className="px-6 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-slate-100 bg-white block md:table-row-group">
               {listTransactions.map(t => (
-                <tr key={t.id} className="group hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <span className="text-sm font-bold text-slate-600 block">{new Date(t.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                       <span className="text-[10px] font-medium text-slate-400">{new Date(t.date).getFullYear()}</span>
-                       {t.time && (
-                         <>
-                           <span className="text-slate-300 text-[10px]">•</span>
-                           <span className="text-[10px] font-bold text-slate-500">{new Date(`2000-01-01T${t.time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit'})}</span>
-                         </>
-                       )}
+                <tr key={t.id} className="group hover:bg-slate-50 transition-colors block md:table-row pb-4 md:pb-0 pt-2 md:pt-0 border-b border-slate-100 md:border-none relative">
+                  <td className="px-4 md:px-6 py-2 md:py-4 block md:table-cell md:border-none">
+                    <div className="flex md:block justify-between items-center w-full">
+                       <div>
+                         <span className="text-sm font-bold text-slate-600 block md:inline text-left">{new Date(t.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
+                         <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[10px] font-medium text-slate-400">{new Date(t.date).getFullYear()}</span>
+                            {t.time && (
+                              <>
+                                <span className="text-slate-300 text-[10px]">•</span>
+                                <span className="text-[10px] font-bold text-slate-500">{new Date(`2000-01-01T${t.time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit'})}</span>
+                              </>
+                            )}
+                         </div>
+                       </div>
+                       <span className={cn("text-base font-black font-mono md:hidden", t.type === 'income' ? "text-emerald-600" : "text-rose-600")}>
+                         {t.type === 'income' ? "+" : "-"}₹{t.amount.toLocaleString()}
+                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 md:px-6 py-2 md:py-4 block md:table-cell md:border-none">
                     <div className="flex items-center gap-3">
                       <div className={cn(
                         "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border",
@@ -3275,42 +3303,48 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
                         {t.type === 'income' ? <ArrowDownRight className="w-5 h-5 absolute opacity-30 mt-1 ml-1" /> : <ArrowUpRight className="w-5 h-5 absolute opacity-30 mt-1 ml-1" />}
                         {getCategoryIcon(t.category)}
                       </div>
-                      <div>
-                        <div className="font-black text-sm text-slate-800">{t.category}</div>
+                      <div className="flex-1">
+                        <div className="font-black text-sm text-slate-800 break-words line-clamp-1">{t.category}</div>
                         <div className={cn("text-[10px] font-bold uppercase tracking-wider mt-0.5", t.type === 'income' ? "text-emerald-500" : "text-rose-500")}>{t.type}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-2 md:px-6 md:py-4 block md:table-cell border-none md:ml-16">
                     {t.patientId && patients.find(p => p.id === t.patientId) ? (
-                      <span className="text-sm font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md">{patients.find(p => p.id === t.patientId)?.name}</span>
+                      <span className="text-sm font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md line-clamp-1 w-fit">{patients.find(p => p.id === t.patientId)?.name}</span>
                     ) : t.description ? (
-                      <span className="text-sm font-bold text-slate-600">{t.description}</span>
+                      <span className="text-sm font-bold text-slate-600 line-clamp-2">{t.description}</span>
                     ) : (
                       <span className="text-sm font-medium text-slate-400 italic">No details</span>
                     )}
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/60 inline-flex items-center gap-1.5"><CreditCard className="w-3 h-3 text-slate-400" /> {t.paymentMethod || 'Cash'}</span>
+                  <td className="px-4 py-2 md:px-6 md:py-4 block md:table-cell border-none md:ml-16">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-slate-400 tracking-widest uppercase md:hidden">Payment:</span>
+                      <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/60 inline-flex items-center gap-1.5"><CreditCard className="w-3 h-3 text-slate-400" /> {t.paymentMethod || 'Cash'}</span>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="hidden md:table-cell px-6 py-4 text-right">
                     <span className={cn("text-base font-black font-mono", t.type === 'income' ? "text-emerald-600" : "text-rose-600")}>
                       {t.type === 'income' ? "+" : "-"}₹{t.amount.toLocaleString()}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-center gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                      {t.type === 'income' && (
-                        <button onClick={() => setPrintTx(t)} className="w-8 h-8 rounded-xl bg-white border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm" title="View / Print Bill">
-                          <Printer className="w-4 h-4" />
+                  <td className="px-4 py-3 md:px-6 md:py-4 border-t border-slate-50 md:border-none block md:table-cell md:ml-16">
+                    <div className="flex items-center justify-between md:justify-center w-full gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                      <span className="text-[10px] font-bold text-slate-400 tracking-widest uppercase md:hidden">Actions</span>
+                      <div className="flex gap-2">
+                        {t.type === 'income' && (
+                          <button onClick={() => setPrintTx(t)} className="w-8 h-8 rounded-xl bg-white border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm" title="View / Print Bill">
+                            <Printer className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button onClick={() => handleEdit(t)} className="w-8 h-8 rounded-xl bg-white border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm" title="Edit Transaction">
+                          <Pencil className="w-4 h-4" />
                         </button>
-                      )}
-                      <button onClick={() => handleEdit(t)} className="w-8 h-8 rounded-xl bg-white border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm" title="Edit Transaction">
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => setTransactionToDelete(t)} className="w-8 h-8 rounded-xl bg-white border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all shadow-sm" title="Delete Transaction">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        <button onClick={() => setTransactionToDelete(t)} className="w-8 h-8 rounded-xl bg-white border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all shadow-sm" title="Delete Transaction">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -3384,50 +3418,59 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
                     </div>
 
                     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                       <table className="w-full text-left">
-                         <thead>
-                           <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                             <th className="px-4 py-3 text-center">Select</th>
-                             <th className="px-4 py-3">Date</th>
-                             <th className="px-4 py-3">Details</th>
-                             <th className="px-4 py-3 text-right">Amount</th>
-                           </tr>
-                         </thead>
-                         <tbody className="divide-y divide-slate-100">
-                           {unpaidSessions.map(session => (
-                             <tr key={session.id} className={cn("transition-colors", selectedSessionsForBill.includes(session.id) ? "bg-blue-50/50" : "hover:bg-slate-50")}>
-                               <td className="px-4 py-4 text-center">
-                                 <input 
-                                   type="checkbox" 
-                                   className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
-                                   checked={selectedSessionsForBill.includes(session.id)}
-                                   onChange={(e) => {
-                                     if(e.target.checked) setSelectedSessionsForBill(prev => [...prev, session.id]);
-                                     else setSelectedSessionsForBill(prev => prev.filter(id => id !== session.id));
-                                   }}
-                                 />
-                               </td>
-                               <td className="px-4 py-4">
-                                 <div className="font-bold text-sm text-slate-700">{new Date(session.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</div>
-                                 <div className="text-xs font-medium text-slate-500">{session.time}</div>
-                               </td>
-                               <td className="px-4 py-4">
-                                 <div className="text-sm font-medium text-slate-700 line-clamp-1">{session.notes || 'Therapy Session'}</div>
-                               </td>
-                               <td className="px-4 py-4 text-right font-black text-slate-800">
-                                 ₹{session.amount}
-                               </td>
+                       <div className="overflow-x-auto w-full">
+                         <table className="w-full text-left border-collapse min-w-full md:min-w-[600px]">
+                           <thead className="hidden md:table-header-group">
+                             <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                               <th className="px-4 py-3 text-center">Select</th>
+                               <th className="px-4 py-3">Date</th>
+                               <th className="px-4 py-3">Details</th>
+                               <th className="px-4 py-3 text-right">Amount</th>
                              </tr>
-                           ))}
-                           {unpaidSessions.length === 0 && (
-                             <tr>
-                               <td colSpan={4} className="p-8 text-center text-slate-500 font-medium text-sm">
-                                  No unpaid sessions found for this patient.
-                               </td>
-                             </tr>
-                           )}
-                         </tbody>
-                       </table>
+                           </thead>
+                           <tbody className="divide-y divide-slate-100 block md:table-row-group">
+                             {unpaidSessions.map(session => (
+                               <tr key={session.id} className={cn(
+                                   "transition-colors block md:table-row pb-4 md:pb-0 pt-2 md:pt-0 border-b border-slate-100 md:border-none relative", 
+                                   selectedSessionsForBill.includes(session.id) ? "bg-blue-50/50" : "hover:bg-slate-50"
+                                 )}>
+                                 <td className="px-4 py-3 md:py-4 flex justify-between items-center md:table-cell md:text-center block border-none">
+                                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest md:hidden">Select Session</span>
+                                   <input 
+                                     type="checkbox" 
+                                     className="w-5 h-5 md:w-4 md:h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer border-gray-300"
+                                     checked={selectedSessionsForBill.includes(session.id)}
+                                     onChange={(e) => {
+                                       if(e.target.checked) setSelectedSessionsForBill(prev => [...prev, session.id]);
+                                       else setSelectedSessionsForBill(prev => prev.filter(id => id !== session.id));
+                                     }}
+                                   />
+                                 </td>
+                                 <td className="px-4 py-2 md:py-4 block md:table-cell border-none md:ml-12">
+                                   <div className="font-bold text-sm text-slate-700">{new Date(session.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</div>
+                                   <div className="text-xs font-medium text-slate-500">{session.time}</div>
+                                 </td>
+                                 <td className="px-4 py-2 md:py-4 block md:table-cell border-none md:ml-12">
+                                   <div className="text-sm font-medium text-slate-700 line-clamp-2 md:line-clamp-1">{session.notes || 'Therapy Session'}</div>
+                                 </td>
+                                 <td className="px-4 py-3 md:py-4 text-right font-black text-slate-800 block md:table-cell border-none md:ml-12">
+                                   <div className="flex justify-between items-center w-full md:block">
+                                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest md:hidden">Amount:</span>
+                                      <span>₹{session.amount}</span>
+                                   </div>
+                                 </td>
+                               </tr>
+                             ))}
+                             {unpaidSessions.length === 0 && (
+                               <tr className="block md:table-row">
+                                 <td colSpan={4} className="p-8 text-center text-slate-500 font-medium text-sm block md:table-cell">
+                                    No unpaid sessions found for this patient.
+                                 </td>
+                               </tr>
+                             )}
+                           </tbody>
+                         </table>
+                       </div>
                     </div>
 
                     {unpaidSessions.length > 0 && selectedSessionsForBill.length > 0 && (
@@ -4147,9 +4190,9 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
                  </div>
               </div>
 
-              <div className="overflow-x-auto">
-                 <table className="w-full text-left">
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">
+              <div className="overflow-x-auto w-full">
+                 <table className="w-full text-left border-collapse min-w-full md:min-w-[800px]">
+                    <thead className="hidden md:table-header-group bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">
                        <tr>
                           <th className="px-8 py-4">Date</th>
                           <th className="px-8 py-4">Transaction</th>
@@ -4158,38 +4201,51 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
                           <th className="px-8 py-4 text-right">Status</th>
                        </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
+                    <tbody className="divide-y divide-slate-50 block md:table-row-group">
                        {paginatedTransactions.map((t) => (
-                         <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
-                            <td className="px-8 py-4 text-sm font-bold text-slate-500">
-                               {new Date(t.date).toLocaleDateString('en-GB')}
-                               <div className="text-[10px] font-bold text-slate-400 mt-0.5">{t.time || "10:00 AM"}</div>
+                         <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group block md:table-row pb-4 md:pb-0 pt-2 md:pt-0 border-b border-slate-100 md:border-none relative">
+                            <td className="px-4 md:px-8 py-2 md:py-4 text-sm font-bold text-slate-500 block md:table-cell md:border-none">
+                               <div className="flex md:block justify-between items-center">
+                                 <div>
+                                   {new Date(t.date).toLocaleDateString('en-GB')}
+                                   <div className="text-[10px] font-bold text-slate-400 mt-0.5">{t.time || "10:00 AM"}</div>
+                                 </div>
+                                 <span className="md:hidden text-[10px] font-black text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-widest">Completed</span>
+                               </div>
                             </td>
-                            <td className="px-8 py-4">
+                            <td className="px-4 md:px-8 py-2 md:py-4 block md:table-cell md:border-none">
                                <div className="flex items-center gap-3">
                                   <div className={cn(
-                                    "w-8 h-8 rounded-lg flex items-center justify-center font-black text-[10px] shadow-sm transform group-hover:scale-110 transition-transform",
+                                    "w-8 h-8 rounded-lg flex items-center justify-center font-black text-[10px] shadow-sm transform group-hover:scale-110 transition-transform shrink-0",
                                     t.type === 'income' ? "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100" : "bg-rose-50 text-rose-600 ring-1 ring-rose-100"
                                   )}>
                                      {t.type === 'income' ? '+' : '-'}
                                   </div>
-                                  <div>
-                                     <div className="text-sm font-black text-slate-800">{t.category}</div>
-                                     <div className="text-[11px] font-bold text-slate-400 truncate max-w-[150px]">{t.description || "No description"}</div>
+                                  <div className="flex-1">
+                                     <div className="text-sm font-black text-slate-800 break-words line-clamp-1">{t.category}</div>
+                                     <div className="text-[11px] font-bold text-slate-400 break-words line-clamp-2">{t.description || "No description"}</div>
+                                  </div>
+                                  <div className="md:hidden flex flex-col items-end">
+                                    <span className={cn("text-sm font-black", t.type === 'income' ? "text-emerald-600" : "text-rose-600")}>
+                                      ₹{t.amount.toLocaleString()}
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 mt-1 text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                                      <CreditCard className="w-3 h-3" /> {t.paymentMethod || "Cash"}
+                                    </span>
                                   </div>
                                </div>
                             </td>
-                            <td className="px-8 py-4">
+                            <td className="hidden md:table-cell px-8 py-4">
                                <span className={cn("text-sm font-black flex items-center gap-1", t.type === 'income' ? "text-emerald-600" : "text-rose-600")}>
                                   ₹{t.amount.toLocaleString()}
                                </span>
                             </td>
-                            <td className="px-8 py-4">
+                            <td className="hidden md:table-cell px-8 py-4">
                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
                                   <CreditCard className="w-3 h-3" /> {t.paymentMethod || "Cash"}
                                </span>
                             </td>
-                            <td className="px-8 py-4 text-right">
+                            <td className="hidden md:table-cell px-8 py-4 text-right">
                                <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-widest">Completed</span>
                             </td>
                          </tr>
@@ -5185,9 +5241,9 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
 
            {/* Staff Table */}
            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
-              <div className="overflow-x-auto">
-                 <table className="w-full text-left">
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">
+              <div className="overflow-x-auto w-full">
+                 <table className="w-full text-left border-collapse min-w-full md:min-w-[800px]">
+                    <thead className="hidden md:table-header-group bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">
                        <tr>
                           <th className="px-8 py-5">Staff Member</th>
                           <th className="px-8 py-5">Role & Access</th>
@@ -5195,52 +5251,54 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                           <th className="px-8 py-5 text-right">Actions</th>
                        </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
+                    <tbody className="divide-y divide-slate-50 block md:table-row-group">
                        {filteredMembers.map((member) => (
                          <tr 
                            key={member.id} 
                            onClick={() => setSelectedMember(member)}
                            className={cn(
-                             "hover:bg-slate-50/50 transition-colors group cursor-pointer", 
+                             "hover:bg-slate-50/50 transition-colors group cursor-pointer block md:table-row pb-4 md:pb-0 pt-2 md:pt-0 border-b border-slate-100 md:border-none relative", 
                              !member.isActive && "bg-slate-50/30",
                              selectedMember?.id === member.id && "bg-indigo-50/50 ring-1 ring-inset ring-indigo-100"
                            )}
                          >
-                            <td className="px-8 py-5">
-                               <div className="flex items-center gap-4">
-                                  <div className="w-11 h-11 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold shadow-sm relative">
-                                     {member.name.charAt(0)}
-                                     {member.isActive && <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white"></div>}
+                            <td className="px-4 md:px-8 py-3 md:py-5 block md:table-cell md:border-none">
+                               <div className="flex items-start md:items-center justify-between md:justify-start w-full">
+                                  <div className="flex items-center gap-4 w-full">
+                                     <div className="w-11 h-11 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold shadow-sm relative shrink-0">
+                                        {member.name.charAt(0)}
+                                        {member.isActive && <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white"></div>}
+                                     </div>
+                                     <div className="flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                           <div className="text-sm font-black text-slate-800 break-words">{member.name}</div>
+                                           {member.staffId && (
+                                              <span className="text-[9px] font-black bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-tighter">
+                                                 {member.staffId}
+                                              </span>
+                                            )}
+                                         </div>
+                                         <div className="text-[11px] font-bold text-slate-400 mt-0.5 break-words">{member.email}</div>
+                                         <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                                           <div className="text-[10px] font-black bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200 truncate max-w-[120px]">
+                                             {member.password ? (visiblePasswords[member.id] ? member.password : '••••••••') : 'No password set'}
+                                           </div>
+                                           {member.password && (
+                                             <button 
+                                               onClick={(e) => togglePasswordVisibility(e, member.id)}
+                                               className="text-slate-400 hover:text-indigo-600 transition-colors p-1 md:p-0"
+                                               title={visiblePasswords[member.id] ? "Hide" : "Show"}
+                                             >
+                                               {visiblePasswords[member.id] ? <EyeOff className="w-4 h-4 md:w-3.5 md:h-3.5" /> : <Eye className="w-4 h-4 md:w-3.5 md:h-3.5" />}
+                                             </button>
+                                           )}
+                                         </div>
+                                      </div>
                                   </div>
-                                  <div>
-                                     <div className="flex items-center gap-2">
-                                        <div className="text-sm font-black text-slate-800">{member.name}</div>
-                                        {member.staffId && (
-                                           <span className="text-[9px] font-black bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-tighter">
-                                              {member.staffId}
-                                           </span>
-                                         )}
-                                      </div>
-                                      <div className="text-[11px] font-bold text-slate-400 mt-0.5">{member.email}</div>
-                                      <div className="mt-1.5 flex items-center gap-2">
-                                        <div className="text-[10px] font-black bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
-                                          {member.password ? (visiblePasswords[member.id] ? member.password : '••••••••') : 'No password set'}
-                                        </div>
-                                        {member.password && (
-                                          <button 
-                                            onClick={(e) => togglePasswordVisibility(e, member.id)}
-                                            className="text-slate-400 hover:text-indigo-600 transition-colors"
-                                            title={visiblePasswords[member.id] ? "Hide" : "Show"}
-                                          >
-                                            {visiblePasswords[member.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                          </button>
-                                        )}
-                                      </div>
-                                   </div>
                                </div>
                             </td>
-                            <td className="px-8 py-5">
-                               <div className="space-y-1.5">
+                            <td className="px-4 py-2 md:px-8 md:py-5 block md:table-cell border-none md:ml-16">
+                               <div className="flex justify-between items-center md:items-start md:flex-col space-y-0 md:space-y-1.5">
                                   <span className={cn(
                                     "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest",
                                     member.role === 'admin' ? "bg-purple-50 text-purple-600" : 
@@ -5249,48 +5307,56 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                                      {member.role === 'admin' ? <Shield className="w-3 h-3" /> : <User2 className="w-3 h-3" />}
                                      {member.role}
                                   </span>
-                                  <div className="text-[10px] font-bold text-slate-400">Last login: {member.lastLogin ? new Date(member.lastLogin).toLocaleDateString() : 'Never'}</div>
+                                  <div className="text-[10px] font-bold text-slate-400 text-right md:text-left">Last login: {member.lastLogin ? new Date(member.lastLogin).toLocaleDateString() : 'Never'}</div>
                                </div>
                             </td>
-                            <td className="px-8 py-5">
-                               <div className="flex items-center gap-3">
-                                  <button 
-                                    onClick={() => handleStatusUpdate(member.id, !member.isActive, member.name)}
-                                    className={cn(
-                                      "w-10 h-5 rounded-full relative transition-colors duration-300 outline-none",
-                                      member.isActive ? "bg-emerald-500" : "bg-slate-200"
-                                    )}
-                                  >
-                                     <div className={cn(
-                                       "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm",
-                                       member.isActive ? "right-0.5" : "left-0.5"
-                                     )}></div>
-                                  </button>
-                                  <span className={cn(
-                                    "text-[10px] font-black uppercase tracking-tighter",
-                                    member.isActive ? "text-emerald-600" : "text-slate-400"
-                                  )}>
-                                     {member.isActive ? 'Active' : 'Disabled'}
-                                  </span>
-                               </div>
-                            </td>
-                            <td className="px-8 py-5 text-right">
-                               {role === 'admin' ? (
-                                 <div className="flex items-center justify-end gap-2">
+                            <td className="px-4 py-2 md:px-8 md:py-5 block md:table-cell border-none md:ml-16">
+                               <div className="flex items-center justify-between md:justify-start gap-4 md:gap-3">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest md:hidden">Status:</span>
+                                  <div className="flex items-center gap-3">
                                     <button 
-                                      onClick={() => startEditing(member)}
-                                      className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                                      title="Edit Profile"
+                                      onClick={() => handleStatusUpdate(member.id, !member.isActive, member.name)}
+                                      className={cn(
+                                        "w-12 h-6 md:w-10 md:h-5 rounded-full relative transition-colors duration-300 outline-none",
+                                        member.isActive ? "bg-emerald-500" : "bg-slate-200"
+                                      )}
                                     >
-                                       <Pencil className="w-4 h-4" />
+                                       <div className={cn(
+                                         "absolute top-0.5 md:w-4 md:h-4 w-5 h-5 bg-white rounded-full transition-transform duration-300 shadow-sm",
+                                         member.isActive ? "right-0.5" : "left-0.5"
+                                       )}></div>
                                     </button>
-                                    <div className="relative group/menu">
-                                       <button className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all">
-                                          <MoreVertical className="w-4 h-4" />
-                                       </button>
-                                       <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-20 scale-95 opacity-0 invisible group-hover/menu:scale-100 group-hover/menu:opacity-100 group-hover/menu:visible transition-all origin-top-right">
-                                          <button 
-                                            onClick={() => startEditing(member)}
+                                    <span className={cn(
+                                      "text-[10px] sm:text-xs font-black uppercase tracking-tighter",
+                                      member.isActive ? "text-emerald-600" : "text-slate-400"
+                                    )}>
+                                       {member.isActive ? 'Active' : 'Disabled'}
+                                    </span>
+                                  </div>
+                               </div>
+                            </td>
+                            <td className="px-4 py-3 md:px-8 md:py-5 md:text-right border-t border-slate-50 md:border-none block md:table-cell md:ml-16">
+                               {role === 'admin' ? (
+                                 <div className="flex items-center justify-between md:justify-end w-full gap-2">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest md:hidden">Actions:</span>
+                                    <div className="flex items-center gap-2">
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); startEditing(member); }}
+                                        className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border border-slate-200 md:border-transparent bg-white md:bg-transparent"
+                                        title="Edit Profile"
+                                      >
+                                         <Pencil className="w-5 h-5 md:w-4 md:h-4" />
+                                      </button>
+                                      <div className="relative group/menu">
+                                         <button 
+                                           onClick={(e) => e.stopPropagation()} 
+                                           className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center text-slate-400 hover:text-slate-600 md:hover:bg-slate-100 rounded-xl transition-all border border-slate-200 md:border-transparent bg-white md:bg-transparent"
+                                         >
+                                            <MoreVertical className="w-5 h-5 md:w-4 md:h-4" />
+                                         </button>
+                                         <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-20 scale-95 opacity-0 invisible group-hover/menu:scale-100 group-hover/menu:opacity-100 group-hover/menu:visible transition-all origin-top-right">
+                                            <button 
+                                              onClick={(e) => { e.stopPropagation(); startEditing(member); }}
                                             className="w-full px-4 py-2 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
                                           >
                                              <Edit className="w-3.5 h-3.5 text-indigo-500" />
@@ -5314,8 +5380,9 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                                        </div>
                                     </div>
                                  </div>
+                                </div>
                                ) : (
-                                 <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic">Restricted</span>
+                                 <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic md:text-right block w-full">Restricted</span>
                                )}
                             </td>
                          </tr>
@@ -6214,9 +6281,9 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify }: { role
                  </div>
               </div>
               
-              <div className="overflow-x-auto">
-                 <table className="w-full text-left">
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">
+              <div className="overflow-x-auto w-full">
+                 <table className="w-full text-left border-collapse min-w-full md:min-w-[800px]">
+                    <thead className="hidden md:table-header-group bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">
                        <tr>
                           <th className="px-8 py-4">Date</th>
                           <th className="px-8 py-4">Staff Member</th>
@@ -6225,13 +6292,16 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify }: { role
                           <th className="px-8 py-4 text-right">Remarks</th>
                        </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
+                    <tbody className="divide-y divide-slate-50 block md:table-row-group">
                        {rangeAttendance.slice().reverse().map((record, idx) => (
-                         <tr key={record.id || idx} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-8 py-5 text-sm font-bold text-slate-700">
-                               {new Date(record.date).toLocaleDateString('en-GB')}
+                         <tr key={record.id || idx} className="hover:bg-slate-50/50 transition-colors block md:table-row pb-4 md:pb-0 pt-2 md:pt-0 border-b border-slate-100 md:border-none relative">
+                            <td className="px-4 md:px-8 py-2 md:py-5 text-sm font-bold text-slate-700 block md:table-cell md:border-none">
+                               <div className="flex md:block items-center justify-between">
+                                 <span>{new Date(record.date).toLocaleDateString('en-GB')}</span>
+                                 <span className="md:hidden text-xs font-mono text-slate-500 font-bold">{record.checkIn || '--:--'}</span>
+                               </div>
                             </td>
-                            <td className="px-8 py-5">
+                            <td className="px-4 md:px-8 py-2 md:py-5 block md:table-cell md:border-none">
                                <div className="flex items-center gap-3">
                                   <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 border border-slate-200">
                                      {record.memberName.split(' ').map((n:any)=>n[0]).join('').substring(0,2).toUpperCase()}
@@ -6239,30 +6309,33 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify }: { role
                                   <span className="text-sm font-black text-slate-800">{record.memberName}</span>
                                </div>
                             </td>
-                            <td className="px-8 py-5">
-                               <div className={cn(
-                                 "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                                 record.status === 'present' ? "bg-emerald-50 text-emerald-600" :
-                                 record.status === 'late' ? "bg-amber-50 text-amber-600" :
-                                 "bg-rose-50 text-rose-600"
-                               )}>
-                                 {record.status === 'present' && <CheckCircle2 className="w-3 h-3" />}
-                                 {record.status === 'late' && <AlertCircle className="w-3 h-3" />}
-                                 {record.status === 'absent' && <XCircle className="w-3 h-3" />}
-                                 {record.status}
+                            <td className="px-4 py-2 md:px-8 md:py-5 block md:table-cell border-none md:ml-12">
+                               <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest md:hidden">Status:</span>
+                                  <div className={cn(
+                                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                                    record.status === 'present' ? "bg-emerald-50 text-emerald-600" :
+                                    record.status === 'late' ? "bg-amber-50 text-amber-600" :
+                                    "bg-rose-50 text-rose-600"
+                                  )}>
+                                    {record.status === 'present' && <CheckCircle2 className="w-3 h-3" />}
+                                    {record.status === 'late' && <AlertCircle className="w-3 h-3" />}
+                                    {record.status === 'absent' && <XCircle className="w-3 h-3" />}
+                                    {record.status}
+                                  </div>
                                </div>
                             </td>
-                            <td className="px-8 py-5 text-sm font-mono text-slate-500 font-bold">
+                            <td className="hidden md:table-cell px-8 py-5 text-sm font-mono text-slate-500 font-bold">
                                {record.checkIn || '--:--'}
                             </td>
-                            <td className="px-8 py-5 text-right text-xs font-bold text-slate-400">
+                            <td className="px-4 py-2 md:px-8 md:py-5 md:text-right text-xs font-bold text-slate-400 block md:table-cell md:ml-12">
                                {record.status === 'late' ? 'Morning threshold crossed' : 'Self Logged'}
                             </td>
                          </tr>
                        ))}
                        {rangeAttendance.length === 0 && (
-                         <tr>
-                            <td colSpan={5} className="px-8 py-12 text-center text-slate-400 font-bold italic">No records found for the selected range.</td>
+                         <tr className="block md:table-row">
+                            <td colSpan={5} className="px-8 py-12 text-center text-slate-400 font-bold italic block md:table-cell">No records found for the selected range.</td>
                          </tr>
                        )}
                     </tbody>
@@ -6815,29 +6888,56 @@ export default function App() {
         />
         
         <main className={cn(
-          "flex-1 min-h-screen transition-all duration-300",
+          "flex-1 min-h-[calc(100vh-80px)] md:min-h-screen pb-20 md:pb-0 transition-all duration-300",
           isSidebarCollapsed ? "md:pl-20" : "md:pl-64"
         )}>
           {/* Mobile Top Bar */}
-          <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-40">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center border border-slate-200">
+          <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm print:hidden">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center border border-slate-100 shadow-sm overflow-hidden">
                 <img 
                   src={LogoImage} 
                   alt="FitRevive" 
-                  className="w-full h-full object-cover rounded"
+                  className="w-full h-full object-contain p-1"
                   referrerPolicy="no-referrer"
-                  onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = '<span class="font-bold text-xs text-blue-600">FR</span>'; }}
                 />
               </div>
-              <span className="font-bold text-slate-800">FitRevive</span>
+              <span className="font-black text-slate-800 tracking-tight text-lg">FitRevive</span>
             </div>
-            <button 
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-1.5 text-slate-500 rounded border border-slate-200"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-3">
+               <div className="text-right">
+                 <div className="text-xs font-black text-slate-800">{user?.displayName?.split(' ')[0] || 'User'}</div>
+                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{role}</div>
+               </div>
+            </div>
+          </div>
+
+          {/* Mobile Bottom Nav */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 px-2 py-2 flex justify-around items-center pb-safe print:hidden shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+             <button onClick={() => setActiveTab('dashboard')} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors", activeTab === 'dashboard' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
+                <LayoutDashboard className="w-5 h-5 mb-1" />
+                <span className="text-[9px] font-bold">Home</span>
+             </button>
+             <button onClick={() => setActiveTab('patients')} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors", activeTab === 'patients' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
+                <Users className="w-5 h-5 mb-1" />
+                <span className="text-[9px] font-bold">Patients</span>
+             </button>
+             <button onClick={() => setActiveTab('appointments')} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'appointments' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
+                <Calendar className="w-5 h-5 mb-1" />
+                <span className="text-[9px] font-bold">Bookings</span>
+                {scheduledApptsCount > 0 && <span className="absolute top-1 right-2 w-2 h-2 bg-rose-500 rounded-full"></span>}
+             </button>
+             {role !== 'therapist' && (
+               <button onClick={() => setActiveTab('finances')} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'finances' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
+                  <CircleDollarSign className="w-5 h-5 mb-1" />
+                  <span className="text-[9px] font-bold">Billing</span>
+                  {pendingPaymentsCount > 0 && <span className="absolute top-1 right-2 w-2 h-2 bg-rose-500 rounded-full"></span>}
+               </button>
+             )}
+             <button onClick={() => setIsSidebarOpen(true)} className="flex flex-col items-center justify-center w-16 h-12 rounded-xl text-slate-400 transition-colors">
+                <Menu className="w-5 h-5 mb-1" />
+                <span className="text-[9px] font-bold">More</span>
+             </button>
           </div>
 
           <div className="p-4 md:p-8 max-w-7xl mx-auto">
