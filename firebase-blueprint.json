@@ -54,9 +54,13 @@
         "patientPhone": { "type": "string" },
         "date": { "type": "string", "format": "date" },
         "time": { "type": "string", "format": "time" },
-        "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled"] },
+        "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled", "blocked"] },
         "notes": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "therapistId": { "type": "string" },
+        "therapistName": { "type": "string" },
+        "sessionType": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["patientId", "date", "time", "status"]
     },

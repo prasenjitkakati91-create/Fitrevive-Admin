@@ -1906,20 +1906,20 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">Patient Directory</h1>
           <p className="text-sm text-slate-500 font-medium mt-1">Manage profiles, histories, and treatments.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
           <input type="file" ref={fileInputRef} onChange={handleImportFile} accept=".csv, .xlsx, .xls" className="hidden" />
           <button 
             onClick={handleExportData}
             title="Export Patient List"
-            className="px-4 py-2.5 bg-white text-slate-700 font-bold hover:bg-slate-50 rounded-xl transition-all flex items-center gap-2 border border-slate-200 shadow-sm"
+            className="flex-1 sm:flex-none justify-center px-4 py-2.5 bg-white text-slate-700 font-bold hover:bg-slate-50 rounded-xl transition-all flex items-center gap-2 border border-slate-200 shadow-sm"
           >
             <Download className="w-5 h-5 text-slate-400" />
-            <span className="hidden sm:inline text-sm">Export</span>
+            <span className="text-sm">Export</span>
           </button>
           <button 
             onClick={() => setShowResetConfirm(true)}
             title="Remove all patient and clinical data"
-            className="px-4 py-2.5 bg-white text-rose-600 font-bold hover:bg-rose-50 rounded-xl transition-all flex items-center gap-2 border border-rose-100 shadow-sm group"
+            className="flex-1 sm:flex-none justify-center px-4 py-2.5 bg-white text-rose-600 font-bold hover:bg-rose-50 rounded-xl transition-all flex items-center gap-2 border border-rose-100 shadow-sm group"
           >
             <Trash2 className="w-5 h-5 text-rose-400 group-hover:text-rose-600" />
             <span className="hidden sm:inline text-sm">Clear Data</span>
@@ -1927,11 +1927,11 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
           <button 
             onClick={() => fileInputRef.current?.click()} 
             disabled={isImporting}
-            className="px-4 py-2.5 bg-white text-slate-700 font-bold hover:bg-slate-50 rounded-xl transition-all flex items-center gap-2 border border-slate-200 shadow-sm disabled:opacity-50 group relative"
+            className="flex-1 sm:flex-none justify-center px-4 py-2.5 bg-white text-slate-700 font-bold hover:bg-slate-50 rounded-xl transition-all flex items-center gap-2 border border-slate-200 shadow-sm disabled:opacity-50 group relative"
           >
             <FileText className="w-5 h-5 text-slate-400" />
-            <span className="text-sm">{isImporting ? 'Importing...' : 'Bulk Import'}</span>
-            <div className="absolute top-full mt-2 right-0 w-64 p-3 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+            <span className="text-sm border-r border-slate-200 pr-2 sm:border-none sm:pr-0">{isImporting ? 'Import...' : 'Import'}</span>
+            <div className="absolute top-full mt-2 right-0 w-64 p-3 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none hidden sm:block">
                <p className="font-black mb-1 text-blue-400 uppercase tracking-widest">Supported Formats</p>
                <p className="font-bold">CSV, XLSX, XLS</p>
                <div className="mt-2 text-slate-400 font-medium">
@@ -1939,16 +1939,15 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
                </div>
             </div>
           </button>
-          <button onClick={() => setShowModal(true)} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm shadow-blue-200 transition-all flex items-center gap-2 text-sm hover:scale-[1.02] active:scale-95">
+          <button onClick={() => setShowModal(true)} className="flex-1 sm:flex-none justify-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm shadow-blue-200 transition-all flex items-center gap-2 text-sm hover:scale-[1.02] active:scale-95">
             <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">New Patient</span>
-            <span className="sm:hidden">Add</span>
+            <span className="text-sm whitespace-nowrap">New Patient</span>
           </button>
         </div>
       </header>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group flex items-center gap-4">
            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
              <Users className="w-6 h-6" />
@@ -1996,28 +1995,28 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
               placeholder="Search patients, phone, or condition..."
               value={searchTerm}
               onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
-              className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all"
+              className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all"
             />
          </div>
-         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <label className="flex items-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 hover:bg-blue-50 hover:border-blue-200 px-3 py-2 rounded-xl shadow-sm transition-all">
+         <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
+            <label className="flex-1 sm:flex-none flex items-center justify-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 hover:bg-blue-50 hover:border-blue-200 px-3 py-2.5 rounded-xl shadow-sm transition-all">
                <input type="checkbox" checked={activeOnly} onChange={e => {setActiveOnly(e.target.checked); setCurrentPage(1);}} className="rounded text-blue-600 w-4 h-4 cursor-pointer" />
-               <span className="text-xs font-bold text-slate-700">Active Only</span>
+               <span className="text-xs font-bold text-slate-700 whitespace-nowrap">Active Only</span>
             </label>
-            <select value={statusFilter} onChange={e => {setStatusFilter(e.target.value); setCurrentPage(1);}} className="text-xs font-bold bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl outline-none focus:border-blue-400 cursor-pointer hover:bg-slate-100 transition-colors">
+            <select value={statusFilter} onChange={e => {setStatusFilter(e.target.value); setCurrentPage(1);}} className="flex-1 sm:flex-none text-xs font-bold bg-slate-50 border border-slate-200 px-3 py-3 rounded-xl outline-none focus:border-blue-400 cursor-pointer hover:bg-slate-100 transition-colors">
                <option value="All">All Status</option>
                <option value="Active">Active</option>
                <option value="In Treatment">In Treatment</option>
                <option value="Completed">Completed</option>
             </select>
-            <select value={ageFilter} onChange={e => {setAgeFilter(e.target.value); setCurrentPage(1);}} className="text-xs font-bold bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl outline-none focus:border-blue-400 hidden sm:block cursor-pointer hover:bg-slate-100 transition-colors">
+            <select value={ageFilter} onChange={e => {setAgeFilter(e.target.value); setCurrentPage(1);}} className="flex-1 sm:flex-none text-xs font-bold bg-slate-50 border border-slate-200 px-3 py-3 rounded-xl outline-none focus:border-blue-400 hidden sm:block cursor-pointer hover:bg-slate-100 transition-colors">
                <option value="All">All Ages</option>
                <option value="0-18">0-18 yrs</option>
                <option value="19-35">19-35 yrs</option>
                <option value="36-50">36-50 yrs</option>
                <option value="51+">51+ yrs</option>
             </select>
-            <select value={sortOrder} onChange={e => {setSortOrder(e.target.value); setCurrentPage(1);}} className="text-xs font-bold bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl outline-none focus:border-blue-400 cursor-pointer hover:bg-slate-100 transition-colors">
+            <select value={sortOrder} onChange={e => {setSortOrder(e.target.value); setCurrentPage(1);}} className="flex-1 sm:flex-none text-xs font-bold bg-slate-50 border border-slate-200 px-3 py-3 rounded-xl outline-none focus:border-blue-400 cursor-pointer hover:bg-slate-100 transition-colors hidden sm:block">
                <option value="Recent">Recent First</option>
                <option value="Name A-Z">Name A-Z</option>
             </select>
@@ -2262,7 +2261,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
           <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white">
+            <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white">
               <div>
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">{editPatientId ? 'Edit Patient Profile' : 'Add New Patient'}</h3>
                 <p className="text-sm font-medium text-slate-500 mt-1">{editPatientId ? 'Update existing patient details.' : 'Enter patient details to create profile.'}</p>
@@ -2270,7 +2269,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
               <button title="Close Modal" type="button" onClick={() => { setShowModal(false); setEditPatientId(null); }} className="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors self-start"><X className="w-5 h-5" /></button>
             </div>
             
-            <div className="p-8 overflow-y-auto custom-scrollbar">
+            <div className="p-5 sm:p-8 overflow-y-auto custom-scrollbar">
               <form id="new-patient-form" onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="col-span-1 sm:col-span-2">
@@ -2414,7 +2413,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
       {showSessionModal && selectedPatient && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in">
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95">
-             <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+             <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                 <div>
                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Log Session</h3>
                    <p className="text-sm font-bold text-slate-500 mt-1">for {selectedPatient.name}</p>
@@ -2422,8 +2421,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
                 <button title="Close Session Modal" onClick={() => setShowSessionModal(false)} className="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
              </div>
              
-             <div className="p-8 overflow-y-auto">
-               <form id="session-form" onSubmit={handleSessionSubmit} className="space-y-6">
+             <div className="p-5 sm:p-8 overflow-y-auto">
+                <form id="session-form" onSubmit={handleSessionSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Date</label>

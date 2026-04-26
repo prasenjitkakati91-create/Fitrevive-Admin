@@ -99,7 +99,7 @@ service cloud.firestore {
             && data.patientPhone is string && data.patientPhone.size() > 0
             && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
             && data.time is string && data.time.matches('^\\d{2}:\\d{2} [AP]M$')
-            && data.status in ['scheduled', 'completed', 'cancelled']
+            && data.status in ['scheduled', 'completed', 'cancelled', 'blocked']
             && (!('notes' in data) || data.notes == null || data.notes == "" || (data.notes is string && data.notes.size() <= 1000))
             && (!('createdAt' in data) || data.createdAt == null || data.createdAt is timestamp)
             && (!('updatedAt' in data) || data.updatedAt == null || data.updatedAt is timestamp);
@@ -108,9 +108,10 @@ service cloud.firestore {
       allow create: if isSignedIn() 
                      && isValidId(appointmentId) 
                      && isValidAppointment(incoming())
-                     && exists(/databases/$(database)/documents/patients/$(incoming().patientId));
+                     && (incoming().patientId == 'blocked' || exists(/databases/$(database)/documents/patients/$(incoming().patientId)));
       allow update: if isSignedIn() && isValidAppointment(incoming())
-                     && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'date', 'time', 'updatedAt']);
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'date', 'time', 'patientId', 'patientName', 'patientPhone', 'therapistId', 'therapistName', 'sessionType', 'updatedAt'])
+                     && (incoming().patientId == 'blocked' || exists(/databases/$(database)/documents/patients/$(incoming().patientId)));
       allow delete: if isSignedIn();
     }
 
