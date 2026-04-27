@@ -132,6 +132,7 @@ export const savePatient = async (patientData: {
   condition: string;
   address?: string;
   medicalHistory: string; 
+  treatmentStatus?: 'Active' | 'Completed';
 }) => {
   const patientsRef = collection(db, 'patients');
   return addDoc(patientsRef, {

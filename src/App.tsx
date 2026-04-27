@@ -128,8 +128,6 @@ import {
   db
 } from './firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
 import { QRCodeCanvas } from 'qrcode.react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -150,6 +148,7 @@ interface Patient {
   condition: string;
   address?: string;
   medicalHistory: string;
+  treatmentStatus?: 'Active' | 'Completed';
   unpaidSessionsCount?: number;
   unpaidAmount?: number;
 }
@@ -432,7 +431,8 @@ const Dashboard = ({
   setTab,
   onNotify,
   user,
-  onStatusUpdate
+  onStatusUpdate,
+  setViewTarget
 }: { 
   stats: DashboardStats, 
   transactions: Transaction[], 
@@ -443,7 +443,8 @@ const Dashboard = ({
   setTab: (tab: string) => void,
   onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void,
   user: User,
-  onStatusUpdate?: (apptId: string, status: any) => Promise<void>
+  onStatusUpdate?: (apptId: string, status: any) => Promise<void>,
+  setViewTarget?: any
 }) => {
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '6m'>('30d');
   const [patientSearch, setPatientSearch] = useState('');
@@ -957,7 +958,7 @@ const Dashboard = ({
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <button onClick={() => { setTab('appointments'); setPatientSearch(''); }} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all" title="Book Appointment">
+                          <button onClick={() => { if(setViewTarget) setViewTarget({ type: 'book-appointment', id: p.id }); setTab('appointments'); setPatientSearch(''); }} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all" title="Book Appointment">
                             <Calendar className="w-4 h-4" />
                           </button>
                           <button onClick={() => { setTab('patients'); setPatientSearch(''); }} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all" title="View Profile">
@@ -1550,14 +1551,15 @@ const Dashboard = ({
   );
 };
 
-const PatientManager = ({ patients, appointments, transactions, onNotify, role, viewTarget, setViewTarget }: { 
+const PatientManager = ({ patients, appointments, transactions, onNotify, role, viewTarget, setViewTarget, setTab }: { 
   patients: Patient[], 
   appointments: any[], 
   transactions: Transaction[], 
   onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void,
   role?: string,
   viewTarget?: {type: string, id: string} | null,
-  setViewTarget?: any
+  setViewTarget?: any,
+  setTab?: any
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -1587,7 +1589,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
   const itemsPerPage = 8;
   
   const [newPatient, setNewPatient] = useState({ 
-    name: '', phone: '', age: '', gender: 'Male', condition: '', address: '', medicalHistory: '' 
+    name: '', phone: '', age: '', gender: 'Male', condition: '', address: '', medicalHistory: '', treatmentStatus: 'Active' as 'Active' | 'Completed'
   });
   const [newSession, setNewSession] = useState({ 
     date: new Date().toISOString().substring(0, 10), 
@@ -1601,9 +1603,6 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
     "Lower Back Pain", "Neck Pain", "Shoulder Impingement", "Knee Osteoarthritis",
     "Post-Op Rehab", "Sports Injury", "Sciatica", "Tennis Elbow", "Plantar Fasciitis", "Other"
   ];
-
-  const [isImporting, setIsImporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const formatRelativeDate = (dateStr: string, timeStr?: string) => {
     if (!dateStr) return null;
@@ -1644,202 +1643,6 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
     return target.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsImporting(true);
-    const fileName = file.name.toLowerCase();
-
-    const processData = async (data: any[]) => {
-      let count = 0;
-      let skipped = 0;
-      let duplicateCount = 0;
-      let invalidCount = 0;
-      let lastDate = '';
-
-      if (!data || data.length === 0) {
-        setIsImporting(false);
-        onNotify("The file appears to be empty.", "error");
-        return;
-      }
-
-      for (const row of data) {
-        const normalizedRow: any = {};
-        Object.keys(row).forEach(key => {
-          const normalizedKey = key.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
-          normalizedRow[normalizedKey] = row[key];
-        });
-
-        // Aggressive Name Detection
-        const nameKeys = ['patientname', 'name', 'patient', 'clientname', 'namefull', 'customer', 'customername', 'membername', 'fullcustomername', 'pname'];
-        let nameRaw = null;
-        for (const k of nameKeys) {
-          if (normalizedRow[k] !== undefined && normalizedRow[k] !== null) {
-            nameRaw = normalizedRow[k];
-            break;
-          }
-        }
-        
-        // Handle shifted columns where Name might be in Date and Address in Amount
-        const dateRaw = normalizedRow.date || normalizedRow.regdate || '';
-        const isDateString = (s: any) => typeof s === 'string' && (s.match(/^\d{4}-\d{2}-\d{2}/) || s.includes('00:00:00'));
-        
-        if (nameRaw === null || isDateString(nameRaw)) {
-          if (dateRaw && !isDateString(dateRaw)) {
-            nameRaw = dateRaw;
-          } else if (nameRaw === null) {
-            const possibleNameKey = Object.keys(normalizedRow).find(k => k.includes('name') && !k.includes('ref') && !k.includes('doctor'));
-            if (possibleNameKey) nameRaw = normalizedRow[possibleNameKey];
-          }
-        }
-
-        const phoneKeys = ['contno', 'contact', 'phone', 'mobilenumber', 'mobile', 'telephone', 'phno', 'contactno', 'patientmobile'];
-        let phoneRaw = '';
-        for (const k of phoneKeys) {
-          if (normalizedRow[k] !== undefined && normalizedRow[k] !== null) {
-            phoneRaw = String(normalizedRow[k]);
-            break;
-          }
-        }
-        if (!phoneRaw) {
-          const possiblePhoneKey = Object.keys(normalizedRow).find(k => k.includes('phone') || k.includes('mobile') || k.includes('contact'));
-          if (possiblePhoneKey) phoneRaw = String(normalizedRow[possiblePhoneKey]);
-        }
-
-        let address = String(normalizedRow.address || normalizedRow.location || normalizedRow.addr || '').trim();
-        const amountRaw = normalizedRow.amount || normalizedRow.amt;
-        if (!address && amountRaw && isNaN(Number(amountRaw))) {
-          address = String(amountRaw).trim();
-        }
-        const referredBy = String(normalizedRow.refferedby || normalizedRow.referredby || normalizedRow.refby || normalizedRow.doctor || '').trim();
-        const date = String(normalizedRow.date || normalizedRow.regdate || '').trim();
-
-        if (date && date !== 'undefined') lastDate = date;
-
-        const cleanName = String(nameRaw || '').trim();
-        const isHeaderOrSummary = !cleanName || 
-          cleanName.toLowerCase() === 'undefined' ||
-          cleanName.toLowerCase().includes('ledger') || 
-          cleanName.toLowerCase().includes('total') || 
-          cleanName.toLowerCase().includes('summary');
-
-        if (isHeaderOrSummary) {
-          if (Object.keys(normalizedRow).length > 0) invalidCount++;
-          continue;
-        }
-
-        try {
-          const phone = phoneRaw.trim();
-          const cleanPhone = phone.replace(/[^0-9]/g, '');
-          const isDuplicate = patients.some(p => {
-            const pCleanPhone = p.phone.replace(/[^0-9]/g, '');
-            const nameMatch = p.name.toLowerCase().trim() === cleanName.toLowerCase().trim();
-            if (nameMatch) {
-              if (cleanPhone && pCleanPhone) return cleanPhone === pCleanPhone;
-              return true;
-            }
-            return false;
-          });
-
-          if (isDuplicate) {
-            duplicateCount++;
-            continue;
-          }
-
-          await savePatient({
-            name: cleanName,
-            phone: phone,
-            age: 0,
-            gender: 'Male',
-            condition: '',
-            address: address,
-            medicalHistory: referredBy ? `Referred By: ${referredBy}` : ''
-          });
-          count++;
-        } catch (err: any) {
-          console.error("Import error for row:", row, err);
-          skipped++;
-        }
-      }
-
-      setIsImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      if (count > 0) {
-        onNotify(`Successfully imported ${count} patients!${duplicateCount > 0 ? ` (${duplicateCount} duplicates skipped)` : ''}`, "success");
-      } else if (duplicateCount > 0) {
-        onNotify(`No new patients added. Found ${duplicateCount} records that already exist.`, "info");
-      } else if (invalidCount > 0) {
-        onNotify(`Could not find valid patient names in the file. Please check your column headers.`, "error");
-      } else {
-        onNotify("No valid records found in the file.", "error");
-      }
-    };
-
-    if (fileName.endsWith('.csv')) {
-      Papa.parse(file, { 
-        header: true, 
-        skipEmptyLines: true, 
-        complete: (results: any) => processData(results.data),
-        error: (err: any) => {
-          console.error("CSV Parse Error:", err);
-          setIsImporting(false);
-          onNotify("Failed to parse CSV file.", "error");
-        }
-      });
-    } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        try {
-          const bstr = evt.target?.result;
-          const wb = XLSX.read(bstr, { type: 'binary' });
-          const wsname = wb.SheetNames[0];
-          const ws = wb.Sheets[wsname];
-          const data = XLSX.utils.sheet_to_json(ws);
-          processData(data);
-        } catch (err) {
-          console.error("Excel Parse Error:", err);
-          setIsImporting(false);
-          onNotify("Failed to parse Excel file.", "error");
-        }
-      };
-      reader.readAsBinaryString(file);
-    } else {
-      setIsImporting(false);
-      onNotify("Unsupported file format. Please use CSV or Excel.", "error");
-    }
-  };
-
-  const handleExportData = () => {
-    if (patients.length === 0) {
-      onNotify("No patient records to export.", "info");
-      return;
-    }
-    
-    // Prepare data for export
-    const exportData = patients.map(p => ({
-      'Full Name': p.name,
-      'Phone': p.phone,
-      'Age': p.age,
-      'Gender': p.gender,
-      'Condition': p.condition || '',
-      'Address': p.address || '',
-      'Medical History': p.medicalHistory || ''
-    }));
-
-    const csv = Papa.unparse(exportData);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `fitrevive_patients_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    onNotify("Patient list exported successfully!", "success");
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -1851,7 +1654,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
           gender: newPatient.gender,
           condition: newPatient.condition,
           address: newPatient.address,
-          medicalHistory: newPatient.medicalHistory
+          medicalHistory: newPatient.medicalHistory,
+          treatmentStatus: newPatient.treatmentStatus
         });
         onNotify("Patient record updated successfully!");
         
@@ -1865,7 +1669,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
             gender: newPatient.gender,
             condition: newPatient.condition,
             address: newPatient.address,
-            medicalHistory: newPatient.medicalHistory
+            medicalHistory: newPatient.medicalHistory,
+            treatmentStatus: newPatient.treatmentStatus
           });
         }
       } else {
@@ -1876,11 +1681,12 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
           gender: newPatient.gender,
           condition: newPatient.condition,
           address: newPatient.address,
-          medicalHistory: newPatient.medicalHistory
+          medicalHistory: newPatient.medicalHistory,
+          treatmentStatus: newPatient.treatmentStatus
         });
         onNotify("Patient record created successfully!");
       }
-      setNewPatient({ name: '', phone: '', age: '', gender: 'Male', condition: '', address: '', medicalHistory: '' });
+      setNewPatient({ name: '', phone: '', age: '', gender: 'Male', condition: '', address: '', medicalHistory: '', treatmentStatus: 'Active' });
       setEditPatientId(null);
       setShowModal(false);
     } catch (err: any) {
@@ -1955,12 +1761,19 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
       const nextAppointmentTime = nextAppointmentAppt ? nextAppointmentAppt.time : null;
       
       let status = 'Completed';
-      if (futureAppts.length > 0) status = 'In Treatment';
-      else if (lastVisit && (now - new Date(lastVisit).getTime()) < 30 * 24 * 60 * 60 * 1000) status = 'Active';
-      else if (!lastVisit && !nextAppointment) status = 'Active'; 
+      if (p.treatmentStatus === 'Completed') {
+        status = 'Completed';
+      } else if (p.treatmentStatus === 'Active') {
+        status = 'Active';
+      } else {
+        if (futureAppts.length > 0) status = 'In Treatment';
+        else if (lastVisit && (now - new Date(lastVisit).getTime()) < 30 * 24 * 60 * 60 * 1000) status = 'Active';
+        else if (!lastVisit && !nextAppointment) status = 'Active'; 
+      }
       
       const isPending = (p.unpaidSessionsCount || 0) > 0;
-      const paymentStatus = isPending ? 'Pending' : 'Paid';
+      let paymentStatus = isPending ? 'Pending' : 'Paid';
+      if (patientAppts.filter(a => a.status === 'completed').length === 0) paymentStatus = 'None';
       
       const initials = p.name ? p.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'PT';
 
@@ -2042,30 +1855,6 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
           <p className="text-sm text-slate-500 font-medium mt-1">Manage profiles, histories, and treatments.</p>
         </div>
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
-          <input type="file" ref={fileInputRef} onChange={handleImportFile} accept=".csv, .xlsx, .xls" className="hidden" />
-          <button 
-            onClick={handleExportData}
-            title="Export Patient List"
-            className="flex-1 sm:flex-none justify-center px-4 py-2.5 bg-white text-slate-700 font-bold hover:bg-slate-50 rounded-xl transition-all flex items-center gap-2 border border-slate-200 shadow-sm"
-          >
-            <Download className="w-5 h-5 text-slate-400" />
-            <span className="text-sm">Export</span>
-          </button>
-          <button 
-            onClick={() => fileInputRef.current?.click()} 
-            disabled={isImporting}
-            className="flex-1 sm:flex-none justify-center px-4 py-2.5 bg-white text-slate-700 font-bold hover:bg-slate-50 rounded-xl transition-all flex items-center gap-2 border border-slate-200 shadow-sm disabled:opacity-50 group relative"
-          >
-            <FileText className="w-5 h-5 text-slate-400" />
-            <span className="text-sm border-r border-slate-200 pr-2 sm:border-none sm:pr-0">{isImporting ? 'Import...' : 'Import'}</span>
-            <div className="absolute top-full mt-2 right-0 w-64 p-3 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none hidden sm:block">
-               <p className="font-black mb-1 text-blue-400 uppercase tracking-widest">Supported Formats</p>
-               <p className="font-bold">CSV, XLSX, XLS</p>
-               <div className="mt-2 text-slate-400 font-medium">
-                 Headers should include: Name, Phone, Age, Gender, Condition, Address, History. 
-               </div>
-            </div>
-          </button>
           <button onClick={() => setShowModal(true)} className="flex-1 sm:flex-none justify-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm shadow-blue-200 transition-all flex items-center gap-2 text-sm hover:scale-[1.02] active:scale-95">
             <Plus className="w-5 h-5" />
             <span className="text-sm whitespace-nowrap">New Patient</span>
@@ -2114,7 +1903,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
       </div>
 
       {/* Controls & Filters */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between sticky top-0 z-10 transition-colors">
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between md:sticky md:top-0 z-10 transition-colors">
          <div className="relative w-full md:w-96">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
             <input 
@@ -2225,13 +2014,15 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                          </div>
                        </div>
                        <div className="flex items-center gap-2 md:mt-2">
-                         <div className={cn(
-                           "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border",
-                           p.paymentStatus === 'Paid' ? "bg-blue-50 text-blue-600 border-blue-100" : "bg-rose-50 text-rose-600 border-rose-100"
-                         )}>
-                           <CreditCard className="w-3 h-3" />
-                           {p.paymentStatus}
-                         </div>
+                         {p.paymentStatus !== 'None' && (
+                           <div className={cn(
+                             "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border",
+                             p.paymentStatus === 'Paid' ? "bg-blue-50 text-blue-600 border-blue-100" : "bg-rose-50 text-rose-600 border-rose-100"
+                           )}>
+                             <CreditCard className="w-3 h-3" />
+                             {p.paymentStatus}
+                           </div>
+                         )}
                        </div>
                     </td>
                     <td className="px-4 py-2 md:px-6 md:py-5 flex md:block gap-4 block md:table-cell border-none md:ml-16">
@@ -2261,7 +2052,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                            <button onClick={(e) => { e.stopPropagation(); setSelectedPatient(p); setShowHistoryModal(true); }} className="p-2 border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-xl shadow-sm transition-all bg-white" title="View Full Profile">
                               <User2 className="w-5 h-5 md:w-4 md:h-4" />
                            </button>
-                           <button onClick={(e) => { e.stopPropagation(); onNotify("Feature 'Book Appointment' available in Appointments tab.", "success"); }} className="p-2 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm transition-all bg-white" title="Book Appointment">
+                           <button onClick={(e) => { e.stopPropagation(); if(setTab && setViewTarget) { setTab('appointments'); setViewTarget({ type: 'book-appointment', id: p.id }); } }} className="p-2 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm transition-all bg-white" title="Book Appointment">
                               <CalendarCheck className="w-5 h-5 md:w-4 md:h-4" />
                            </button>
                            <button onClick={(e) => { e.stopPropagation(); setSelectedPatient(p); setShowSessionModal(true); }} className="p-2 border border-slate-200 hover:border-purple-300 hover:bg-purple-50 text-slate-400 hover:text-purple-600 rounded-xl shadow-sm transition-all bg-white" title="Log Session">
@@ -2448,6 +2239,17 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                       </div>
                     )}
                   </div>
+                  <div className="col-span-1 sm:col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Treatment Status</label>
+                    <div className="flex gap-3">
+                      {['Active', 'Completed'].map(status => (
+                        <label key={status} className={cn("flex-1 px-4 py-3 border rounded-xl text-sm font-bold text-center cursor-pointer transition-all", newPatient.treatmentStatus === status ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100" : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100")}>
+                          <input type="radio" className="hidden" name="treatmentStatus" value={status} checked={newPatient.treatmentStatus === status} onChange={(e) => setNewPatient({...newPatient, treatmentStatus: e.target.value as 'Active' | 'Completed'})} />
+                          {status}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </form>
             </div>
@@ -2484,12 +2286,20 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                      gender: selectedPatient.gender,
                      condition: selectedPatient.condition || '',
                      address: selectedPatient.address || '',
-                     medicalHistory: selectedPatient.medicalHistory || ''
+                     medicalHistory: selectedPatient.medicalHistory || '',
+                     treatmentStatus: selectedPatient.treatmentStatus || 'Active'
                    });
                    setShowModal(true);
                  }} className="p-2.5 text-slate-500 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 rounded-lg sm:rounded-full transition-colors flex items-center justify-center transform hover:scale-105 flex-1 sm:flex-none border border-slate-200 sm:border-transparent" title="Edit Profile">
                    <Pencil className="w-5 h-5 mr-2 sm:mr-0"/><span className="sm:hidden font-bold text-sm">Edit</span>
                  </button>
+                 <button onClick={() => {
+                   if (setTab && setViewTarget) {
+                     setTab('appointments');
+                     setViewTarget({ type: 'book-appointment', id: selectedPatient.id });
+                     setShowHistoryModal(false);
+                   }
+                 }} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl sm:rounded-xl font-bold transition-all text-sm shadow-md shadow-emerald-200 flex items-center justify-center gap-2 hover:-translate-y-0.5 flex-1 sm:flex-none"><CalendarCheck className="w-4 h-4"/> Book Appt</button>
                  <button onClick={() => { setShowSessionModal(true); }} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl sm:rounded-xl font-bold transition-all text-sm shadow-md shadow-blue-200 flex items-center justify-center gap-2 hover:-translate-y-0.5 flex-1 sm:flex-none"><Plus className="w-4 h-4"/> Log Session</button>
                </div>
             </div>
@@ -4515,6 +4325,9 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
          openApptModal(a);
          setViewTarget(null);
        }
+    } else if (viewTarget?.type === 'book-appointment' && viewTarget.id) {
+       openApptModal(null, undefined, undefined, viewTarget.id);
+       setViewTarget(null);
     }
   }, [viewTarget, appointments, setViewTarget]);
 
@@ -4565,7 +4378,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
     );
   };
 
-  const openApptModal = (appt?: any, defaultTime?: string, defaultDate?: string) => {
+  const openApptModal = (appt?: any, defaultTime?: string, defaultDate?: string, defaultPatientId?: string) => {
     if (defaultDate) setSelectedDate(defaultDate);
     setIsNewPatient(false);
     setNewPatientData({ name: '', phone: '', age: '' });
@@ -4592,7 +4405,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
       }
 
       setNewAppt({ 
-        patientId: '', 
+        patientId: defaultPatientId || '', 
         therapistId: '',
         time: targetTime, 
         sessionType: 'Consultation',
@@ -7611,9 +7424,9 @@ export default function App() {
           </div>
 
           <div className="p-4 md:p-8 max-w-7xl mx-auto">
-            {activeTab === 'dashboard' && <Dashboard stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} role={role} setTab={setActiveTab} onNotify={showNotification} user={user!} onStatusUpdate={async (id, status) => { await updateAppointmentStatus(id, status); }} />}
+            {activeTab === 'dashboard' && <Dashboard stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} role={role} setTab={setActiveTab} onNotify={showNotification} user={user!} onStatusUpdate={async (id, status) => { await updateAppointmentStatus(id, status); }} setViewTarget={setViewTarget} />}
             {activeTab === 'appointments' && role !== 'therapist' && <AppointmentManager appointments={appointments} patients={patients} members={members} onNotify={showNotification} viewTarget={viewTarget} setViewTarget={setViewTarget} />}
-            {activeTab === 'patients' && <PatientManager patients={patients} appointments={appointments} transactions={transactions} onNotify={showNotification} role={role} viewTarget={viewTarget} setViewTarget={setViewTarget} />}
+            {activeTab === 'patients' && <PatientManager patients={patients} appointments={appointments} transactions={transactions} onNotify={showNotification} role={role} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} />}
             {activeTab === 'finances' && role !== 'therapist' && <FinanceTracker transactions={transactions} patients={patients} onNotify={showNotification} role={role} viewTarget={viewTarget} setViewTarget={setViewTarget} />}
             {activeTab === 'team' && role === 'admin' && <TeamManager role={role} members={members} onNotify={showNotification} />}
             {activeTab === 'attendance' && <AttendanceManager role={role} members={members} currentUserEmail={user?.email || null} onNotify={showNotification} />}
