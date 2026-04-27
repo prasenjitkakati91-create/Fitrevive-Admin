@@ -9,7 +9,7 @@
 
 @layer base {
   body {
-    @apply antialiased text-[#1e293b] font-sans bg-[#f8fafc] transition-colors duration-200;
+    @apply antialiased text-[#1e293b] font-sans bg-[#f8fafc] transition-colors duration-200 overflow-x-hidden overscroll-none;
   }
   
   .dark body {

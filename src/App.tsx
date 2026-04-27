@@ -6300,7 +6300,6 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
   const [error, setError] = useState<{ message: string; type: 'error' | 'warning' } | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [loginSuccess, setLoginSuccess] = useState(false);
 
   // Auto-logout after inactivity (30 mins)
   useEffect(() => {
@@ -6364,7 +6363,6 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
           passwordInput === emailInput) {
          console.log("Using demo bypass for:", emailInput);
          onDemoLogin(emailInput as any);
-         setLoginSuccess(true);
          return;
       }
       
@@ -6435,8 +6433,6 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
       } catch (updateErr) {
         console.error("Failed to update last login time:", updateErr);
       }
-
-      setLoginSuccess(true);
     } catch (err: any) {
       console.error("Login component error:", err);
       let errMsg = "Invalid credentials. Please check your role and password.";
@@ -6474,28 +6470,10 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
     setTimeout(() => onDemoLogin(role), 500);
   };
 
-  if (loginSuccess) {
-    return (
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4">
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="text-center"
-        >
-          <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-200 animate-bounce">
-            <Check className="w-12 h-12" />
-          </div>
-          <h2 className="text-3xl font-bold text-slate-800 mb-2">Login Successful</h2>
-          <p className="text-slate-500">Redirecting to your dashboard...</p>
-        </motion.div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-[100dvh] bg-[#F8FAFC] flex flex-col items-center justify-center p-4 overflow-y-auto overflow-x-hidden z-50 relative w-full">
       {/* Dynamic Background Accents */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-100/50 rounded-full blur-3xl opacity-50" />
         <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-indigo-100/50 rounded-full blur-3xl opacity-50" />
       </div>
@@ -7217,7 +7195,7 @@ export default function App() {
 
   if (loading || (user && !role && isRoleLoading)) {
     return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-white">
+      <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center bg-white">
          <div className="w-24 h-24 mb-6 animate-pulse rounded-full overflow-hidden border border-slate-100 shadow-sm bg-white">
             <img src={LogoImage} alt="FitRevive Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
          </div>
@@ -7234,13 +7212,13 @@ export default function App() {
   // Notification Counts
   // Appointments: Any unhandled (scheduled) appointments from today or the past
   const scheduledApptsCount = appointments.filter(a => a.status === 'scheduled' && a.date <= todayDateStr).length;
-  // Finances: Number of distinct patients who have pending unpaid sessions or depending on user request
-  const pendingPaymentsCount = transactions.filter(t => t.date === todayDateStr).length;
+  // Finances: Number of pending unpaid sessions across all patients
+  const pendingPaymentsCount = patients.reduce((acc, p) => acc + (p.unpaidSessionsCount || 0), 0);
   // Patients: Number of new patients registered today
   const newPatientsTodayCount = patients.filter(p => p.createdAt && (typeof p.createdAt === 'string' ? p.createdAt.startsWith(todayDateStr) : p.createdAt.toDate && p.createdAt.toDate().toISOString().substring(0, 10) === todayDateStr)).length;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-[100dvh] bg-[#F8FAFC] overflow-x-hidden">
       <div className="print:hidden">
         <Sidebar 
           activeTab={activeTab} 
@@ -7405,16 +7383,14 @@ export default function App() {
                 <Users className="w-5 h-5 mb-1" />
                 <span className="text-[9px] font-bold">Patients</span>
              </button>
-             <button onClick={() => { setActiveTab('appointments'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'appointments' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
+             <button onClick={() => { setActiveTab('appointments'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'appointments' ? "text-blue-600 bg-blue-50 dark:bg-blue-900/50" : "text-slate-400")}>
                 <Calendar className="w-5 h-5 mb-1" />
                 <span className="text-[9px] font-bold">Bookings</span>
-                {scheduledApptsCount > 0 && <span className="absolute top-1 right-2 w-2 h-2 bg-rose-500 rounded-full"></span>}
              </button>
              {role !== 'therapist' && (
-               <button onClick={() => { setActiveTab('finances'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'finances' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
+               <button onClick={() => { setActiveTab('finances'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'finances' ? "text-blue-600 bg-blue-50 dark:bg-blue-900/50" : "text-slate-400")}>
                   <CircleDollarSign className="w-5 h-5 mb-1" />
                   <span className="text-[9px] font-bold">Billing</span>
-                  {pendingPaymentsCount > 0 && <span className="absolute top-1 right-2 w-2 h-2 bg-rose-500 rounded-full"></span>}
                </button>
              )}
              <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", isSidebarOpen ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
