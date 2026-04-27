@@ -1,0 +1,3 @@
+placeholder:text-slate-300
+placeholder:text-slate-300
+placeholder:text-slate-300
