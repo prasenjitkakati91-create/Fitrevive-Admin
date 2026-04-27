@@ -32,6 +32,7 @@ import {
   ChevronRight,
   UserCheck,
   UserMinus,
+  UserX,
   CheckCircle,
   CalendarRange,
   Clock3,
@@ -197,6 +198,9 @@ interface Appointment {
   notes?: string;
 }
 
+// --- Utilities ---
+const getLocalYMD = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 // --- Components ---
 
 const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, setIsCollapsed, role, setRole, badges = {} }: { 
@@ -225,7 +229,7 @@ const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, 
       title: 'Operations', 
       roles: ['admin', 'manager', 'therapist'],
       items: [
-        { id: 'patients', label: 'Patients', icon: Users, roles: ['admin', 'manager', 'therapist'] },
+        { id: 'patients', label: 'Patients', icon: Users, roles: ['admin', 'manager', 'therapist'], badge: badges.patients },
         { id: 'finances', label: 'Billing & Ledger', icon: CircleDollarSign, roles: ['admin', 'manager'], badge: badges.finances },
         { id: 'attendance', label: 'Attendance', icon: Clock, roles: ['admin', 'manager', 'therapist'] },
       ]
@@ -272,7 +276,7 @@ const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, 
         {/* Logo Section */}
         <div className={cn("p-6 flex items-center justify-between", isCollapsed ? "px-4" : "")}>
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-10 h-10 rounded-xl shrink-0 bg-white flex items-center justify-center shadow-lg shadow-blue-50 border border-slate-100 overflow-hidden">
+            <div className="w-10 h-10 rounded-full shrink-0 bg-white flex items-center justify-center shadow-lg shadow-blue-50 border border-slate-100 overflow-hidden">
                <img src={LogoImage} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
             {!isCollapsed && (
@@ -443,11 +447,11 @@ const Dashboard = ({
 }) => {
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '6m'>('30d');
   const [patientSearch, setPatientSearch] = useState('');
-  const [ledgerDate, setLedgerDate] = useState(new Date().toISOString().substring(0, 10));
+  const [ledgerDate, setLedgerDate] = useState(getLocalYMD());
   const [quickBill, setQuickBill] = useState({ patientId: '', service: 'physio', amount: '500' });
   const [isBilling, setIsBilling] = useState(false);
   
-  const todayDate = new Date().toISOString().substring(0, 10);
+  const todayDate = getLocalYMD();
   const todayAppts = appointments.filter(a => a.date === todayDate && a.status !== 'cancelled').sort((a, b) => a.time.localeCompare(b.time));
   const todayCompleted = useMemo(() => appointments.filter(a => a.date === todayDate && a.status === 'completed').length, [appointments, todayDate]);
   
@@ -1045,7 +1049,7 @@ const Dashboard = ({
                          </span>
                        </td>
                        <td className="px-4 py-3 md:px-8 md:py-5 md:text-right border-t border-slate-50 md:border-none block md:table-cell md:ml-16">
-                         <div className="flex justify-between md:justify-end items-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                         <div className="flex justify-between md:justify-end items-center gap-2 transition-opacity">
                             <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase md:hidden">Actions</span>
                             <div className="flex items-center gap-2">
                               {appt.status !== 'completed' && (
@@ -1065,6 +1069,44 @@ const Dashboard = ({
                                 >
                                    <BadgeCheck className="w-4 h-4" />
                                    <span className="text-[10px] uppercase">Check-in</span>
+                                </button>
+                              )}
+                              {appt.status !== 'completed' && appt.status !== 'cancelled' && (
+                                <button 
+                                  onClick={async () => {
+                                    if (onStatusUpdate) {
+                                      try {
+                                        await onStatusUpdate(appt.id, 'cancelled');
+                                        onNotify(`Marked ${appt.patientName} as not present`);
+                                      } catch (err) {
+                                        onNotify("Update failed", "error");
+                                      }
+                                    }
+                                  }}
+                                  className="p-2 bg-rose-50 md:bg-transparent md:hover:bg-rose-50 rounded-lg text-rose-600 md:text-slate-400 hover:text-rose-600 transition-all font-bold flex items-center gap-1.5 border border-rose-200 md:border-transparent" 
+                                  title="Patient Not Present"
+                                >
+                                   <UserX className="w-4 h-4" />
+                                   <span className="text-[10px] uppercase hidden md:inline">Absent</span>
+                                </button>
+                              )}
+                              {appt.status === 'completed' && (
+                                <button 
+                                  onClick={async () => {
+                                    if (onStatusUpdate) {
+                                      try {
+                                        await onStatusUpdate(appt.id, 'scheduled');
+                                        onNotify(`Marked ${appt.patientName} as incomplete`);
+                                      } catch (err) {
+                                        onNotify("Update failed", "error");
+                                      }
+                                    }
+                                  }}
+                                  className="p-2 bg-amber-50 md:bg-transparent md:hover:bg-amber-50 rounded-lg text-amber-600 md:text-slate-400 hover:text-amber-600 transition-all font-bold flex items-center gap-1.5 border border-amber-200 md:border-transparent" 
+                                  title="Mark as Not Complete"
+                                >
+                                   <XCircle className="w-4 h-4" />
+                                   <span className="text-[10px] uppercase hidden md:inline">Incomplete</span>
                                 </button>
                               )}
                               <button className="p-2 bg-white md:bg-transparent border border-slate-200 md:border-transparent md:hover:bg-blue-50 rounded-lg text-slate-400 hover:text-blue-600 transition-all" title="View">
@@ -1362,13 +1404,32 @@ const Dashboard = ({
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all">
+                      <div className="flex items-center gap-2 transition-all">
                         {appt.status !== 'completed' && (
                           <button 
                             onClick={() => onStatusUpdate?.(appt.id, 'completed')}
                             className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                            title="Mark as Complete"
                           >
                             <Check className="w-4 h-4" />
+                          </button>
+                        )}
+                        {appt.status !== 'completed' && appt.status !== 'cancelled' && (
+                          <button 
+                            onClick={() => onStatusUpdate?.(appt.id, 'cancelled')}
+                            className="p-2 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-600 hover:text-white transition-all shadow-sm"
+                            title="Patient Not Present"
+                          >
+                            <UserX className="w-4 h-4" />
+                          </button>
+                        )}
+                        {appt.status === 'completed' && (
+                          <button 
+                            onClick={() => onStatusUpdate?.(appt.id, 'scheduled')}
+                            className="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-600 hover:text-white transition-all shadow-sm"
+                            title="Mark as Not Complete"
+                          >
+                            <XCircle className="w-4 h-4" />
                           </button>
                         )}
                         <button 
@@ -1533,10 +1594,33 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
 
   const formatRelativeDate = (dateStr: string, timeStr?: string) => {
     if (!dateStr) return null;
-    const target = new Date(timeStr ? `${dateStr}T${timeStr}` : `${dateStr}T00:00`);
+    let target = new Date(dateStr);
+    if (timeStr) {
+      try {
+        const [time, modifier] = timeStr.split(' ');
+        if (time && time.includes(':')) {
+           let [hours, minutes] = time.split(':').map(Number);
+           if (modifier === 'PM' && hours < 12) hours += 12;
+           if (modifier === 'AM' && hours === 12) hours = 0;
+           target.setHours(hours || 0, minutes || 0, 0, 0);
+        }
+      } catch (e) {
+        // ignore time parsing error
+      }
+    } else {
+       target.setHours(0, 0, 0, 0);
+    }
+
+    if (isNaN(target.getTime())) return 'Invalid Date';
+
     const now = new Date();
-    const diffTime = target.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    now.setHours(0,0,0,0);
+    
+    const targetDay = new Date(target);
+    targetDay.setHours(0,0,0,0);
+
+    const diffTime = targetDay.getTime() - now.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Tomorrow';
@@ -1829,20 +1913,37 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
 
   const enrichedPatients = useMemo(() => {
     return patients.map(p => {
-      const patientAppts = appointments.filter(a => a.patientId === p.id).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const getApptDateTime = (dateStr: string, timeStr: string) => {
+        try {
+          const [time, modifier] = timeStr?.split(' ') || ['00:00', 'AM'];
+          let [hours, minutes] = time.split(':').map(Number);
+          if (modifier === 'PM' && hours < 12) hours += 12;
+          if (modifier === 'AM' && hours === 12) hours = 0;
+          const dt = new Date(dateStr);
+          dt.setHours(hours || 0, minutes || 0, 0, 0);
+          return dt.getTime();
+        } catch(e) {
+          return new Date(dateStr).getTime();
+        }
+      };
+
+      const patientAppts = appointments.filter(a => a.patientId === p.id).sort((a,b) => getApptDateTime(b.date, b.time) - getApptDateTime(a.date, a.time));
       
-      const now = new Date();
-      const pastAppts = patientAppts.filter(a => new Date(`${a.date}T${a.time}`) < now);
-      const futureAppts = patientAppts.filter(a => new Date(`${a.date}T${a.time}`) >= now);
+      const now = new Date().getTime();
+      const pastAppts = patientAppts.filter(a => getApptDateTime(a.date, a.time) < now);
+      const futureAppts = patientAppts.filter(a => getApptDateTime(a.date, a.time) >= now);
       
-      const lastVisit = pastAppts.length > 0 ? pastAppts[0].date : null;
-      const lastVisitTime = pastAppts.length > 0 ? pastAppts[0].time : null;
-      const nextAppointment = futureAppts.length > 0 ? futureAppts[futureAppts.length - 1].date : null;
-      const nextAppointmentTime = futureAppts.length > 0 ? futureAppts[futureAppts.length - 1].time : null;
+      const lastVisitAppt = pastAppts.find(a => a.status === 'completed');
+      const nextAppointmentAppt = [...futureAppts].reverse().find(a => a.status !== 'cancelled' && a.status !== 'blocked');
+
+      const lastVisit = lastVisitAppt ? lastVisitAppt.date : null;
+      const lastVisitTime = lastVisitAppt ? lastVisitAppt.time : null;
+      const nextAppointment = nextAppointmentAppt ? nextAppointmentAppt.date : null;
+      const nextAppointmentTime = nextAppointmentAppt ? nextAppointmentAppt.time : null;
       
       let status = 'Completed';
       if (futureAppts.length > 0) status = 'In Treatment';
-      else if (lastVisit && (now.getTime() - new Date(lastVisit).getTime()) < 30 * 24 * 60 * 60 * 1000) status = 'Active';
+      else if (lastVisit && (now - new Date(lastVisit).getTime()) < 30 * 24 * 60 * 60 * 1000) status = 'Active';
       else if (!lastVisit && !nextAppointment) status = 'Active'; 
       
       const isPending = (p.unpaidSessionsCount || 0) > 0;
@@ -3576,7 +3677,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
             {/* Action Bar */}
             <div className="flex flex-wrap items-center justify-between gap-4 mb-8 bg-[#ffffff] p-4 rounded-2xl shadow-sm border border-[#e2e8f0] print:hidden">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white text-[#ffffff] flex items-center justify-center border border-[#e2e8f0] overflow-hidden">
+                <div className="w-10 h-10 rounded-full bg-white text-[#ffffff] flex items-center justify-center border border-[#e2e8f0] overflow-hidden">
                   <img src={LogoImage} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                 </div>
                 <div>
@@ -3623,7 +3724,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
                   <div className="absolute top-0 right-0 w-64 h-64 bg-[#f0f9ff] rounded-full -mr-20 -mt-20"></div>
                   <div className="relative z-10 flex flex-col md:flex-row justify-between items-start gap-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-[#ffffff] rounded-2xl flex items-center justify-center shadow-lg transform -rotate-2 hover:rotate-0 transition-transform overflow-hidden border border-[#e2e8f0]">
+                      <div className="w-16 h-16 bg-[#ffffff] rounded-full flex items-center justify-center shadow-lg transform -rotate-2 hover:rotate-0 transition-transform overflow-hidden border border-[#e2e8f0]">
                         <img src={LogoImage} alt="FitRevive Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                       </div>
                       <div>
@@ -3857,7 +3958,10 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
       expensesTrend: getTrend(expenses, prevExp),
       profitTrend: getTrend(profit, prevProfit),
       newPatients: Math.floor(patients.length * 0.12),
-      appointmentsToday: appointments.filter(a => a.date === now.toISOString().substring(0, 10)).length
+      appointmentsToday: appointments.filter(a => {
+        const d = now;
+        return a.date === `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }).length
     };
   }, [filteredTransactions, transactions, startDate, patients, appointments, now]);
 
@@ -4350,7 +4454,7 @@ const KPICard = ({ title, value, trend, icon, color, highlighted = false, hideCu
 };
 
 const AppointmentManager = ({ patients, appointments, members, onNotify }: { patients: Patient[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void }) => {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().substring(0, 10));
+  const [selectedDate, setSelectedDate] = useState(getLocalYMD());
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editApptId, setEditApptId] = useState<string | null>(null);
@@ -4599,7 +4703,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify }: { pat
             const isActuallyOccupied = occupiedAppts.length > 0;
             
             const status = getSlotStatus(slot);
-            const isToday = selectedDate === new Date().toISOString().substring(0, 10);
+            const isToday = selectedDate === getLocalYMD();
             const isOngoing = isToday && status === 'ongoing';
             const isPast = isToday && status === 'past';
 
@@ -4678,14 +4782,39 @@ const AppointmentManager = ({ patients, appointments, members, onNotify }: { pat
 
                             <div className="flex gap-1.5 mt-3 ml-9">
                                {displayAppt.status === 'scheduled' && (
+                                 <>
+                                   <button 
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       updateStatus(displayAppt.id, 'completed');
+                                     }} 
+                                     className={cn("p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-500 transition-colors", isOngoing ? "hover:bg-white/20 text-white border border-white/20" : "border border-slate-100")}
+                                     title="Mark as Complete"
+                                   >
+                                     <CheckCircle className="w-3.5 h-3.5" />
+                                   </button>
+                                   <button 
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       updateStatus(displayAppt.id, 'cancelled');
+                                     }} 
+                                     className={cn("p-1.5 rounded-lg hover:bg-rose-50 text-rose-500 transition-colors", isOngoing ? "hover:bg-white/20 text-white border border-white/20" : "border border-slate-100")}
+                                     title="Patient Not Present"
+                                   >
+                                     <UserX className="w-3.5 h-3.5" />
+                                   </button>
+                                 </>
+                               )}
+                               {displayAppt.status === 'completed' && (
                                  <button 
                                    onClick={(e) => {
                                      e.stopPropagation();
-                                     updateStatus(displayAppt.id, 'completed');
+                                     updateStatus(displayAppt.id, 'scheduled');
                                    }} 
-                                   className={cn("p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-500 transition-colors", isOngoing ? "hover:bg-white/20 text-white border border-white/20" : "border border-slate-100")}
+                                   className={cn("p-1.5 rounded-lg hover:bg-amber-50 text-amber-500 transition-colors", isOngoing ? "hover:bg-white/20 text-white border border-white/20" : "border border-slate-100")}
+                                   title="Mark as Not Complete"
                                  >
-                                   <CheckCircle className="w-3.5 h-3.5" />
+                                   <XCircle className="w-3.5 h-3.5" />
                                  </button>
                                )}
                             </div>
@@ -4945,7 +5074,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify }: { pat
 };
 
 const SessionManager = ({ appointments, onNotify }: { appointments: Appointment[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void }) => {
-  const todayDate = new Date().toISOString().substring(0, 10);
+  const todayDate = getLocalYMD();
   const sessions = appointments.filter(a => a.date === todayDate && a.status === 'scheduled');
   const [selectedSession, setSelectedSession] = useState<Appointment | null>(null);
   const [history, setHistory] = useState<any[]>([]);
@@ -5776,7 +5905,7 @@ const SummaryCard = ({ title, value, icon, color }: { title: string, value: numb
 const AttendanceManager = ({ role, members, currentUserEmail, onNotify }: { role: string, members: any[], currentUserEmail: string | null, onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void }) => {
   const [attendance, setAttendance] = useState<any[]>([]);
   const [rangeAttendance, setRangeAttendance] = useState<any[]>([]);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().substring(0, 10));
+  const [selectedDate, setSelectedDate] = useState(getLocalYMD());
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -5824,7 +5953,8 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify }: { role
   };
 
   const markAllPresent = async () => {
-    const today = new Date().toISOString().substring(0, 10);
+    const todayDateObj = new Date();
+    const today = `${todayDateObj.getFullYear()}-${String(todayDateObj.getMonth() + 1).padStart(2, '0')}-${String(todayDateObj.getDate()).padStart(2, '0')}`;
     if (selectedDate !== today) {
       if (!window.confirm("You are marking all present for a date other than today. Continue?")) return;
     }
@@ -6523,7 +6653,7 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
         className="max-w-[480px] w-full bg-white p-10 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-slate-100 z-10"
       >
         <div className="mb-8 text-center flex flex-col items-center">
-          <div className="w-24 h-24 mb-6">
+          <div className="w-24 h-24 mb-6 rounded-full overflow-hidden border border-slate-100 shadow-sm bg-white">
              <img src={LogoImage} alt="FitRevive Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
           </div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-1">Welcome Back</h1>
@@ -6664,9 +6794,8 @@ const ROLE_PERMISSIONS = {
 } as const;
 
 const SettingsView = ({ user, role, patients, transactions, appointments, members, onNotify, onLogout }: { user: User, role: string, patients: any[], transactions: any[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, onLogout: () => void }) => {
-  const [activeCategory, setActiveCategory] = useState<'account'|'clinic'|'preferences'|'security'>('account');
+  const [activeCategory, setActiveCategory] = useState<'account'|'clinic'|'appearance'|'notifications'|'security'|'billing'>('account');
   const [displayName, setDisplayName] = useState(user.displayName || '');
-  const [photoURL, setPhotoURL] = useState(user.photoURL || '');
   const [isSaving, setIsSaving] = useState(false);
   
   const [clinicName, setClinicName] = useState('Nirvana Physiotherapy');
@@ -6676,11 +6805,17 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
 
   // Preferences state
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
-  const [pushEnabled, setPushEnabled] = useState(localStorage.getItem('push_enabled') !== 'false'); // default true
   const [calendarView, setCalendarView] = useState(localStorage.getItem('calendar_view') || 'Month');
+  
+  // Notification State
+  const [pushEnabled, setPushEnabled] = useState(localStorage.getItem('push_enabled') !== 'false');
+  const [emailAlerts, setEmailAlerts] = useState(true);
+  const [smsAlerts, setSmsAlerts] = useState(false);
+  
+  // Security State
+  const [twoFactor, setTwoFactor] = useState(false);
 
   useEffect(() => {
-     // Fetch clinic settings
      const fetchSettings = async () => {
         try {
            const docSnap = await getDoc(doc(db, 'settings', 'clinic'));
@@ -6699,23 +6834,22 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
   }, []);
 
   const categories = [
-    { id: 'account', label: 'Account & Roles', icon: User2, allowed: ['admin', 'manager', 'therapist'] },
-    { id: 'clinic', label: 'Clinic Config', icon: Building2, allowed: ['admin', 'manager'] },
-    { id: 'preferences', label: 'App Preferences', icon: Settings, allowed: ['admin', 'manager', 'therapist'] },
-    { id: 'security', label: 'Data & Security', icon: ShieldAlert, allowed: ['admin'] },
+    { id: 'account', label: 'Profile & Account', icon: User2, allowed: ['admin', 'manager', 'therapist'] },
+    { id: 'clinic', label: 'Clinic Information', icon: Building2, allowed: ['admin', 'manager'] },
+    { id: 'appearance', label: 'Appearance', icon: Palette, allowed: ['admin', 'manager', 'therapist'] },
+    { id: 'notifications', label: 'Notifications', icon: Bell, allowed: ['admin', 'manager', 'therapist'] },
+    { id: 'security', label: 'Security & Data', icon: ShieldCheck, allowed: ['admin', 'manager', 'therapist'] },
+    { id: 'billing', label: 'Plan & Billing', icon: CreditCard, allowed: ['admin', 'manager'] },
   ];
 
   const visibleCategories = categories.filter(c => c.allowed.includes(role));
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     try {
-      await updateProfile(user, {
-        displayName: displayName,
-        photoURL: photoURL
-      });
-      onNotify("Profile updated successfully!", "success");
+      await updateProfile(user, { displayName });
+      onNotify("Profile updated successfully", "success");
     } catch (error: any) {
       onNotify(error.message || "Failed to update profile", "error");
     } finally {
@@ -6739,30 +6873,23 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
   };
 
   const handleBackupDatabase = () => {
-     const backup = {
-        patients,
-        transactions,
-        appointments,
-        members,
-        exportedAt: new Date().toISOString()
-     };
+     const backup = { patients, transactions, appointments, members, exportedAt: new Date().toISOString() };
      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup, null, 2));
      const downloadAnchorNode = document.createElement('a');
      downloadAnchorNode.setAttribute("href", dataStr);
-     downloadAnchorNode.setAttribute("download", `clinic_backup_${new Date().toISOString().split('T')[0]}.json`);
+     downloadAnchorNode.setAttribute("download", `fitrevive_backup_${new Date().toISOString().split('T')[0]}.json`);
      document.body.appendChild(downloadAnchorNode);
      downloadAnchorNode.click();
      downloadAnchorNode.remove();
-     onNotify("Database backup generated and downloaded.", "success");
+     onNotify("Database backup generated.", "success");
   }
 
   const handleThemeToggle = (newTheme: string) => {
      setTheme(newTheme);
      localStorage.setItem('theme', newTheme);
      if (newTheme === 'dark') {
-         // App currently doesn't have full dark mode classes, but we can set the preference
          document.documentElement.classList.add('dark');
-         onNotify("Dark mode preferred (Partial support)", "info");
+         onNotify("Dark mode preferred (Partial Support)", "info");
      } else {
          document.documentElement.classList.remove('dark');
          onNotify("Light mode preferred", "success");
@@ -6771,132 +6898,122 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
 
   const handlePushToggle = async (e: React.ChangeEvent<HTMLInputElement>) => {
      const val = e.target.checked;
-     
      if (val) {
         if (!("Notification" in window)) {
-           onNotify("This browser does not support desktop notifications", "error");
-           return;
+           onNotify("Browser does not support notifications", "error"); return;
         }
-
         if (Notification.permission === "granted") {
-           setPushEnabled(true);
-           localStorage.setItem('push_enabled', 'true');
-           new Notification("FitRevive", { body: "Push notifications enabled!" });
+           setPushEnabled(true); localStorage.setItem('push_enabled', 'true');
            onNotify("Push notifications enabled", "success");
         } else if (Notification.permission !== "denied") {
            const permission = await Notification.requestPermission();
            if (permission === "granted") {
-              setPushEnabled(true);
-              localStorage.setItem('push_enabled', 'true');
-              new Notification("FitRevive", { body: "Push notifications enabled!" });
+              setPushEnabled(true); localStorage.setItem('push_enabled', 'true');
               onNotify("Push notifications enabled", "success");
            } else {
-              setPushEnabled(false);
-              onNotify("Notification permission denied", "error");
+              setPushEnabled(false); onNotify("Notification permission denied", "error");
            }
         } else {
-           setPushEnabled(false);
-           onNotify("Please enable notifications in browser settings", "error");
+           setPushEnabled(false); onNotify("Enable notifications in browser settings", "error");
         }
      } else {
-        setPushEnabled(false);
-        localStorage.setItem('push_enabled', 'false');
+        setPushEnabled(false); localStorage.setItem('push_enabled', 'false');
         onNotify("Push notifications disabled", "success");
      }
   };
 
-  const handleCalendarViewChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-     const val = e.target.value;
-     setCalendarView(val);
-     localStorage.setItem('calendar_view', val);
-     onNotify(`Default calendar view changed to ${val}`, "success");
-  }
-
   return (
-    <div className="space-y-6 pb-20 md:pb-6">
-      <header className="flex justify-between items-center bg-white p-5 sm:p-6 rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-slate-100">
+    <div className="space-y-6 pb-20 md:pb-6 max-w-5xl mx-auto">
+      <header className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-slate-100">
         <div>
-           <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Settings & Preferences</h1>
-           <p className="text-xs sm:text-sm font-bold tracking-tight text-slate-400 mt-1">Configure your clinic management app</p>
+           <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Settings Workspace</h1>
+           <p className="text-sm font-bold tracking-tight text-slate-400 mt-1">Manage your account, preferences, and clinic system</p>
         </div>
       </header>
 
-      <div className="flex flex-col md:flex-row gap-6 items-start">
-         {/* Sidebar */}
-         <div className="w-full md:w-64 shrink-0 flex flex-row overflow-x-auto md:flex-col gap-2 pb-2 md:pb-0 custom-scrollbar">
+      <div className="flex flex-col md:flex-row gap-8 items-start">
+         <div className="w-full md:w-64 shrink-0 flex flex-row overflow-x-auto md:flex-col gap-1 pb-2 md:pb-0 custom-scrollbar hide-scrollbar">
             {visibleCategories.map(cat => (
                <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id as any)}
                   className={cn(
-                     "flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all md:text-left whitespace-nowrap",
+                     "flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3.5 rounded-xl font-bold text-sm transition-all md:text-left whitespace-nowrap",
                      activeCategory === cat.id 
-                        ? "bg-blue-600 text-white shadow-md shadow-blue-200" 
-                        : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-100"
+                        ? "bg-slate-900 text-white shadow-lg shadow-slate-200" 
+                        : "bg-transparent text-slate-600 hover:bg-slate-100"
                   )}
                >
-                  <cat.icon className="w-4 h-4 shrink-0" />
+                  <cat.icon className={cn("w-4 h-4 shrink-0", activeCategory === cat.id ? "text-blue-400" : "text-slate-400")} />
                   <span className="hidden sm:inline">{cat.label}</span>
                </button>
             ))}
          </div>
 
-         {/* Content Area */}
-         <div className="flex-1 w-full bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden min-h-[500px]">
+         <div className="flex-1 w-full bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden min-h-[600px]">
            {activeCategory === 'account' && (
              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-               <div className="p-5 sm:p-6 border-b border-slate-100">
-                  <h2 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2"><User2 className="w-5 h-5 text-blue-500"/> Account Profile</h2>
+               <div className="p-6 border-b border-slate-100">
+                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Account Profile</h2>
+                  <p className="text-sm text-slate-500 font-medium">Update your personal information and roles.</p>
                </div>
-               <div className="p-5 sm:p-6">
-                  <form onSubmit={handleSave} className="space-y-5 max-w-lg">
-                     <div className="space-y-1">
+               <div className="p-6">
+                  <form onSubmit={handleSaveProfile} className="space-y-6 max-w-lg">
+                     <div className="flex items-center gap-4 mb-6">
+                       <div className="w-16 h-16 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl font-black shrink-0">
+                         {displayName.charAt(0) || user.email?.charAt(0).toUpperCase()}
+                       </div>
+                       <div>
+                         <div className="font-bold text-slate-800">Profile Initial</div>
+                         <div className="text-xs text-slate-500 font-medium">Used for avatars across the system.</div>
+                       </div>
+                     </div>
+                     <div className="space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Full Name</label>
                         <input 
                            type="text" 
                            value={displayName}
                            onChange={(e) => setDisplayName(e.target.value)}
-                           className="w-full text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 transition-all text-slate-700" 
+                           className="w-full text-sm font-semibold bg-white border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all text-slate-800 placeholder:text-slate-400" 
+                           placeholder="John Doe"
                         />
                      </div>
-                     <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Photo URL</label>
-                        <input 
-                           type="text" 
-                           value={photoURL}
-                           onChange={(e) => setPhotoURL(e.target.value)}
-                           placeholder="https://example.com/photo.jpg"
-                           className="w-full text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 transition-all text-slate-700" 
-                        />
-                     </div>
-                     <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Email (Uneditable)</label>
+                     <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">System Email</label>
                         <input 
                            type="text" 
                            value={user.email || ''}
                            disabled
-                           className="w-full text-sm font-bold bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 outline-none cursor-not-allowed opacity-70 text-slate-700" 
+                           className="w-full text-sm font-semibold bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none cursor-not-allowed opacity-70 text-slate-700" 
                         />
                      </div>
-                     <div className="pt-2">
+                     <div className="space-y-1.5 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                        <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">Active Role</div>
+                        <div className="text-sm font-black text-slate-800 capitalize mt-1 flex items-center gap-2">
+                           <ShieldCheck className="w-4 h-4 text-emerald-500"/> {role}
+                        </div>
+                     </div>
+                     <div className="pt-4 flex items-center gap-4">
                         <button 
                            type="submit"
                            disabled={isSaving}
-                           className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md shadow-blue-200"
+                           className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-6 rounded-xl transition-all disabled:opacity-70 flex items-center justify-center gap-2"
                         >
-                           {isSaving ? 'Saving...' : 'Update Profile'}
+                           {isSaving ? 'Updating...' : 'Save Changes'}
                         </button>
                      </div>
                   </form>
                </div>
-               <div className="p-5 sm:p-6 border-t border-slate-100 bg-rose-50/50">
-                  <h3 className="text-sm font-black text-rose-800 mb-2">Logout</h3>
-                  <p className="text-xs font-bold text-slate-500 mb-4 tracking-tight">You will be required to sign back in to access the system.</p>
+               <div className="p-6 border-t border-slate-100 bg-rose-50/30 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-rose-800">Sign Out</h3>
+                    <p className="text-xs font-semibold text-slate-500 mt-1">End your current session securely.</p>
+                  </div>
                   <button 
                      onClick={onLogout}
-                     className="w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 font-bold py-2.5 px-5 rounded-xl transition-all flex items-center justify-center gap-2"
+                     className="bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 font-bold py-2.5 px-5 rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm"
                   >
-                     <LogOut className="w-4 h-4" /> Sign Out
+                     <LogOut className="w-4 h-4" /> Log Out
                   </button>
                </div>
              </div>
@@ -6904,81 +7021,118 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
 
            {activeCategory === 'clinic' && (
              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-               <div className="p-5 sm:p-6 border-b border-slate-100 flex justify-between items-center">
-                  <h2 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2"><Building2 className="w-5 h-5 text-indigo-500"/> Clinic Details</h2>
+               <div className="p-6 border-b border-slate-100">
+                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Clinic Information</h2>
+                  <p className="text-sm text-slate-500 font-medium">Update public and operational details for the clinic.</p>
                </div>
-               <div className="p-5 sm:p-6 space-y-6 max-w-2xl">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                   <div className="space-y-1">
+               <div className="p-6 space-y-6 max-w-2xl">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                   <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Clinic Name</label>
-                      <input type="text" value={clinicName} onChange={(e) => setClinicName(e.target.value)} className="w-full text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-slate-700" />
+                      <input type="text" value={clinicName} onChange={(e) => setClinicName(e.target.value)} className="w-full text-sm font-semibold bg-white border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 transition-all text-slate-800" />
                    </div>
-                   <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Primary Email</label>
-                      <input type="email" value={clinicEmail} onChange={(e) => setClinicEmail(e.target.value)} className="w-full text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-slate-700" />
-                   </div>
-                   <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Phone Contact</label>
-                      <input type="text" value={clinicPhone} onChange={(e) => setClinicPhone(e.target.value)} className="w-full text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-slate-700" />
-                   </div>
-                   <div className="space-y-1">
+                   <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Currency</label>
-                      <select value={clinicCurrency} onChange={(e) => setClinicCurrency(e.target.value)} className="w-full text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-100 transition-all text-slate-700">
+                      <select value={clinicCurrency} onChange={(e) => setClinicCurrency(e.target.value)} className="w-full text-sm font-semibold bg-white border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 transition-all text-slate-800 appearance-none">
                         <option value="USD">USD ($)</option>
                         <option value="EUR">EUR (€)</option>
                         <option value="GBP">GBP (£)</option>
                         <option value="INR">INR (₹)</option>
+                        <option value="CAD">CAD ($)</option>
+                        <option value="AUD">AUD ($)</option>
                       </select>
                    </div>
+                   <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Support Email</label>
+                      <input type="email" value={clinicEmail} onChange={(e) => setClinicEmail(e.target.value)} className="w-full text-sm font-semibold bg-white border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 transition-all text-slate-800" />
+                   </div>
+                   <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Primary Phone</label>
+                      <input type="text" value={clinicPhone} onChange={(e) => setClinicPhone(e.target.value)} className="w-full text-sm font-semibold bg-white border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 transition-all text-slate-800" />
+                   </div>
                  </div>
-                 <div className="pt-2">
-                   <button onClick={handleSaveClinic} className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md shadow-indigo-200">Save Configuration</button>
+                 <div className="pt-4 border-t border-slate-100 flex">
+                   <button onClick={handleSaveClinic} className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md">
+                     Save Clinic Profile
+                   </button>
                  </div>
                </div>
              </div>
            )}
 
-           {activeCategory === 'preferences' && (
+           {activeCategory === 'appearance' && (
              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-               <div className="p-5 sm:p-6 border-b border-slate-100 flex justify-between items-center">
-                  <h2 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2"><Settings className="w-5 h-5 text-slate-500"/> Interface & Preferences</h2>
+               <div className="p-6 border-b border-slate-100">
+                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Appearance & Behavior</h2>
+                  <p className="text-sm text-slate-500 font-medium">Customize how FitRevive looks and feels on this device.</p>
                </div>
-               <div className="p-5 sm:p-6 space-y-4 sm:space-y-6">
-                 {/* Theme Toggle */}
-                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border border-slate-100 rounded-2xl bg-slate-50/50">
+               <div className="p-6 space-y-8 max-w-2xl">
+                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                       <h4 className="font-bold text-sm text-slate-800">Theme Preference</h4>
-                       <p className="text-xs font-medium text-slate-500 mt-1">Light or dark interface</p>
+                       <h4 className="font-bold text-slate-800">Theme Mode</h4>
+                       <p className="text-sm font-medium text-slate-500 mt-1">Light or dark interface</p>
                     </div>
-                    <div className="flex bg-white rounded-lg p-1 border border-slate-200 shadow-sm w-full sm:w-auto self-stretch sm:self-auto justify-center">
-                       <button onClick={() => handleThemeToggle('light')} className={cn("flex-1 sm:flex-none p-2 rounded-md shadow-sm flex justify-center transition-colors", theme === 'light' ? "bg-slate-100 text-slate-800 pointer-events-none" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50")}><Sun className="w-4 h-4"/></button>
-                       <button onClick={() => handleThemeToggle('dark')} className={cn("flex-1 sm:flex-none p-2 rounded-md transition-colors flex justify-center", theme === 'dark' ? "bg-slate-100 text-slate-800 pointer-events-none shadow-sm" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50")}><Moon className="w-4 h-4"/></button>
+                    <div className="flex bg-slate-100 rounded-xl p-1 w-full sm:w-auto">
+                       <button onClick={() => handleThemeToggle('light')} className={cn("flex-1 sm:flex-none px-6 py-2 rounded-lg font-bold text-sm transition-all focus:outline-none flex items-center justify-center gap-2", theme === 'light' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}><Sun className="w-4 h-4"/> Light</button>
+                       <button onClick={() => handleThemeToggle('dark')} className={cn("flex-1 sm:flex-none px-6 py-2 rounded-lg font-bold text-sm transition-all focus:outline-none flex items-center justify-center gap-2", theme === 'dark' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}><Moon className="w-4 h-4"/> Dark</button>
                     </div>
                  </div>
 
-                 {/* Notifications */}
-                 <div className="flex items-center justify-between p-4 border border-slate-100 rounded-2xl bg-slate-50/50 group">
-                    <div className="pr-4">
-                       <h4 className="font-bold text-sm text-slate-800">Push Notifications</h4>
-                       <p className="text-xs font-medium text-slate-500 mt-1">Updates on appointments & alerts</p>
+                 <div className="w-full h-px bg-slate-100"></div>
+
+                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                       <h4 className="font-bold text-slate-800">Default Calendar View</h4>
+                       <p className="text-sm font-medium text-slate-500 mt-1">Which view to load by default</p>
+                    </div>
+                    <select value={calendarView} onChange={(e) => { setCalendarView(e.target.value); localStorage.setItem('calendar_view', e.target.value); onNotify("View preference updated", "success"); }} className="w-full sm:w-auto text-sm font-bold bg-white border border-slate-200 rounded-xl px-4 py-2.5 outline-none text-slate-800 shadow-sm cursor-pointer appearance-none">
+                      <option value="Day">Day View</option>
+                      <option value="Week">Week View</option>
+                      <option value="Month">Month View</option>
+                    </select>
+                 </div>
+               </div>
+             </div>
+           )}
+
+           {activeCategory === 'notifications' && (
+             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+               <div className="p-6 border-b border-slate-100">
+                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Notification Preferences</h2>
+                  <p className="text-sm text-slate-500 font-medium">Control what alerts and messages you receive.</p>
+               </div>
+               <div className="p-6 space-y-6 max-w-2xl">
+                 <div className="flex items-center justify-between group">
+                    <div>
+                       <h4 className="font-bold text-slate-800">Push Notifications</h4>
+                       <p className="text-sm font-medium text-slate-500 mt-1">Get alerts for new bookings and messages via browser.</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer shrink-0">
                       <input type="checkbox" className="sr-only peer" checked={pushEnabled} onChange={handlePushToggle} />
-                      <div className="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:duration-300 peer-checked:bg-blue-600 shadow-inner toggle-track"></div>
+                      <div className="w-12 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:duration-300 peer-checked:bg-blue-600"></div>
                     </label>
                  </div>
-
-                 {/* Calendar View */}
-                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border border-slate-100 rounded-2xl bg-slate-50/50">
+                 <div className="w-full h-px bg-slate-100"></div>
+                 <div className="flex items-center justify-between group">
                     <div>
-                       <h4 className="font-bold text-sm text-slate-800">Default Calendar View</h4>
-                       <p className="text-xs font-medium text-slate-500 mt-1">Your preferred start view</p>
+                       <h4 className="font-bold text-slate-800">Email Summaries</h4>
+                       <p className="text-sm font-medium text-slate-500 mt-1">Daily workflow and revenue summaries delivered to your inbox.</p>
                     </div>
-                    <select value={calendarView} onChange={handleCalendarViewChange} className="w-full sm:w-auto text-sm font-bold bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none text-slate-700 shadow-sm">
-                      <option value="Day">Day</option>
-                      <option value="Week">Week</option>
-                      <option value="Month">Month</option>
-                    </select>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input type="checkbox" className="sr-only peer" checked={emailAlerts} onChange={() => {setEmailAlerts(!emailAlerts); onNotify("Email preferences updated", "success");}} />
+                      <div className="w-12 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:duration-300 peer-checked:bg-slate-900"></div>
+                    </label>
+                 </div>
+                 <div className="w-full h-px bg-slate-100"></div>
+                 <div className="flex items-center justify-between group">
+                    <div>
+                       <h4 className="font-bold text-slate-800">SMS Alerts</h4>
+                       <p className="text-sm font-medium text-slate-500 mt-1">Critical alerts sent directly to your phone.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input type="checkbox" className="sr-only peer" checked={smsAlerts} onChange={() => {setSmsAlerts(!smsAlerts); onNotify("SMS preferences updated", "success");}} />
+                      <div className="w-12 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:duration-300 peer-checked:bg-slate-900"></div>
+                    </label>
                  </div>
                </div>
              </div>
@@ -6986,25 +7140,98 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
 
            {activeCategory === 'security' && (
              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-               <div className="p-5 sm:p-6 border-b border-slate-100">
-                  <h2 className="text-lg font-black text-rose-800 tracking-tight flex items-center gap-2"><ShieldAlert className="w-5 h-5"/> Data & Security Actions</h2>
+               <div className="p-6 border-b border-slate-100">
+                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Security & Data</h2>
+                  <p className="text-sm text-slate-500 font-medium">Protect your account and manage important system data.</p>
                </div>
-               <div className="p-5 sm:p-6 space-y-6">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   <div className="p-5 border border-slate-100 rounded-2xl bg-slate-50">
-                      <h4 className="font-bold text-sm text-slate-800 flex items-center gap-2 mb-1"><DownloadCloud className="w-4 h-4 text-emerald-600"/> Backup Database</h4>
-                      <p className="text-xs font-medium text-slate-500 mb-4 sm:h-8">Export all current patient info and financial records as JSON.</p>
-                      <button onClick={handleBackupDatabase} className="w-full bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold py-2 px-4 rounded-xl text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500">Download .JSON</button>
-                   </div>
-                   <div className="p-5 border border-slate-100 rounded-2xl bg-slate-50">
-                      <h4 className="font-bold text-sm text-slate-800 flex items-center gap-2 mb-1"><UploadCloud className="w-4 h-4 text-blue-600"/> Import Data</h4>
-                      <p className="text-xs font-medium text-slate-500 mb-4 sm:h-8">Restore your clinic's database from a previous backup file.</p>
-                      <button onClick={() => onNotify("Import tool is disabled in preview mode", "info")} className="w-full bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold py-2 px-4 rounded-xl text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-500">Select File</button>
+               <div className="p-6 space-y-8 max-w-3xl">
+                 <div className="flex items-center justify-between">
+                    <div>
+                       <h4 className="font-bold text-slate-800">Two-Factor Authentication (2FA)</h4>
+                       <p className="text-sm font-medium text-slate-500 mt-1 max-w-sm">Require a secure code in addition to your password during sign in.</p>
+                    </div>
+                    <button 
+                       onClick={() => { setTwoFactor(!twoFactor); onNotify(twoFactor ? "2FA disabled" : "2FA enabled", "info"); }}
+                       className={cn("px-4 py-2 text-sm font-bold rounded-xl transition-all border", twoFactor ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100" : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50")}
+                    >
+                       {twoFactor ? "Enabled" : "Enable 2FA"}
+                    </button>
+                 </div>
+
+                 <div className="w-full h-px bg-slate-100"></div>
+
+                 <div>
+                   <h4 className="font-bold text-slate-800 mb-4">Patient Data Management</h4>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="p-5 border border-slate-200 rounded-xl bg-white shadow-sm flex flex-col justify-between">
+                        <div>
+                          <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+                            <DownloadCloud className="w-5 h-5" />
+                          </div>
+                          <h4 className="font-bold text-slate-800">Backup System Data</h4>
+                          <p className="text-sm font-medium text-slate-500 mt-1 mb-4">Export all patients, bookings, and financial logs as JSON format for offline safe-keeping.</p>
+                        </div>
+                        <button onClick={handleBackupDatabase} className="w-full bg-slate-50 border border-slate-200 text-slate-800 hover:bg-slate-100 font-bold py-2.5 px-4 rounded-lg text-sm transition-all focus:outline-none">Download Backup</button>
+                     </div>
+                     <div className="p-5 border border-slate-200 rounded-xl bg-white shadow-sm flex flex-col justify-between">
+                        <div>
+                          <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
+                            <UploadCloud className="w-5 h-5" />
+                          </div>
+                          <h4 className="font-bold text-slate-800">Import Data</h4>
+                          <p className="text-sm font-medium text-slate-500 mt-1 mb-4">Restore system data from a recent backup. Note that this action is restricted in preview.</p>
+                        </div>
+                        <button onClick={() => onNotify("Import tool is disabled for security", "info")} className="w-full bg-slate-50 border border-slate-200 text-slate-800 hover:bg-slate-100 font-bold py-2.5 px-4 rounded-lg text-sm transition-all focus:outline-none">Upload File</button>
+                     </div>
                    </div>
                  </div>
                </div>
              </div>
            )}
+
+           {activeCategory === 'billing' && (
+             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+               <div className="p-6 border-b border-slate-100">
+                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Plan & Billing</h2>
+                  <p className="text-sm text-slate-500 font-medium">Manage your subscription, invoices, and billing methods.</p>
+               </div>
+               <div className="p-6 space-y-6 max-w-3xl">
+                  <div className="p-6 bg-slate-900 rounded-2xl text-white relative overflow-hidden">
+                     <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
+                        <CreditCard className="w-24 h-24" />
+                     </div>
+                     <div className="flex items-center gap-3 mb-2">
+                        <span className="bg-blue-500/20 text-blue-300 px-2.5 py-1 rounded text-xs font-black uppercase tracking-widest border border-blue-500/30">Current Plan</span>
+                     </div>
+                     <h3 className="text-3xl font-black tracking-tight mb-2">FitRevive Premium</h3>
+                     <p className="text-slate-400 font-medium text-sm mb-6 max-w-md">Unlimited patients, advanced team roles, custom PDF reports, and priority 24/7 technical support.</p>
+                     <div className="flex items-center gap-4">
+                       <button className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-5 rounded-lg transition-all shadow-md text-sm">Manage Plan</button>
+                       <button className="text-slate-300 hover:text-white font-bold text-sm transition-colors">View Features</button>
+                     </div>
+                  </div>
+
+                  <div className="border border-slate-200 rounded-2xl overflow-hidden mt-6">
+                    <div className="p-5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+                       <h4 className="font-bold text-slate-800">Payment Method</h4>
+                       <button className="text-sm font-bold text-blue-600 hover:text-blue-800">Update</button>
+                    </div>
+                    <div className="p-5 flex items-center justify-between">
+                       <div className="flex items-center gap-4">
+                          <div className="w-12 h-8 bg-slate-100 border border-slate-200 rounded flex items-center justify-center">
+                             <CreditCard className="w-5 h-5 text-slate-600" />
+                          </div>
+                          <div>
+                             <div className="font-bold text-slate-800">•••• •••• •••• 4242</div>
+                             <div className="text-xs font-medium text-slate-500">Expires 12/28</div>
+                          </div>
+                       </div>
+                    </div>
+                  </div>
+               </div>
+             </div>
+           )}
+
          </div>
       </div>
     </div>
@@ -7017,8 +7244,17 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isRoleLoading, setIsRoleLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [debouncedGlobalSearch, setDebouncedGlobalSearch] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedGlobalSearch(globalSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [globalSearch]);
 
   useEffect(() => {
     // Initialize theme from local storage
@@ -7037,6 +7273,35 @@ export default function App() {
     monthlyExpenses: 0,
     netProfit: 0
   });
+
+  const globalSearchResults = useMemo(() => {
+    if (!debouncedGlobalSearch.trim()) return null;
+    const term = debouncedGlobalSearch.toLowerCase().trim();
+    
+    const matchedPatients = patients.filter(p => 
+      p.name.toLowerCase().includes(term) || 
+      p.phone.includes(term) || 
+      p.id.toLowerCase().includes(term) ||
+      (p.condition && p.condition.toLowerCase().includes(term))
+    ).slice(0, 3);
+    
+    const matchedBookings = appointments.filter(a => 
+      a.patientName.toLowerCase().includes(term) || 
+      (a.notes || '').toLowerCase().includes(term) ||
+      (a.sessionType || '').toLowerCase().includes(term) ||
+      a.id.toLowerCase().includes(term)
+    ).slice(0, 3);
+    
+    const matchedBilling = transactions.filter(t => 
+       (t.description || '').toLowerCase().includes(term) ||
+       t.amount.toString().includes(term) ||
+       (t.category || '').toLowerCase().includes(term) ||
+       t.id.toLowerCase().includes(term) ||
+       (t.patientId && patients.find(p => p.id === t.patientId)?.name.toLowerCase().includes(term))
+    ).slice(0, 3);
+    
+    return { patients: matchedPatients, bookings: matchedBookings, billing: matchedBilling };
+  }, [debouncedGlobalSearch, patients, appointments, transactions]);
 
   const [role, setRole] = useState<'admin' | 'manager' | 'therapist' | null>(null);
   const [members, setMembers] = useState<any[]>([]);
@@ -7175,7 +7440,7 @@ export default function App() {
   if (loading || (user && !role && isRoleLoading)) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-white">
-         <div className="w-24 h-24 mb-6 animate-pulse">
+         <div className="w-24 h-24 mb-6 animate-pulse rounded-full overflow-hidden border border-slate-100 shadow-sm bg-white">
             <img src={LogoImage} alt="FitRevive Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
          </div>
          <p className="font-black text-slate-800 tracking-tighter text-xl">FITREVIVE OS</p>
@@ -7186,10 +7451,15 @@ export default function App() {
 
   if (!user || !role) return <Login onDemoLogin={handleDemoLogin} />;
 
-  const todayDateStr = new Date().toISOString().substring(0, 10);
-  const scheduledApptsCount = appointments.filter(a => a.date === todayDateStr && a.status === 'scheduled').length;
-  const todayIncomePatientsSet = new Set(transactions.filter(t => t.date === todayDateStr && t.type === 'income').map(t => t.patientId));
-  const pendingPaymentsCount = appointments.filter(a => a.date === todayDateStr && (a.status === 'completed' || a.status === 'scheduled') && !todayIncomePatientsSet.has(a.patientId)).length;
+  const todayDateStr = getLocalYMD();
+  
+  // Notification Counts
+  // Appointments: Any unhandled (scheduled) appointments from today or the past
+  const scheduledApptsCount = appointments.filter(a => a.status === 'scheduled' && a.date <= todayDateStr).length;
+  // Finances: Number of distinct patients who have pending unpaid sessions or depending on user request
+  const pendingPaymentsCount = transactions.filter(t => t.date === todayDateStr).length;
+  // Patients: Number of new patients registered today
+  const newPatientsTodayCount = patients.filter(p => p.createdAt && (typeof p.createdAt === 'string' ? p.createdAt.startsWith(todayDateStr) : p.createdAt.toDate && p.createdAt.toDate().toISOString().substring(0, 10) === todayDateStr)).length;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -7206,7 +7476,8 @@ export default function App() {
           setRole={setRole}
           badges={{
             appointments: scheduledApptsCount,
-            finances: pendingPaymentsCount
+            finances: pendingPaymentsCount,
+            patients: newPatientsTodayCount
           }}
         />
         
@@ -7214,25 +7485,136 @@ export default function App() {
           "flex-1 min-h-[calc(100vh-80px)] md:min-h-screen pb-20 md:pb-0 transition-all duration-300",
           isSidebarCollapsed ? "md:pl-20" : "md:pl-64"
         )}>
-          {/* Mobile Top Bar */}
-          <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm print:hidden">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center border border-slate-100 shadow-sm overflow-hidden">
-                <img 
-                  src={LogoImage} 
-                  alt="FitRevive" 
-                  className="w-full h-full object-contain p-1"
-                  referrerPolicy="no-referrer"
+          {/* Global Top Search Bar */}
+          <div className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-sm print:hidden px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between gap-4">
+            
+            {/* Mobile menu toggle & brand (only mobile) */}
+            <div className="md:hidden flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-slate-100 shadow-sm overflow-hidden shrink-0">
+                  <img src={LogoImage} alt="FitRevive" className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />
+                </div>
+            </div>
+
+            {/* Search Input Container */}
+            <div className="relative flex-1 max-w-3xl mx-auto w-full">
+              <div className="relative w-full group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                <input 
+                  type="text" 
+                  placeholder="Search patients, bookings, billing..."
+                  value={globalSearch}
+                  onChange={e => setGlobalSearch(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-full pl-11 pr-10 py-2.5 sm:py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all shadow-inner focus:bg-white"
                 />
+                {globalSearch && (
+                  <button 
+                    onClick={() => setGlobalSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-full transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
-              <span className="font-black text-slate-800 tracking-tight text-lg">FitRevive</span>
+              
+              {/* Global Search Results Dropdown */}
+              {globalSearch && globalSearchResults && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-slate-100 z-50 overflow-hidden flex flex-col max-h-[75vh] sm:max-h-[65vh] animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="p-3 bg-slate-50/80 backdrop-blur-sm border-b border-slate-100 flex justify-between items-center shrink-0">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Global Search Results</span>
+                        <div className="flex gap-2">
+                          <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
+                             {globalSearchResults.patients.length + globalSearchResults.bookings.length + globalSearchResults.billing.length} found
+                          </span>
+                        </div>
+                    </div>
+                    
+                    <div className="overflow-y-auto custom-scrollbar">
+                      {/* Patients Section */}
+                      {globalSearchResults.patients.length > 0 && (
+                        <div className="py-2 border-b border-slate-50 last:border-0">
+                          <div className="px-4 py-1.5 text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Patients</div>
+                          {globalSearchResults.patients.map(p => (
+                            <button key={p.id} onClick={() => { setActiveTab('patients'); setGlobalSearch(''); }} className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-blue-50/50 transition-colors group">
+                               <div className="flex items-center gap-3">
+                                 <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black text-xs shrink-0 group-hover:scale-110 transition-transform">
+                                   {p.name.charAt(0)}
+                                 </div>
+                                 <div className="flex flex-col">
+                                   <span className="font-bold text-sm text-slate-900 leading-tight group-hover:text-blue-600 transition-colors">{p.name}</span>
+                                   <span className="text-slate-500 text-[10px] font-medium flex items-center gap-1"><Phone className="w-2.5 h-2.5" /> {p.phone}</span>
+                                 </div>
+                               </div>
+                               <ChevronRight className="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Bookings Section */}
+                      {globalSearchResults.bookings.length > 0 && (
+                        <div className="py-2 border-b border-slate-50 last:border-0">
+                          <div className="px-4 py-1.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Bookings</div>
+                          {globalSearchResults.bookings.map(a => (
+                            <button key={a.id} onClick={() => { setActiveTab('appointments'); setGlobalSearch(''); }} className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-emerald-50/50 transition-colors group">
+                               <div className="flex items-center gap-3">
+                                 <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                   <CalendarCheck className="w-4 h-4" />
+                                 </div>
+                                 <div className="flex flex-col">
+                                   <span className="font-bold text-sm text-slate-900 leading-tight group-hover:text-emerald-600 transition-colors">{a.patientName}</span>
+                                   <span className="text-slate-500 text-[10px] font-medium flex items-center gap-2">
+                                     <span>{new Date(a.date).toLocaleDateString()}</span>
+                                     <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                     <span>{a.time}</span>
+                                   </span>
+                                 </div>
+                               </div>
+                               <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-100 uppercase translate-x-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all">{a.status}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Billing Section */}
+                      {globalSearchResults.billing.length > 0 && (
+                        <div className="py-2 border-b border-slate-50 last:border-0">
+                          <div className="px-4 py-1.5 text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-center gap-1.5"><CircleDollarSign className="w-3.5 h-3.5" /> Billing / Activity</div>
+                          {globalSearchResults.billing.map(t => (
+                            <button key={t.id} onClick={() => { setActiveTab('finances'); setGlobalSearch(''); }} className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-rose-50/50 transition-colors group">
+                               <div className="flex items-center gap-3">
+                                 <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                   {t.type === 'income' ? <ArrowDownRight className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
+                                 </div>
+                                 <div className="flex flex-col">
+                                   <span className="font-bold text-sm text-slate-900 leading-tight group-hover:text-rose-600 transition-colors truncate max-w-[200px]">{t.description || t.category}</span>
+                                   <span className="text-slate-500 text-[10px] font-medium flex items-center gap-2">
+                                     <span>{new Date(t.date).toLocaleDateString()}</span>
+                                   </span>
+                                 </div>
+                               </div>
+                               <span className="font-black text-sm text-slate-800">₹{t.amount}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* No Results */}
+                      {globalSearchResults.patients.length === 0 && globalSearchResults.bookings.length === 0 && globalSearchResults.billing.length === 0 && (
+                        <div className="p-8 text-center flex flex-col items-center justify-center">
+                           <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mb-3">
+                             <Search className="w-5 h-5 text-slate-300" />
+                           </div>
+                           <h4 className="font-bold text-slate-700">No results found</h4>
+                           <p className="text-xs font-medium text-slate-400 mt-1">Try adjusting your search criteria</p>
+                        </div>
+                      )}
+                    </div>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-3">
-               <div className="text-right">
-                 <div className="text-xs font-black text-slate-800">{user?.displayName?.split(' ')[0] || 'User'}</div>
-                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{role}</div>
-               </div>
-            </div>
+
+            {/* Desktop right alignment spacer if needed */}
+            <div className="hidden md:flex w-10 shrink-0"></div>
           </div>
 
           {/* Mobile Bottom Nav */}
