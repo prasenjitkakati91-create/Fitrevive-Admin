@@ -922,14 +922,14 @@ const Dashboard = ({
           {/* 3. SEARCH SECTION (MAKE IT POWERFUL) */}
           <div className="relative group">
             <div className="absolute inset-0 bg-blue-600 rounded-2xl blur-xl opacity-0 group-hover:opacity-10 transition-opacity"></div>
-            <div className="relative flex bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden p-1">
+            <div className="relative flex bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden p-1 transition-colors">
               <div className="flex-1 relative flex items-center">
-                 <Search className="absolute left-6 w-5 h-5 text-slate-400" />
+                 <Search className="absolute left-6 w-5 h-5 text-slate-400 dark:text-slate-500" />
                  <input 
                    placeholder="Search Patient by Name, Phone or ID..." 
                    value={patientSearch}
                    onChange={e => setPatientSearch(e.target.value)}
-                   className="w-full bg-transparent pl-16 pr-6 py-5 text-lg font-bold text-slate-800 outline-none placeholder:text-slate-300"
+                   className="w-full bg-transparent pl-16 pr-6 py-5 text-lg font-bold text-slate-800 dark:text-slate-200 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
                  />
               </div>
             </div>
@@ -1550,12 +1550,14 @@ const Dashboard = ({
   );
 };
 
-const PatientManager = ({ patients, appointments, transactions, onNotify, role }: { 
+const PatientManager = ({ patients, appointments, transactions, onNotify, role, viewTarget, setViewTarget }: { 
   patients: Patient[], 
   appointments: any[], 
   transactions: Transaction[], 
   onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void,
-  role?: string
+  role?: string,
+  viewTarget?: {type: string, id: string} | null,
+  setViewTarget?: any
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -1568,6 +1570,17 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+
+  useEffect(() => {
+    if (viewTarget?.type === 'patient' && viewTarget.id) {
+       const p = patients.find(p => p.id === viewTarget.id);
+       if (p) {
+         setSelectedPatient(p);
+         setShowHistoryModal(true);
+         setViewTarget(null);
+       }
+    }
+  }, [viewTarget, patients, setViewTarget]);
   const [patientHistory, setPatientHistory] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -2101,36 +2114,36 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
       </div>
 
       {/* Controls & Filters */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between sticky top-0 z-10">
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between sticky top-0 z-10 transition-colors">
          <div className="relative w-full md:w-96">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
             <input 
               type="text" 
               placeholder="Search patients, phone, or condition..."
               value={searchTerm}
               onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
-              className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all"
+              className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20 focus:border-blue-400 dark:focus:border-blue-500 transition-all"
             />
          </div>
          <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
-            <label className="flex-1 sm:flex-none flex items-center justify-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 hover:bg-blue-50 hover:border-blue-200 px-3 py-2.5 rounded-xl shadow-sm transition-all">
+            <label className="flex-1 sm:flex-none flex items-center justify-center gap-2 cursor-pointer bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800 px-3 py-2.5 rounded-xl shadow-sm transition-all group">
                <input type="checkbox" checked={activeOnly} onChange={e => {setActiveOnly(e.target.checked); setCurrentPage(1);}} className="rounded text-blue-600 w-4 h-4 cursor-pointer" />
-               <span className="text-xs font-bold text-slate-700 whitespace-nowrap">Active Only</span>
+               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap group-hover:text-slate-900 dark:group-hover:text-white transition-colors">Active Only</span>
             </label>
-            <select value={statusFilter} onChange={e => {setStatusFilter(e.target.value); setCurrentPage(1);}} className="flex-1 sm:flex-none text-xs font-bold bg-slate-50 border border-slate-200 px-3 py-3 rounded-xl outline-none focus:border-blue-400 cursor-pointer hover:bg-slate-100 transition-colors">
+            <select value={statusFilter} onChange={e => {setStatusFilter(e.target.value); setCurrentPage(1);}} className="flex-1 sm:flex-none text-xs font-bold bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200 px-3 py-3 rounded-xl outline-none focus:border-blue-400 dark:focus:border-blue-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                <option value="All">All Status</option>
                <option value="Active">Active</option>
                <option value="In Treatment">In Treatment</option>
                <option value="Completed">Completed</option>
             </select>
-            <select value={ageFilter} onChange={e => {setAgeFilter(e.target.value); setCurrentPage(1);}} className="flex-1 sm:flex-none text-xs font-bold bg-slate-50 border border-slate-200 px-3 py-3 rounded-xl outline-none focus:border-blue-400 hidden sm:block cursor-pointer hover:bg-slate-100 transition-colors">
+            <select value={ageFilter} onChange={e => {setAgeFilter(e.target.value); setCurrentPage(1);}} className="flex-1 sm:flex-none text-xs font-bold bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200 px-3 py-3 rounded-xl outline-none focus:border-blue-400 dark:focus:border-blue-500 hidden sm:block cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                <option value="All">All Ages</option>
                <option value="0-18">0-18 yrs</option>
                <option value="19-35">19-35 yrs</option>
                <option value="36-50">36-50 yrs</option>
                <option value="51+">51+ yrs</option>
             </select>
-            <select value={sortOrder} onChange={e => {setSortOrder(e.target.value); setCurrentPage(1);}} className="flex-1 sm:flex-none text-xs font-bold bg-slate-50 border border-slate-200 px-3 py-3 rounded-xl outline-none focus:border-blue-400 cursor-pointer hover:bg-slate-100 transition-colors hidden sm:block">
+            <select value={sortOrder} onChange={e => {setSortOrder(e.target.value); setCurrentPage(1);}} className="flex-1 sm:flex-none text-xs font-bold bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200 px-3 py-3 rounded-xl outline-none focus:border-blue-400 dark:focus:border-blue-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors hidden sm:block">
                <option value="Recent">Recent First</option>
                <option value="Name A-Z">Name A-Z</option>
             </select>
@@ -2595,11 +2608,13 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role }
     </div>
   );
 };
-const FinanceTracker = ({ transactions, patients, onNotify, role }: { 
+const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, setViewTarget }: { 
   transactions: Transaction[], 
   patients: Patient[], 
   onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void,
-  role?: string
+  role?: string,
+  viewTarget?: {type: string, id: string} | null,
+  setViewTarget?: any
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [showBillingModal, setShowBillingModal] = useState(false);
@@ -2633,6 +2648,19 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
   const [printTx, setPrintTx] = useState<Transaction | null>(null);
   const [therapistName, setTherapistName] = useState('Dr. Rahul Das');
   const [isSavingPdf, setIsSavingPdf] = useState(false);
+
+  useEffect(() => {
+    if (viewTarget?.type === 'transaction' && viewTarget.id) {
+       const t = transactions.find(t => t.id === viewTarget.id);
+       if (t && t.type === 'income') { // Only print income / receipts
+         setPrintTx(t);
+         setViewTarget(null);
+       } else if (t) {
+         // Auto expand or something if it's an expense. We'll simply let it scroll or just clear it.
+         setViewTarget(null);
+       }
+    }
+  }, [viewTarget, transactions, setViewTarget]);
 
   useEffect(() => {
     const amt = parseFloat(newTx.amount) || 0;
@@ -3279,13 +3307,13 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
           
           <div className="flex flex-wrap gap-3 items-center w-full lg:w-auto">
             <div className="relative flex-1 lg:flex-none">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
               <input 
                 type="text" 
                 placeholder="Search..." 
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full lg:w-48 pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100"
+                className="w-full lg:w-48 pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20 placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
             </div>
             <div className="flex items-center gap-1">
@@ -3437,15 +3465,15 @@ const FinanceTracker = ({ transactions, patients, onNotify, role }: {
              <div className="p-5 sm:p-8 overflow-y-auto bg-slate-50/50 flex-1">
                {!selectedBillingPatient ? (
                  <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Search Patient Name or Phone</label>
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1 mb-2 block">Search Patient Name or Phone</label>
                     <div className="relative mb-4">
-                      <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                       <input 
                         type="text" 
                         value={billingPatientSearch} 
                         onChange={e => setBillingPatientSearch(e.target.value)} 
                         placeholder="Type to search patients..." 
-                        className="w-full bg-white border border-slate-200 rounded-2xl pl-10 pr-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all shadow-sm"
+                        className="w-full bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-2xl pl-10 pr-5 py-3.5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20 focus:border-blue-500 dark:focus:border-blue-500 transition-all shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
                       />
                     </div>
                     {billingPatientSearch.length > 0 && (
@@ -4240,13 +4268,13 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
                  </div>
                  <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                     <div className="relative flex-1 md:w-64">
-                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
                        <input 
                          type="text" 
                          placeholder="Search entries..."
                          value={searchTerm}
                          onChange={e => setSearchTerm(e.target.value)}
-                         className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all shadow-sm"
+                         className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20 focus:border-blue-500 dark:focus:border-blue-500 transition-all shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
                        />
                     </div>
                  </div>
@@ -4453,7 +4481,7 @@ const KPICard = ({ title, value, trend, icon, color, highlighted = false, hideCu
   );
 };
 
-const AppointmentManager = ({ patients, appointments, members, onNotify }: { patients: Patient[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void }) => {
+const AppointmentManager = ({ patients, appointments, members, onNotify, viewTarget, setViewTarget }: { patients: Patient[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, viewTarget?: {type: string, id: string} | null, setViewTarget?: any }) => {
   const [selectedDate, setSelectedDate] = useState(getLocalYMD());
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -4477,6 +4505,18 @@ const AppointmentManager = ({ patients, appointments, members, onNotify }: { pat
     sessionType: 'Consultation',
     notes: '' 
   });
+
+
+
+  useEffect(() => {
+    if (viewTarget?.type === 'appointment' && viewTarget.id) {
+       const a = appointments.find(a => a.id === viewTarget.id);
+       if (a) {
+         openApptModal(a);
+         setViewTarget(null);
+       }
+    }
+  }, [viewTarget, appointments, setViewTarget]);
 
   // Update current time every minute
   useEffect(() => {
@@ -4539,6 +4579,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify }: { pat
         sessionType: appt.sessionType || 'Consultation',
         notes: appt.notes || ''
       });
+      setSelectedDate(appt.date);
     } else {
       setEditApptId(null);
       // Find direct available slot if not provided, or check if provided is occupied
@@ -5293,15 +5334,15 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         <div className="xl:col-span-2 space-y-6">
            {/* Filters Bar */}
-           <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-4">
+           <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-center gap-4 transition-colors">
               <div className="relative flex-1 w-full">
-                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
                  <input 
                    type="text" 
                    placeholder="Search by name, email or Staff ID..."
                    value={searchTerm}
                    onChange={e => setSearchTerm(e.target.value)}
-                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all"
+                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
                  />
               </div>
               <div className="flex items-center gap-3 w-full md:w-auto">
@@ -6189,19 +6230,19 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify }: { role
                  </div>
                  <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
                     <div className="relative flex-1 md:w-48">
-                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
                        <input 
                          type="text" 
                          placeholder="Search staff..."
                          value={searchTerm}
                          onChange={e => setSearchTerm(e.target.value)}
-                         className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all shadow-sm"
+                         className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
                        />
                     </div>
                     <select 
                       value={roleFilter} 
                       onChange={e => setRoleFilter(e.target.value)}
-                      className="text-xs font-bold bg-white border border-slate-200 px-3 py-2 rounded-lg outline-none focus:border-blue-500 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
+                      className="text-xs font-bold bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-lg outline-none focus:border-blue-500 dark:focus:border-blue-500 shadow-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                     >
                        <option value="all">All Roles</option>
                        <option value="admin">Admin</option>
@@ -6802,18 +6843,16 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
   const [clinicEmail, setClinicEmail] = useState('contact@nirvanaphysio.com');
   const [clinicPhone, setClinicPhone] = useState('+1 (555) 123-4567');
   const [clinicCurrency, setClinicCurrency] = useState('USD');
+  const [clinicAddress, setClinicAddress] = useState('Nalbari, bangaon, Barnardi rode,781303');
 
   // Preferences state
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
-  const [calendarView, setCalendarView] = useState(localStorage.getItem('calendar_view') || 'Month');
   
   // Notification State
   const [pushEnabled, setPushEnabled] = useState(localStorage.getItem('push_enabled') !== 'false');
-  const [emailAlerts, setEmailAlerts] = useState(true);
-  const [smsAlerts, setSmsAlerts] = useState(false);
-  
-  // Security State
-  const [twoFactor, setTwoFactor] = useState(false);
+  const [emailAlerts, setEmailAlerts] = useState(localStorage.getItem('email_alerts') !== 'false');
+  const [smsAlerts, setSmsAlerts] = useState(localStorage.getItem('sms_alerts') === 'true');
+
 
   useEffect(() => {
      const fetchSettings = async () => {
@@ -6825,6 +6864,7 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
               if (data.clinicEmail) setClinicEmail(data.clinicEmail);
               if (data.clinicPhone) setClinicPhone(data.clinicPhone);
               if (data.clinicCurrency) setClinicCurrency(data.clinicCurrency);
+              if (data.clinicAddress) setClinicAddress(data.clinicAddress);
            }
         } catch(err) {
            console.error("Failed to load clinic settings", err);
@@ -6835,11 +6875,10 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
 
   const categories = [
     { id: 'account', label: 'Profile & Account', icon: User2, allowed: ['admin', 'manager', 'therapist'] },
-    { id: 'clinic', label: 'Clinic Information', icon: Building2, allowed: ['admin', 'manager'] },
+    { id: 'clinic', label: 'Clinic Information', icon: Building2, allowed: ['admin', 'manager', 'therapist'] },
     { id: 'appearance', label: 'Appearance', icon: Palette, allowed: ['admin', 'manager', 'therapist'] },
     { id: 'notifications', label: 'Notifications', icon: Bell, allowed: ['admin', 'manager', 'therapist'] },
     { id: 'security', label: 'Security & Data', icon: ShieldCheck, allowed: ['admin', 'manager', 'therapist'] },
-    { id: 'billing', label: 'Plan & Billing', icon: CreditCard, allowed: ['admin', 'manager'] },
   ];
 
   const visibleCategories = categories.filter(c => c.allowed.includes(role));
@@ -6864,6 +6903,7 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
           clinicEmail,
           clinicPhone,
           clinicCurrency,
+          clinicAddress,
           updatedAt: new Date().toISOString()
        }, { merge: true });
        onNotify("Clinic configuration saved.", "success");
@@ -6889,7 +6929,7 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
      localStorage.setItem('theme', newTheme);
      if (newTheme === 'dark') {
          document.documentElement.classList.add('dark');
-         onNotify("Dark mode preferred (Partial Support)", "info");
+         onNotify("Dark mode preferred", "success");
      } else {
          document.documentElement.classList.remove('dark');
          onNotify("Light mode preferred", "success");
@@ -6924,10 +6964,10 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
 
   return (
     <div className="space-y-6 pb-20 md:pb-6 max-w-5xl mx-auto">
-      <header className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-slate-100">
+      <header className="flex justify-between items-center bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-800 transition-colors">
         <div>
-           <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Settings Workspace</h1>
-           <p className="text-sm font-bold tracking-tight text-slate-400 mt-1">Manage your account, preferences, and clinic system</p>
+           <h1 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-200 tracking-tight">Settings Workspace</h1>
+           <p className="text-sm font-bold tracking-tight text-slate-400 dark:text-slate-500 mt-1">Manage your account, preferences, and clinic system</p>
         </div>
       </header>
 
@@ -6938,33 +6978,33 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id as any)}
                   className={cn(
-                     "flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3.5 rounded-xl font-bold text-sm transition-all md:text-left whitespace-nowrap",
+                     "group flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3.5 rounded-xl font-bold text-sm transition-all md:text-left whitespace-nowrap",
                      activeCategory === cat.id 
-                        ? "bg-slate-900 text-white shadow-lg shadow-slate-200" 
-                        : "bg-transparent text-slate-600 hover:bg-slate-100"
+                        ? "bg-blue-600 dark:bg-slate-800 text-white shadow-lg shadow-blue-200 dark:shadow-slate-900/50" 
+                        : "bg-transparent text-slate-600 dark:text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-slate-800/50 dark:hover:text-slate-200"
                   )}
                >
-                  <cat.icon className={cn("w-4 h-4 shrink-0", activeCategory === cat.id ? "text-blue-400" : "text-slate-400")} />
+                  <cat.icon className={cn("w-4 h-4 shrink-0 transition-colors", activeCategory === cat.id ? "text-white dark:text-blue-400" : "text-slate-400 dark:text-slate-500 group-hover:text-blue-500 dark:group-hover:text-slate-300")} />
                   <span className="hidden sm:inline">{cat.label}</span>
                </button>
             ))}
          </div>
 
-         <div className="flex-1 w-full bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden min-h-[600px]">
+         <div className="flex-1 w-full bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden min-h-[600px] transition-colors">
            {activeCategory === 'account' && (
              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-               <div className="p-6 border-b border-slate-100">
-                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Account Profile</h2>
+               <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+                  <h2 className="text-xl font-black text-slate-800 dark:text-slate-200 tracking-tight">Account Profile</h2>
                   <p className="text-sm text-slate-500 font-medium">Update your personal information and roles.</p>
                </div>
                <div className="p-6">
                   <form onSubmit={handleSaveProfile} className="space-y-6 max-w-lg">
                      <div className="flex items-center gap-4 mb-6">
-                       <div className="w-16 h-16 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl font-black shrink-0">
+                       <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl font-black shrink-0">
                          {displayName.charAt(0) || user.email?.charAt(0).toUpperCase()}
                        </div>
                        <div>
-                         <div className="font-bold text-slate-800">Profile Initial</div>
+                         <div className="font-bold text-slate-800 dark:text-slate-200">Profile Initial</div>
                          <div className="text-xs text-slate-500 font-medium">Used for avatars across the system.</div>
                        </div>
                      </div>
@@ -6974,7 +7014,7 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
                            type="text" 
                            value={displayName}
                            onChange={(e) => setDisplayName(e.target.value)}
-                           className="w-full text-sm font-semibold bg-white border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all text-slate-800 placeholder:text-slate-400" 
+                           className="w-full text-sm font-semibold bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-500 focus:border-transparent transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500" 
                            placeholder="John Doe"
                         />
                      </div>
@@ -6984,12 +7024,12 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
                            type="text" 
                            value={user.email || ''}
                            disabled
-                           className="w-full text-sm font-semibold bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none cursor-not-allowed opacity-70 text-slate-700" 
+                           className="w-full text-sm font-semibold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3.5 outline-none cursor-not-allowed opacity-70 text-slate-700 dark:text-slate-400" 
                         />
                      </div>
-                     <div className="space-y-1.5 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                     <div className="space-y-1.5 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700/30">
                         <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">Active Role</div>
-                        <div className="text-sm font-black text-slate-800 capitalize mt-1 flex items-center gap-2">
+                        <div className="text-sm font-black text-slate-800 dark:text-slate-200 capitalize mt-1 flex items-center gap-2">
                            <ShieldCheck className="w-4 h-4 text-emerald-500"/> {role}
                         </div>
                      </div>
@@ -6997,21 +7037,21 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
                         <button 
                            type="submit"
                            disabled={isSaving}
-                           className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-6 rounded-xl transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+                           className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all disabled:opacity-70 flex items-center justify-center gap-2"
                         >
                            {isSaving ? 'Updating...' : 'Save Changes'}
                         </button>
                      </div>
                   </form>
                </div>
-               <div className="p-6 border-t border-slate-100 bg-rose-50/30 flex items-center justify-between">
+               <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-rose-50/30 dark:bg-rose-900/10 flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-black text-rose-800">Sign Out</h3>
-                    <p className="text-xs font-semibold text-slate-500 mt-1">End your current session securely.</p>
+                    <h3 className="text-sm font-black text-rose-800 dark:text-rose-400">Sign Out</h3>
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">End your current session securely.</p>
                   </div>
                   <button 
                      onClick={onLogout}
-                     className="bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 font-bold py-2.5 px-5 rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm"
+                     className="bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-900/30 font-bold py-2.5 px-5 rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm"
                   >
                      <LogOut className="w-4 h-4" /> Log Out
                   </button>
@@ -7021,19 +7061,23 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
 
            {activeCategory === 'clinic' && (
              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-               <div className="p-6 border-b border-slate-100">
-                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Clinic Information</h2>
+               <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+                  <h2 className="text-xl font-black text-slate-800 dark:text-slate-200 tracking-tight">Clinic Information</h2>
                   <p className="text-sm text-slate-500 font-medium">Update public and operational details for the clinic.</p>
                </div>
                <div className="p-6 space-y-6 max-w-2xl">
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                   <div className="space-y-1.5">
+                   <div className="space-y-1.5 sm:col-span-2">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Clinic Name</label>
-                      <input type="text" value={clinicName} onChange={(e) => setClinicName(e.target.value)} className="w-full text-sm font-semibold bg-white border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 transition-all text-slate-800" />
+                      <input type="text" disabled={role !== 'admin'} value={clinicName} onChange={(e) => setClinicName(e.target.value)} className="w-full text-sm font-semibold bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 transition-all text-slate-800 dark:text-slate-200 disabled:opacity-70 disabled:cursor-not-allowed" />
+                   </div>
+                   <div className="space-y-1.5 sm:col-span-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Address</label>
+                      <input type="text" disabled={role !== 'admin'} value={clinicAddress} onChange={(e) => setClinicAddress(e.target.value)} className="w-full text-sm font-semibold bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 transition-all text-slate-800 dark:text-slate-200 disabled:opacity-70 disabled:cursor-not-allowed" />
                    </div>
                    <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Currency</label>
-                      <select value={clinicCurrency} onChange={(e) => setClinicCurrency(e.target.value)} className="w-full text-sm font-semibold bg-white border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 transition-all text-slate-800 appearance-none">
+                      <select disabled={role !== 'admin'} value={clinicCurrency} onChange={(e) => setClinicCurrency(e.target.value)} className="w-full text-sm font-semibold bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 transition-all text-slate-800 dark:text-slate-200 appearance-none disabled:opacity-70 disabled:cursor-not-allowed">
                         <option value="USD">USD ($)</option>
                         <option value="EUR">EUR (€)</option>
                         <option value="GBP">GBP (£)</option>
@@ -7044,52 +7088,40 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
                    </div>
                    <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Support Email</label>
-                      <input type="email" value={clinicEmail} onChange={(e) => setClinicEmail(e.target.value)} className="w-full text-sm font-semibold bg-white border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 transition-all text-slate-800" />
+                      <input type="email" disabled={role !== 'admin'} value={clinicEmail} onChange={(e) => setClinicEmail(e.target.value)} className="w-full text-sm font-semibold bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 transition-all text-slate-800 dark:text-slate-200 disabled:opacity-70 disabled:cursor-not-allowed" />
                    </div>
                    <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Primary Phone</label>
-                      <input type="text" value={clinicPhone} onChange={(e) => setClinicPhone(e.target.value)} className="w-full text-sm font-semibold bg-white border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 transition-all text-slate-800" />
+                      <input type="text" disabled={role !== 'admin'} value={clinicPhone} onChange={(e) => setClinicPhone(e.target.value)} className="w-full text-sm font-semibold bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 transition-all text-slate-800 dark:text-slate-200 disabled:opacity-70 disabled:cursor-not-allowed" />
                    </div>
                  </div>
-                 <div className="pt-4 border-t border-slate-100 flex">
-                   <button onClick={handleSaveClinic} className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md">
-                     Save Clinic Profile
-                   </button>
-                 </div>
+                 {role === 'admin' && (
+                   <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex">
+                     <button onClick={handleSaveClinic} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md">
+                       Save Clinic Profile
+                     </button>
+                   </div>
+                 )}
                </div>
              </div>
            )}
 
            {activeCategory === 'appearance' && (
              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-               <div className="p-6 border-b border-slate-100">
-                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Appearance & Behavior</h2>
+               <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+                  <h2 className="text-xl font-black text-slate-800 dark:text-slate-200 tracking-tight">Appearance & Behavior</h2>
                   <p className="text-sm text-slate-500 font-medium">Customize how FitRevive looks and feels on this device.</p>
                </div>
                <div className="p-6 space-y-8 max-w-2xl">
                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                       <h4 className="font-bold text-slate-800">Theme Mode</h4>
+                       <h4 className="font-bold text-slate-800 dark:text-slate-200">Theme Mode</h4>
                        <p className="text-sm font-medium text-slate-500 mt-1">Light or dark interface</p>
                     </div>
-                    <div className="flex bg-slate-100 rounded-xl p-1 w-full sm:w-auto">
-                       <button onClick={() => handleThemeToggle('light')} className={cn("flex-1 sm:flex-none px-6 py-2 rounded-lg font-bold text-sm transition-all focus:outline-none flex items-center justify-center gap-2", theme === 'light' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}><Sun className="w-4 h-4"/> Light</button>
-                       <button onClick={() => handleThemeToggle('dark')} className={cn("flex-1 sm:flex-none px-6 py-2 rounded-lg font-bold text-sm transition-all focus:outline-none flex items-center justify-center gap-2", theme === 'dark' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}><Moon className="w-4 h-4"/> Dark</button>
+                    <div className="flex bg-slate-100 dark:bg-slate-800/50 rounded-xl p-1 w-full sm:w-auto">
+                       <button onClick={() => handleThemeToggle('light')} className={cn("flex-1 sm:flex-none px-6 py-2 rounded-lg font-bold text-sm transition-all focus:outline-none flex items-center justify-center gap-2", theme === 'light' ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}><Sun className="w-4 h-4"/> Light</button>
+                       <button onClick={() => handleThemeToggle('dark')} className={cn("flex-1 sm:flex-none px-6 py-2 rounded-lg font-bold text-sm transition-all focus:outline-none flex items-center justify-center gap-2", theme === 'dark' ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}><Moon className="w-4 h-4"/> Dark</button>
                     </div>
-                 </div>
-
-                 <div className="w-full h-px bg-slate-100"></div>
-
-                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                       <h4 className="font-bold text-slate-800">Default Calendar View</h4>
-                       <p className="text-sm font-medium text-slate-500 mt-1">Which view to load by default</p>
-                    </div>
-                    <select value={calendarView} onChange={(e) => { setCalendarView(e.target.value); localStorage.setItem('calendar_view', e.target.value); onNotify("View preference updated", "success"); }} className="w-full sm:w-auto text-sm font-bold bg-white border border-slate-200 rounded-xl px-4 py-2.5 outline-none text-slate-800 shadow-sm cursor-pointer appearance-none">
-                      <option value="Day">Day View</option>
-                      <option value="Week">Week View</option>
-                      <option value="Month">Month View</option>
-                    </select>
                  </div>
                </div>
              </div>
@@ -7097,41 +7129,41 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
 
            {activeCategory === 'notifications' && (
              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-               <div className="p-6 border-b border-slate-100">
-                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Notification Preferences</h2>
+               <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+                  <h2 className="text-xl font-black text-slate-800 dark:text-slate-200 tracking-tight">Notification Preferences</h2>
                   <p className="text-sm text-slate-500 font-medium">Control what alerts and messages you receive.</p>
                </div>
                <div className="p-6 space-y-6 max-w-2xl">
                  <div className="flex items-center justify-between group">
                     <div>
-                       <h4 className="font-bold text-slate-800">Push Notifications</h4>
+                       <h4 className="font-bold text-slate-800 dark:text-slate-200">Push Notifications</h4>
                        <p className="text-sm font-medium text-slate-500 mt-1">Get alerts for new bookings and messages via browser.</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer shrink-0">
                       <input type="checkbox" className="sr-only peer" checked={pushEnabled} onChange={handlePushToggle} />
-                      <div className="w-12 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:duration-300 peer-checked:bg-blue-600"></div>
+                      <div className="w-12 h-6 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:duration-300 peer-checked:bg-blue-600"></div>
                     </label>
                  </div>
-                 <div className="w-full h-px bg-slate-100"></div>
+                 <div className="w-full h-px bg-slate-100 dark:bg-slate-800"></div>
                  <div className="flex items-center justify-between group">
                     <div>
-                       <h4 className="font-bold text-slate-800">Email Summaries</h4>
+                       <h4 className="font-bold text-slate-800 dark:text-slate-200">Email Summaries</h4>
                        <p className="text-sm font-medium text-slate-500 mt-1">Daily workflow and revenue summaries delivered to your inbox.</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input type="checkbox" className="sr-only peer" checked={emailAlerts} onChange={() => {setEmailAlerts(!emailAlerts); onNotify("Email preferences updated", "success");}} />
-                      <div className="w-12 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:duration-300 peer-checked:bg-slate-900"></div>
+                      <input type="checkbox" className="sr-only peer" checked={emailAlerts} onChange={() => {setEmailAlerts(!emailAlerts); localStorage.setItem('email_alerts', String(!emailAlerts)); onNotify("Email preferences updated", "success");}} />
+                      <div className="w-12 h-6 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:duration-300 peer-checked:bg-slate-900 dark:peer-checked:bg-blue-600"></div>
                     </label>
                  </div>
-                 <div className="w-full h-px bg-slate-100"></div>
+                 <div className="w-full h-px bg-slate-100 dark:bg-slate-800"></div>
                  <div className="flex items-center justify-between group">
                     <div>
-                       <h4 className="font-bold text-slate-800">SMS Alerts</h4>
+                       <h4 className="font-bold text-slate-800 dark:text-slate-200">SMS Alerts</h4>
                        <p className="text-sm font-medium text-slate-500 mt-1">Critical alerts sent directly to your phone.</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input type="checkbox" className="sr-only peer" checked={smsAlerts} onChange={() => {setSmsAlerts(!smsAlerts); onNotify("SMS preferences updated", "success");}} />
-                      <div className="w-12 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:duration-300 peer-checked:bg-slate-900"></div>
+                      <input type="checkbox" className="sr-only peer" checked={smsAlerts} onChange={() => {setSmsAlerts(!smsAlerts); localStorage.setItem('sms_alerts', String(!smsAlerts)); onNotify("SMS preferences updated", "success");}} />
+                      <div className="w-12 h-6 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:duration-300 peer-checked:bg-slate-900 dark:peer-checked:bg-blue-600"></div>
                     </label>
                  </div>
                </div>
@@ -7140,94 +7172,26 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
 
            {activeCategory === 'security' && (
              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-               <div className="p-6 border-b border-slate-100">
-                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Security & Data</h2>
+               <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+                  <h2 className="text-xl font-black text-slate-800 dark:text-slate-200 tracking-tight">Security & Data</h2>
                   <p className="text-sm text-slate-500 font-medium">Protect your account and manage important system data.</p>
                </div>
                <div className="p-6 space-y-8 max-w-3xl">
-                 <div className="flex items-center justify-between">
-                    <div>
-                       <h4 className="font-bold text-slate-800">Two-Factor Authentication (2FA)</h4>
-                       <p className="text-sm font-medium text-slate-500 mt-1 max-w-sm">Require a secure code in addition to your password during sign in.</p>
-                    </div>
-                    <button 
-                       onClick={() => { setTwoFactor(!twoFactor); onNotify(twoFactor ? "2FA disabled" : "2FA enabled", "info"); }}
-                       className={cn("px-4 py-2 text-sm font-bold rounded-xl transition-all border", twoFactor ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100" : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50")}
-                    >
-                       {twoFactor ? "Enabled" : "Enable 2FA"}
-                    </button>
-                 </div>
-
-                 <div className="w-full h-px bg-slate-100"></div>
-
                  <div>
-                   <h4 className="font-bold text-slate-800 mb-4">Patient Data Management</h4>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div className="p-5 border border-slate-200 rounded-xl bg-white shadow-sm flex flex-col justify-between">
+                   <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4">Patient Data Management</h4>
+                   <div className="grid grid-cols-1 gap-4">
+                     <div className="p-5 border border-slate-200 dark:border-slate-700/50 rounded-xl bg-white dark:bg-slate-800/50 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div>
-                          <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+                          <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3">
                             <DownloadCloud className="w-5 h-5" />
                           </div>
-                          <h4 className="font-bold text-slate-800">Backup System Data</h4>
-                          <p className="text-sm font-medium text-slate-500 mt-1 mb-4">Export all patients, bookings, and financial logs as JSON format for offline safe-keeping.</p>
+                          <h4 className="font-bold text-slate-800 dark:text-slate-200">Backup System Data</h4>
+                          <p className="text-sm font-medium text-slate-500 mt-1 mb-4 sm:mb-0">Export all patients, bookings, and financial logs as JSON format for offline safe-keeping.</p>
                         </div>
-                        <button onClick={handleBackupDatabase} className="w-full bg-slate-50 border border-slate-200 text-slate-800 hover:bg-slate-100 font-bold py-2.5 px-4 rounded-lg text-sm transition-all focus:outline-none">Download Backup</button>
-                     </div>
-                     <div className="p-5 border border-slate-200 rounded-xl bg-white shadow-sm flex flex-col justify-between">
-                        <div>
-                          <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
-                            <UploadCloud className="w-5 h-5" />
-                          </div>
-                          <h4 className="font-bold text-slate-800">Import Data</h4>
-                          <p className="text-sm font-medium text-slate-500 mt-1 mb-4">Restore system data from a recent backup. Note that this action is restricted in preview.</p>
-                        </div>
-                        <button onClick={() => onNotify("Import tool is disabled for security", "info")} className="w-full bg-slate-50 border border-slate-200 text-slate-800 hover:bg-slate-100 font-bold py-2.5 px-4 rounded-lg text-sm transition-all focus:outline-none">Upload File</button>
+                        <button onClick={handleBackupDatabase} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-all focus:outline-none whitespace-nowrap">Download Backup</button>
                      </div>
                    </div>
                  </div>
-               </div>
-             </div>
-           )}
-
-           {activeCategory === 'billing' && (
-             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-               <div className="p-6 border-b border-slate-100">
-                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Plan & Billing</h2>
-                  <p className="text-sm text-slate-500 font-medium">Manage your subscription, invoices, and billing methods.</p>
-               </div>
-               <div className="p-6 space-y-6 max-w-3xl">
-                  <div className="p-6 bg-slate-900 rounded-2xl text-white relative overflow-hidden">
-                     <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
-                        <CreditCard className="w-24 h-24" />
-                     </div>
-                     <div className="flex items-center gap-3 mb-2">
-                        <span className="bg-blue-500/20 text-blue-300 px-2.5 py-1 rounded text-xs font-black uppercase tracking-widest border border-blue-500/30">Current Plan</span>
-                     </div>
-                     <h3 className="text-3xl font-black tracking-tight mb-2">FitRevive Premium</h3>
-                     <p className="text-slate-400 font-medium text-sm mb-6 max-w-md">Unlimited patients, advanced team roles, custom PDF reports, and priority 24/7 technical support.</p>
-                     <div className="flex items-center gap-4">
-                       <button className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-5 rounded-lg transition-all shadow-md text-sm">Manage Plan</button>
-                       <button className="text-slate-300 hover:text-white font-bold text-sm transition-colors">View Features</button>
-                     </div>
-                  </div>
-
-                  <div className="border border-slate-200 rounded-2xl overflow-hidden mt-6">
-                    <div className="p-5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
-                       <h4 className="font-bold text-slate-800">Payment Method</h4>
-                       <button className="text-sm font-bold text-blue-600 hover:text-blue-800">Update</button>
-                    </div>
-                    <div className="p-5 flex items-center justify-between">
-                       <div className="flex items-center gap-4">
-                          <div className="w-12 h-8 bg-slate-100 border border-slate-200 rounded flex items-center justify-center">
-                             <CreditCard className="w-5 h-5 text-slate-600" />
-                          </div>
-                          <div>
-                             <div className="font-bold text-slate-800">•••• •••• •••• 4242</div>
-                             <div className="text-xs font-medium text-slate-500">Expires 12/28</div>
-                          </div>
-                       </div>
-                    </div>
-                  </div>
                </div>
              </div>
            )}
@@ -7244,6 +7208,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isRoleLoading, setIsRoleLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [viewTarget, setViewTarget] = useState<{type: 'patient' | 'appointment' | 'transaction', id: string} | null>(null);
   const [globalSearch, setGlobalSearch] = useState('');
   const [debouncedGlobalSearch, setDebouncedGlobalSearch] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -7312,7 +7277,7 @@ export default function App() {
     setNotifications(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 3000);
+    }, 1200);
   };
 
   useEffect(() => {
@@ -7486,11 +7451,11 @@ export default function App() {
           isSidebarCollapsed ? "md:pl-20" : "md:pl-64"
         )}>
           {/* Global Top Search Bar */}
-          <div className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-sm print:hidden px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between gap-4">
+          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 shadow-sm print:hidden px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between gap-4">
             
             {/* Mobile menu toggle & brand (only mobile) */}
             <div className="md:hidden flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-slate-100 shadow-sm overflow-hidden shrink-0">
+                <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden shrink-0">
                   <img src={LogoImage} alt="FitRevive" className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />
                 </div>
             </div>
@@ -7504,12 +7469,12 @@ export default function App() {
                   placeholder="Search patients, bookings, billing..."
                   value={globalSearch}
                   onChange={e => setGlobalSearch(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-full pl-11 pr-10 py-2.5 sm:py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all shadow-inner focus:bg-white"
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 rounded-full pl-11 pr-10 py-2.5 sm:py-3 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm focus:shadow-md"
                 />
                 {globalSearch && (
                   <button 
                     onClick={() => setGlobalSearch('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-full transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -7518,11 +7483,11 @@ export default function App() {
               
               {/* Global Search Results Dropdown */}
               {globalSearch && globalSearchResults && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-slate-100 z-50 overflow-hidden flex flex-col max-h-[75vh] sm:max-h-[65vh] animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="p-3 bg-slate-50/80 backdrop-blur-sm border-b border-slate-100 flex justify-between items-center shrink-0">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Global Search Results</span>
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-blue-900/10 border border-slate-100 dark:border-slate-800 z-50 overflow-hidden flex flex-col max-h-[75vh] sm:max-h-[65vh] animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="p-3 bg-slate-50/80 dark:bg-slate-800/50 backdrop-blur-sm border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0">
+                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Global Search Results</span>
                         <div className="flex gap-2">
-                          <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
+                          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
                              {globalSearchResults.patients.length + globalSearchResults.bookings.length + globalSearchResults.billing.length} found
                           </span>
                         </div>
@@ -7531,20 +7496,20 @@ export default function App() {
                     <div className="overflow-y-auto custom-scrollbar">
                       {/* Patients Section */}
                       {globalSearchResults.patients.length > 0 && (
-                        <div className="py-2 border-b border-slate-50 last:border-0">
-                          <div className="px-4 py-1.5 text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Patients</div>
+                        <div className="py-2 border-b border-slate-50 dark:border-slate-800/50 last:border-0">
+                          <div className="px-4 py-1.5 text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Patients</div>
                           {globalSearchResults.patients.map(p => (
-                            <button key={p.id} onClick={() => { setActiveTab('patients'); setGlobalSearch(''); }} className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-blue-50/50 transition-colors group">
+                            <button key={p.id} onPointerDown={(e) => { e.preventDefault(); setActiveTab('patients'); setViewTarget({type: 'patient', id: p.id}); setGlobalSearch(''); setIsSidebarOpen(false); }} className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors group">
                                <div className="flex items-center gap-3">
-                                 <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black text-xs shrink-0 group-hover:scale-110 transition-transform">
+                                 <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-xs shrink-0 group-hover:scale-110 transition-transform">
                                    {p.name.charAt(0)}
                                  </div>
                                  <div className="flex flex-col">
-                                   <span className="font-bold text-sm text-slate-900 leading-tight group-hover:text-blue-600 transition-colors">{p.name}</span>
-                                   <span className="text-slate-500 text-[10px] font-medium flex items-center gap-1"><Phone className="w-2.5 h-2.5" /> {p.phone}</span>
+                                   <span className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{p.name}</span>
+                                   <span className="text-slate-500 dark:text-slate-400 text-[10px] font-medium flex items-center gap-1"><Phone className="w-2.5 h-2.5" /> {p.phone}</span>
                                  </div>
                                </div>
-                               <ChevronRight className="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0" />
+                               <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0" />
                             </button>
                           ))}
                         </div>
@@ -7552,24 +7517,24 @@ export default function App() {
 
                       {/* Bookings Section */}
                       {globalSearchResults.bookings.length > 0 && (
-                        <div className="py-2 border-b border-slate-50 last:border-0">
-                          <div className="px-4 py-1.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Bookings</div>
+                        <div className="py-2 border-b border-slate-50 dark:border-slate-800/50 last:border-0">
+                          <div className="px-4 py-1.5 text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Bookings</div>
                           {globalSearchResults.bookings.map(a => (
-                            <button key={a.id} onClick={() => { setActiveTab('appointments'); setGlobalSearch(''); }} className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-emerald-50/50 transition-colors group">
+                            <button key={a.id} onPointerDown={(e) => { e.preventDefault(); setActiveTab('appointments'); setViewTarget({type: 'appointment', id: a.id}); setGlobalSearch(''); setIsSidebarOpen(false); }} className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 transition-colors group">
                                <div className="flex items-center gap-3">
-                                 <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                 <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                                    <CalendarCheck className="w-4 h-4" />
                                  </div>
                                  <div className="flex flex-col">
-                                   <span className="font-bold text-sm text-slate-900 leading-tight group-hover:text-emerald-600 transition-colors">{a.patientName}</span>
-                                   <span className="text-slate-500 text-[10px] font-medium flex items-center gap-2">
+                                   <span className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{a.patientName}</span>
+                                   <span className="text-slate-500 dark:text-slate-400 text-[10px] font-medium flex items-center gap-2">
                                      <span>{new Date(a.date).toLocaleDateString()}</span>
-                                     <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                     <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></span>
                                      <span>{a.time}</span>
                                    </span>
                                  </div>
                                </div>
-                               <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-100 uppercase translate-x-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all">{a.status}</span>
+                               <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-100 dark:border-slate-700 uppercase translate-x-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all">{a.status}</span>
                             </button>
                           ))}
                         </div>
@@ -7577,22 +7542,22 @@ export default function App() {
 
                       {/* Billing Section */}
                       {globalSearchResults.billing.length > 0 && (
-                        <div className="py-2 border-b border-slate-50 last:border-0">
-                          <div className="px-4 py-1.5 text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-center gap-1.5"><CircleDollarSign className="w-3.5 h-3.5" /> Billing / Activity</div>
+                        <div className="py-2 border-b border-slate-50 dark:border-slate-800/50 last:border-0">
+                          <div className="px-4 py-1.5 text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest flex items-center gap-1.5"><CircleDollarSign className="w-3.5 h-3.5" /> Billing / Activity</div>
                           {globalSearchResults.billing.map(t => (
-                            <button key={t.id} onClick={() => { setActiveTab('finances'); setGlobalSearch(''); }} className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-rose-50/50 transition-colors group">
+                            <button key={t.id} onPointerDown={(e) => { e.preventDefault(); setActiveTab('finances'); setViewTarget({type: 'transaction', id: t.id}); setGlobalSearch(''); setIsSidebarOpen(false); }} className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-rose-50/50 dark:hover:bg-rose-900/20 transition-colors group">
                                <div className="flex items-center gap-3">
-                                 <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                 <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                                    {t.type === 'income' ? <ArrowDownRight className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
                                  </div>
                                  <div className="flex flex-col">
-                                   <span className="font-bold text-sm text-slate-900 leading-tight group-hover:text-rose-600 transition-colors truncate max-w-[200px]">{t.description || t.category}</span>
-                                   <span className="text-slate-500 text-[10px] font-medium flex items-center gap-2">
+                                   <span className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-tight group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors truncate max-w-[200px]">{t.description || t.category}</span>
+                                   <span className="text-slate-500 dark:text-slate-400 text-[10px] font-medium flex items-center gap-2">
                                      <span>{new Date(t.date).toLocaleDateString()}</span>
                                    </span>
                                  </div>
                                </div>
-                               <span className="font-black text-sm text-slate-800">₹{t.amount}</span>
+                               <span className="font-black text-sm text-slate-800 dark:text-slate-200">₹{t.amount}</span>
                             </button>
                           ))}
                         </div>
@@ -7601,10 +7566,10 @@ export default function App() {
                       {/* No Results */}
                       {globalSearchResults.patients.length === 0 && globalSearchResults.bookings.length === 0 && globalSearchResults.billing.length === 0 && (
                         <div className="p-8 text-center flex flex-col items-center justify-center">
-                           <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mb-3">
-                             <Search className="w-5 h-5 text-slate-300" />
+                           <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center mb-3 text-slate-300 dark:text-slate-600">
+                             <Search className="w-5 h-5" />
                            </div>
-                           <h4 className="font-bold text-slate-700">No results found</h4>
+                           <h4 className="font-bold text-slate-700 dark:text-slate-200">No results found</h4>
                            <p className="text-xs font-medium text-slate-400 mt-1">Try adjusting your search criteria</p>
                         </div>
                       )}
@@ -7619,27 +7584,27 @@ export default function App() {
 
           {/* Mobile Bottom Nav */}
           <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 px-2 py-2 flex justify-around items-center pb-safe print:hidden shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-             <button onClick={() => setActiveTab('dashboard')} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors", activeTab === 'dashboard' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
+             <button onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors", activeTab === 'dashboard' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
                 <LayoutDashboard className="w-5 h-5 mb-1" />
                 <span className="text-[9px] font-bold">Home</span>
              </button>
-             <button onClick={() => setActiveTab('patients')} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors", activeTab === 'patients' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
+             <button onClick={() => { setActiveTab('patients'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors", activeTab === 'patients' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
                 <Users className="w-5 h-5 mb-1" />
                 <span className="text-[9px] font-bold">Patients</span>
              </button>
-             <button onClick={() => setActiveTab('appointments')} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'appointments' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
+             <button onClick={() => { setActiveTab('appointments'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'appointments' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
                 <Calendar className="w-5 h-5 mb-1" />
                 <span className="text-[9px] font-bold">Bookings</span>
                 {scheduledApptsCount > 0 && <span className="absolute top-1 right-2 w-2 h-2 bg-rose-500 rounded-full"></span>}
              </button>
              {role !== 'therapist' && (
-               <button onClick={() => setActiveTab('finances')} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'finances' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
+               <button onClick={() => { setActiveTab('finances'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'finances' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
                   <CircleDollarSign className="w-5 h-5 mb-1" />
                   <span className="text-[9px] font-bold">Billing</span>
                   {pendingPaymentsCount > 0 && <span className="absolute top-1 right-2 w-2 h-2 bg-rose-500 rounded-full"></span>}
                </button>
              )}
-             <button onClick={() => setIsSidebarOpen(true)} className="flex flex-col items-center justify-center w-16 h-12 rounded-xl text-slate-400 transition-colors">
+             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", isSidebarOpen ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
                 <Menu className="w-5 h-5 mb-1" />
                 <span className="text-[9px] font-bold">More</span>
              </button>
@@ -7647,9 +7612,9 @@ export default function App() {
 
           <div className="p-4 md:p-8 max-w-7xl mx-auto">
             {activeTab === 'dashboard' && <Dashboard stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} role={role} setTab={setActiveTab} onNotify={showNotification} user={user!} onStatusUpdate={async (id, status) => { await updateAppointmentStatus(id, status); }} />}
-            {activeTab === 'appointments' && role !== 'therapist' && <AppointmentManager appointments={appointments} patients={patients} members={members} onNotify={showNotification} />}
-            {activeTab === 'patients' && <PatientManager patients={patients} appointments={appointments} transactions={transactions} onNotify={showNotification} role={role} />}
-            {activeTab === 'finances' && role !== 'therapist' && <FinanceTracker transactions={transactions} patients={patients} onNotify={showNotification} role={role} />}
+            {activeTab === 'appointments' && role !== 'therapist' && <AppointmentManager appointments={appointments} patients={patients} members={members} onNotify={showNotification} viewTarget={viewTarget} setViewTarget={setViewTarget} />}
+            {activeTab === 'patients' && <PatientManager patients={patients} appointments={appointments} transactions={transactions} onNotify={showNotification} role={role} viewTarget={viewTarget} setViewTarget={setViewTarget} />}
+            {activeTab === 'finances' && role !== 'therapist' && <FinanceTracker transactions={transactions} patients={patients} onNotify={showNotification} role={role} viewTarget={viewTarget} setViewTarget={setViewTarget} />}
             {activeTab === 'team' && role === 'admin' && <TeamManager role={role} members={members} onNotify={showNotification} />}
             {activeTab === 'attendance' && <AttendanceManager role={role} members={members} currentUserEmail={user?.email || null} onNotify={showNotification} />}
             {activeTab === 'sessions' && role !== 'manager' && <SessionManager appointments={appointments} onNotify={showNotification} />}
@@ -7665,9 +7630,10 @@ export default function App() {
           {notifications.map(n => (
             <motion.div
               key={n.id}
-              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.9 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              transition={{ duration: 0.1, ease: "easeOut" }}
               className={cn(
                 "w-full sm:w-auto px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border pointer-events-auto",
                 n.type === 'success' ? "bg-white border-emerald-100 text-emerald-800" : "bg-white border-rose-100 text-rose-800"

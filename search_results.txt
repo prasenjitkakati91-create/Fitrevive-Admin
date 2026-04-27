@@ -1,0 +1,107 @@
+11:  Search, 
+449:  const [patientSearch, setPatientSearch] = useState('');
+525:  const searchedPatients = patients.filter(p => p.phone.includes(patientSearch) || p.name.toLowerCase().includes(patientSearch.toLowerCase()) || p.id.toLowerCase().includes(patientSearch.toLowerCase())).slice(0, 5);
+922:          {/* 3. SEARCH SECTION (MAKE IT POWERFUL) */}
+927:                 <Search className="absolute left-6 w-5 h-5 text-slate-400" />
+929:                   placeholder="Search Patient by Name, Phone or ID..." 
+930:                   value={patientSearch}
+931:                   onChange={e => setPatientSearch(e.target.value)}
+937:            {patientSearch && (
+946:                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Search Results</span>
+948:                   {searchedPatients.length > 0 ? searchedPatients.map(p => (
+960:                          <button onClick={() => { setTab('appointments'); setPatientSearch(''); }} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all" title="Book Appointment">
+963:                          <button onClick={() => { setTab('patients'); setPatientSearch(''); }} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all" title="View Profile">
+975:                      <button onClick={() => { setPatientSearch(''); setTab('patients'); }} className="text-blue-600 font-bold hover:underline text-sm">Register as New Patient</button>
+1562:  const [searchTerm, setSearchTerm] = useState('');
+1995:    if (searchTerm) {
+1996:      const q = searchTerm.toLowerCase();
+2007:  }, [enrichedPatients, activeOnly, statusFilter, ageFilter, sortOrder, searchTerm]);
+2119:            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+2122:              placeholder="Search patients, phone, or condition..."
+2123:              value={searchTerm}
+2124:              onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
+2183:                             <span>{highlightText(p.name, searchTerm)}</span>
+2199:                          <Phone className="w-3 h-3 text-slate-400" /> {highlightText(p.phone, searchTerm)}
+2330:                 {searchTerm || activeOnly || statusFilter !== 'All' 
+2334:               {(!searchTerm && !activeOnly && statusFilter === 'All') ? (
+2339:                 <button onClick={() => { setSearchTerm(''); setStatusFilter('All'); setActiveOnly(false); setAgeFilter('All'); }} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all">
+2621:  const [billingPatientSearch, setBillingPatientSearch] = useState('');
+2629:  const [searchTerm, setSearchTerm] = useState('');
+3112:    if (searchTerm) {
+3113:      const q = searchTerm.toLowerCase();
+3135:  }, [transactions, typeFilter, categoryFilter, dateFilter, searchTerm, patients]);
+3310:              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+3313:                placeholder="Search..." 
+3314:                value={searchTerm}
+3315:                onChange={e => setSearchTerm(e.target.value)}
+3446:                     <span className="block text-sm font-medium text-slate-400 mt-1">Try adjusting your filters or search term</span>
+3461:                  <p className="text-sm font-medium text-slate-500 mt-1">Search patients and clear due payments.</p>
+3468:                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Search Patient Name or Phone</label>
+3470:                      <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+3473:                        value={billingPatientSearch} 
+3474:                        onChange={e => setBillingPatientSearch(e.target.value)} 
+3475:                        placeholder="Type to search patients..." 
+3479:                    {billingPatientSearch.length > 0 && (
+3481:                         {patients.filter(p => p.name.toLowerCase().includes(billingPatientSearch.toLowerCase()) || p.phone.includes(billingPatientSearch)).map(p => (
+3490:                         {patients.filter(p => p.name.toLowerCase().includes(billingPatientSearch.toLowerCase()) || p.phone.includes(billingPatientSearch)).length === 0 && (
+3500:                        <button onClick={() => { setSelectedBillingPatient(null); setBillingPatientSearch(''); }} className="text-sm font-bold text-blue-600 hover:text-blue-700 hover:underline mb-1 inline-block">&larr; Back to Search</button>
+3927:  const [searchTerm, setSearchTerm] = useState('');
+3947:      const matchesSearch = (t.description || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+3948:                          (t.category || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+3949:                          (t.paymentMethod || '').toLowerCase().includes(searchTerm.toLowerCase());
+3951:      return matchesRange && matchesSearch && matchesService;
+3953:  }, [transactions, timeRange, startDate, searchTerm, selectedService]);
+4271:                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+4274:                         placeholder="Search entries..."
+4275:                         value={searchTerm}
+4276:                         onChange={e => setSearchTerm(e.target.value)}
+5199:  const [searchTerm, setSearchTerm] = useState('');
+5234:      const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+5235:                          m.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+5236:                          (m.staffId || '').toLowerCase().includes(searchTerm.toLowerCase());
+5239:      return matchesSearch && matchesRole && matchesStatus;
+5244:  }, [members, searchTerm, roleFilter, statusFilter, sortBy]);
+5339:                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+5342:                   placeholder="Search by name, email or Staff ID..."
+5343:                   value={searchTerm}
+5344:                   onChange={e => setSearchTerm(e.target.value)}
+5950:  const [searchTerm, setSearchTerm] = useState('');
+6050:    const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase());
+6058:    return matchesSearch && matchesRole && matchesStatus && hasPermission;
+6233:                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+6236:                         placeholder="Search staff..."
+6237:                         value={searchTerm}
+6238:                         onChange={e => setSearchTerm(e.target.value)}
+6355:                         <p className="text-xs font-bold text-slate-400 mt-1">Try adjusting your filters or search term</p>
+7289:  const [globalSearch, setGlobalSearch] = useState('');
+7290:  const [debouncedGlobalSearch, setDebouncedGlobalSearch] = useState('');
+7296:      setDebouncedGlobalSearch(globalSearch);
+7299:  }, [globalSearch]);
+7319:  const globalSearchResults = useMemo(() => {
+7320:    if (!debouncedGlobalSearch.trim()) return null;
+7321:    const term = debouncedGlobalSearch.toLowerCase().trim();
+7346:  }, [debouncedGlobalSearch, patients, appointments, transactions]);
+7530:          {/* Global Top Search Bar */}
+7540:            {/* Search Input Container */}
+7543:                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+7546:                  placeholder="Search patients, bookings, billing..."
+7547:                  value={globalSearch}
+7548:                  onChange={e => setGlobalSearch(e.target.value)}
+7551:                {globalSearch && (
+7553:                    onClick={() => setGlobalSearch('')}
+7561:              {/* Global Search Results Dropdown */}
+7562:              {globalSearch && globalSearchResults && (
+7565:                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Global Search Results</span>
+7568:                             {globalSearchResults.patients.length + globalSearchResults.bookings.length + globalSearchResults.billing.length} found
+7575:                      {globalSearchResults.patients.length > 0 && (
+7578:                          {globalSearchResults.patients.map(p => (
+7579:                            <button key={p.id} onPointerDown={(e) => { e.preventDefault(); setActiveTab('patients'); setViewTarget({type: 'patient', id: p.id}); setGlobalSearch(''); setIsSidebarOpen(false); }} className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors group">
+7596:                      {globalSearchResults.bookings.length > 0 && (
+7599:                          {globalSearchResults.bookings.map(a => (
+7600:                            <button key={a.id} onPointerDown={(e) => { e.preventDefault(); setActiveTab('appointments'); setViewTarget({type: 'appointment', id: a.id}); setGlobalSearch(''); setIsSidebarOpen(false); }} className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 transition-colors group">
+7621:                      {globalSearchResults.billing.length > 0 && (
+7624:                          {globalSearchResults.billing.map(t => (
+7625:                            <button key={t.id} onPointerDown={(e) => { e.preventDefault(); setActiveTab('finances'); setViewTarget({type: 'transaction', id: t.id}); setGlobalSearch(''); setIsSidebarOpen(false); }} className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-rose-50/50 dark:hover:bg-rose-900/20 transition-colors group">
+7644:                      {globalSearchResults.patients.length === 0 && globalSearchResults.bookings.length === 0 && globalSearchResults.billing.length === 0 && (
+7647:                             <Search className="w-5 h-5" />
+7650:                           <p className="text-xs font-medium text-slate-400 mt-1">Try adjusting your search criteria</p>
