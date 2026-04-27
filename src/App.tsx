@@ -958,7 +958,7 @@ const Dashboard = ({
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <button onClick={() => { if(setViewTarget) setViewTarget({ type: 'book-appointment', id: p.id }); setTab('appointments'); setPatientSearch(''); }} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all" title="Book Appointment">
+                          <button onClick={() => { if(setViewTarget) setViewTarget({ type: 'book-appointment', id: p.id, returnTo: 'dashboard' }); setTab('appointments'); setPatientSearch(''); }} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all" title="Book Appointment">
                             <Calendar className="w-4 h-4" />
                           </button>
                           <button onClick={() => { setTab('patients'); setPatientSearch(''); }} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all" title="View Profile">
@@ -2052,7 +2052,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                            <button onClick={(e) => { e.stopPropagation(); setSelectedPatient(p); setShowHistoryModal(true); }} className="p-2 border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-xl shadow-sm transition-all bg-white" title="View Full Profile">
                               <User2 className="w-5 h-5 md:w-4 md:h-4" />
                            </button>
-                           <button onClick={(e) => { e.stopPropagation(); if(setTab && setViewTarget) { setTab('appointments'); setViewTarget({ type: 'book-appointment', id: p.id }); } }} className="p-2 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm transition-all bg-white" title="Book Appointment">
+                           <button onClick={(e) => { e.stopPropagation(); if(setTab && setViewTarget) { setTab('appointments'); setViewTarget({ type: 'book-appointment', id: p.id, returnTo: 'patients' }); } }} className="p-2 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm transition-all bg-white" title="Book Appointment">
                               <CalendarCheck className="w-5 h-5 md:w-4 md:h-4" />
                            </button>
                            <button onClick={(e) => { e.stopPropagation(); setSelectedPatient(p); setShowSessionModal(true); }} className="p-2 border border-slate-200 hover:border-purple-300 hover:bg-purple-50 text-slate-400 hover:text-purple-600 rounded-xl shadow-sm transition-all bg-white" title="Log Session">
@@ -2296,7 +2296,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                  <button onClick={() => {
                    if (setTab && setViewTarget) {
                      setTab('appointments');
-                     setViewTarget({ type: 'book-appointment', id: selectedPatient.id });
+                     setViewTarget({ type: 'book-appointment', id: selectedPatient.id, returnTo: 'patients' });
                      setShowHistoryModal(false);
                    }
                  }} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl sm:rounded-xl font-bold transition-all text-sm shadow-md shadow-emerald-200 flex items-center justify-center gap-2 hover:-translate-y-0.5 flex-1 sm:flex-none"><CalendarCheck className="w-4 h-4"/> Book Appt</button>
@@ -4291,7 +4291,7 @@ const KPICard = ({ title, value, trend, icon, color, highlighted = false, hideCu
   );
 };
 
-const AppointmentManager = ({ patients, appointments, members, onNotify, viewTarget, setViewTarget }: { patients: Patient[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, viewTarget?: {type: string, id: string} | null, setViewTarget?: any }) => {
+const AppointmentManager = ({ patients, appointments, members, onNotify, viewTarget, setViewTarget, setTab }: { patients: Patient[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, viewTarget?: {type: string, id: string, returnTo?: string} | null, setViewTarget?: any, setTab?: (tab: string) => void }) => {
   const [selectedDate, setSelectedDate] = useState(getLocalYMD());
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -4316,7 +4316,15 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
     notes: '' 
   });
 
+  const [returnToTab, setReturnToTab] = useState<string | null>(null);
 
+  const closeModal = () => {
+    setShowModal(false);
+    if (returnToTab && setTab) {
+      setTab(returnToTab);
+      setReturnToTab(null);
+    }
+  };
 
   useEffect(() => {
     if (viewTarget?.type === 'appointment' && viewTarget.id) {
@@ -4327,6 +4335,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
        }
     } else if (viewTarget?.type === 'book-appointment' && viewTarget.id) {
        openApptModal(null, undefined, undefined, viewTarget.id);
+       if (viewTarget.returnTo) setReturnToTab(viewTarget.returnTo);
        setViewTarget(null);
     }
   }, [viewTarget, appointments, setViewTarget]);
@@ -4491,7 +4500,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
         await saveAppointment(appointmentData);
         onNotify(`Appointment booked for ${patientName}`);
       }
-      setShowModal(false);
+      closeModal();
     } catch (error: any) {
       console.error("Booking operation failed:", error);
       onNotify(error.message || "Failed to save appointment.", "error");
@@ -4706,7 +4715,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
                     </p>
                   </div>
                </div>
-               <button onClick={() => setShowModal(false)} className="w-10 h-10 rounded-xl hover:bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all"><X className="w-5 h-5" /></button>
+               <button type="button" onClick={closeModal} className="w-10 h-10 rounded-xl hover:bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all"><X className="w-5 h-5" /></button>
             </div>
             
             <div className="p-8 overflow-y-auto space-y-8 bg-slate-50/20">
@@ -4909,7 +4918,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
             </div>
 
             <div className="px-8 py-6 border-t border-slate-100 bg-slate-50/30 flex justify-end gap-4">
-               <button type="button" onClick={() => setShowModal(false)} className="px-8 py-3.5 rounded-2xl text-sm font-black text-slate-500 hover:bg-slate-100 transition-all">Discard</button>
+               <button type="button" onClick={closeModal} className="px-8 py-3.5 rounded-2xl text-sm font-black text-slate-500 hover:bg-slate-100 transition-all">Discard</button>
                <button 
                  type="submit" 
                  form="appt-form" 
@@ -6352,6 +6361,8 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
     }
 
     setLoading(true);
+    // Let auth listener know we are running an explicit new login
+    localStorage.setItem('fitrevive_just_logged_in', 'true');
     try {
       const emailInput = identifier.trim().toLowerCase();
       const passwordInput = password.trim();
@@ -6433,6 +6444,7 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
       } catch (updateErr) {
         console.error("Failed to update last login time:", updateErr);
       }
+      
     } catch (err: any) {
       console.error("Login component error:", err);
       let errMsg = "Invalid credentials. Please check your role and password.";
@@ -6999,11 +7011,17 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isRoleLoading, setIsRoleLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [viewTarget, setViewTarget] = useState<{type: 'patient' | 'appointment' | 'transaction', id: string} | null>(null);
+  const [viewTarget, setViewTarget] = useState<{type: 'patient' | 'appointment' | 'transaction' | 'book-appointment', id: string, returnTo?: string} | null>(null);
   const [globalSearch, setGlobalSearch] = useState('');
   const [debouncedGlobalSearch, setDebouncedGlobalSearch] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setActiveTab('dashboard');
+    }
+  }, [user]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -7110,7 +7128,10 @@ export default function App() {
             setRole(normalizedRole);
             
             // Validate current tab access
-            if (!ROLE_PERMISSIONS[normalizedRole as keyof typeof ROLE_PERMISSIONS].includes(activeTab as any)) {
+            if (localStorage.getItem('fitrevive_just_logged_in') === 'true') {
+              setActiveTab('dashboard');
+              localStorage.removeItem('fitrevive_just_logged_in');
+            } else if (!ROLE_PERMISSIONS[normalizedRole as keyof typeof ROLE_PERMISSIONS].includes(activeTab as any)) {
               setActiveTab('dashboard');
             }
           } else {
@@ -7225,7 +7246,12 @@ export default function App() {
           setActiveTab={setActiveTab} 
           user={user} 
           isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+          onClose={() => {
+            setIsSidebarOpen(false);
+            if (activeTab === 'more') {
+              setActiveTab('dashboard');
+            }
+          }} 
           isCollapsed={isSidebarCollapsed}
           setIsCollapsed={setIsSidebarCollapsed}
           role={role}
@@ -7375,33 +7401,38 @@ export default function App() {
 
           {/* Mobile Bottom Nav */}
           <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 px-2 py-2 flex justify-around items-center pb-safe print:hidden shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-             <button onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors", activeTab === 'dashboard' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
-                <LayoutDashboard className="w-5 h-5 mb-1" />
-                <span className="text-[9px] font-bold">Home</span>
+             <button onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'dashboard' && !isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
+                {activeTab === 'dashboard' && !isSidebarOpen && <motion.div layoutId="mobileNavIndicator" className="absolute inset-0 bg-blue-50 rounded-xl z-0" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />}
+                <LayoutDashboard className="w-5 h-5 mb-1 z-10 relative" />
+                <span className="text-[9px] font-bold z-10 relative">Home</span>
              </button>
-             <button onClick={() => { setActiveTab('patients'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors", activeTab === 'patients' ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
-                <Users className="w-5 h-5 mb-1" />
-                <span className="text-[9px] font-bold">Patients</span>
+             <button onClick={() => { setActiveTab('patients'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'patients' && !isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
+                {activeTab === 'patients' && !isSidebarOpen && <motion.div layoutId="mobileNavIndicator" className="absolute inset-0 bg-blue-50 rounded-xl z-0" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />}
+                <Users className="w-5 h-5 mb-1 z-10 relative" />
+                <span className="text-[9px] font-bold z-10 relative">Patients</span>
              </button>
-             <button onClick={() => { setActiveTab('appointments'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'appointments' ? "text-blue-600 bg-blue-50 dark:bg-blue-900/50" : "text-slate-400")}>
-                <Calendar className="w-5 h-5 mb-1" />
-                <span className="text-[9px] font-bold">Bookings</span>
+             <button onClick={() => { setActiveTab('appointments'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'appointments' && !isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
+                {activeTab === 'appointments' && !isSidebarOpen && <motion.div layoutId="mobileNavIndicator" className="absolute inset-0 bg-blue-50 dark:bg-blue-900/50 rounded-xl z-0" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />}
+                <Calendar className="w-5 h-5 mb-1 z-10 relative" />
+                <span className="text-[9px] font-bold z-10 relative">Bookings</span>
              </button>
              {role !== 'therapist' && (
-               <button onClick={() => { setActiveTab('finances'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'finances' ? "text-blue-600 bg-blue-50 dark:bg-blue-900/50" : "text-slate-400")}>
-                  <CircleDollarSign className="w-5 h-5 mb-1" />
-                  <span className="text-[9px] font-bold">Billing</span>
+               <button onClick={() => { setActiveTab('finances'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'finances' && !isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
+                  {activeTab === 'finances' && !isSidebarOpen && <motion.div layoutId="mobileNavIndicator" className="absolute inset-0 bg-blue-50 dark:bg-blue-900/50 rounded-xl z-0" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />}
+                  <CircleDollarSign className="w-5 h-5 mb-1 z-10 relative" />
+                  <span className="text-[9px] font-bold z-10 relative">Billing</span>
                </button>
              )}
-             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", isSidebarOpen ? "text-blue-600 bg-blue-50" : "text-slate-400")}>
-                <Menu className="w-5 h-5 mb-1" />
-                <span className="text-[9px] font-bold">More</span>
+             <button onClick={() => { setIsSidebarOpen(true); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", !['dashboard', 'patients', 'appointments', 'finances'].includes(activeTab) || isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
+                {(!['dashboard', 'patients', 'appointments', 'finances'].includes(activeTab) || isSidebarOpen) && <motion.div layoutId="mobileNavIndicator" className="absolute inset-0 bg-blue-50 rounded-xl z-0" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />}
+                <Menu className="w-5 h-5 mb-1 z-10 relative" />
+                <span className="text-[9px] font-bold z-10 relative">More</span>
              </button>
           </div>
 
           <div className="p-4 md:p-8 max-w-7xl mx-auto">
-            {activeTab === 'dashboard' && <Dashboard stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} role={role} setTab={setActiveTab} onNotify={showNotification} user={user!} onStatusUpdate={async (id, status) => { await updateAppointmentStatus(id, status); }} setViewTarget={setViewTarget} />}
-            {activeTab === 'appointments' && role !== 'therapist' && <AppointmentManager appointments={appointments} patients={patients} members={members} onNotify={showNotification} viewTarget={viewTarget} setViewTarget={setViewTarget} />}
+            {(activeTab === 'dashboard' || activeTab === 'more') && <Dashboard stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} role={role} setTab={setActiveTab} onNotify={showNotification} user={user!} onStatusUpdate={async (id, status) => { await updateAppointmentStatus(id, status); }} setViewTarget={setViewTarget} />}
+            {activeTab === 'appointments' && role !== 'therapist' && <AppointmentManager appointments={appointments} patients={patients} members={members} onNotify={showNotification} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} />}
             {activeTab === 'patients' && <PatientManager patients={patients} appointments={appointments} transactions={transactions} onNotify={showNotification} role={role} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} />}
             {activeTab === 'finances' && role !== 'therapist' && <FinanceTracker transactions={transactions} patients={patients} onNotify={showNotification} role={role} viewTarget={viewTarget} setViewTarget={setViewTarget} />}
             {activeTab === 'team' && role === 'admin' && <TeamManager role={role} members={members} onNotify={showNotification} />}

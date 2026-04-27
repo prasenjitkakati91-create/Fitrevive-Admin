@@ -124,6 +124,7 @@ service cloud.firestore {
             && (!('phone' in data) || data.phone == null || (data.phone is string && data.phone.size() <= 20))
             && (!('email' in data) || data.email == null || (data.email is string && data.email.size() <= 150))
             && (!('password' in data) || data.password == null || (data.password is string && data.password.size() <= 100))
+            && (!('lastLogin' in data) || data.lastLogin == null || data.lastLogin is string)
             && (!('isActive' in data) || data.isActive == null || data.isActive is bool)
             && (!('createdAt' in data) || data.createdAt == null || data.createdAt is timestamp)
             && (!('updatedAt' in data) || data.updatedAt == null || data.updatedAt is timestamp);
@@ -132,11 +133,17 @@ service cloud.firestore {
       allow read: if true; 
       allow create: if isSignedIn() && isValidId(memberId) && isValidTeamMember(incoming());
       allow update: if isSignedIn() && isValidTeamMember(incoming())
-                     && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'role', 'staffId', 'phone', 'email', 'password', 'isActive', 'updatedAt']);
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'role', 'staffId', 'phone', 'email', 'password', 'isActive', 'lastLogin', 'updatedAt']);
       allow delete: if isSignedIn();
     }
 
-    // 6. Attendance
+    // 6. Settings
+    match /settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner();
+    }
+
+    // 7. Attendance
     match /attendance/{attendanceId} {
       function isValidAttendance(data) {
         return data.memberId is string && data.memberId.size() > 0
