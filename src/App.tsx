@@ -7423,7 +7423,14 @@ export default function App() {
                   <span className="text-[9px] font-bold z-10 relative">Billing</span>
                </button>
              )}
-             <button onClick={() => { setIsSidebarOpen(true); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", !['dashboard', 'patients', 'appointments', 'finances'].includes(activeTab) || isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
+             <button onClick={() => { 
+                if (isSidebarOpen) {
+                  setIsSidebarOpen(false);
+                  setActiveTab('dashboard');
+                } else {
+                  setIsSidebarOpen(true);
+                }
+             }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", !['dashboard', 'patients', 'appointments', 'finances'].includes(activeTab) || isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
                 {(!['dashboard', 'patients', 'appointments', 'finances'].includes(activeTab) || isSidebarOpen) && <motion.div layoutId="mobileNavIndicator" className="absolute inset-0 bg-blue-50 rounded-xl z-0" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />}
                 <Menu className="w-5 h-5 mb-1 z-10 relative" />
                 <span className="text-[9px] font-bold z-10 relative">More</span>
