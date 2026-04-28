@@ -94,6 +94,7 @@ import {
   Bar
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
+import SplashScreen from './SplashScreen';
 import { onAuthStateChanged, User, updateProfile } from 'firebase/auth';
 import { 
   auth, 
@@ -151,6 +152,7 @@ interface Patient {
   treatmentStatus?: 'Active' | 'Completed';
   unpaidSessionsCount?: number;
   unpaidAmount?: number;
+  totalSessions?: number;
 }
 
 interface Session {
@@ -345,24 +347,24 @@ const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, 
                         {tab.label}
                       </span>
 
-                      {tab.badge !== undefined && tab.badge > 0 && (
-                        <span className={cn(
-                          "ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-sm animate-in zoom-in duration-300",
-                          activeTab === tab.id 
-                            ? "bg-white text-blue-600" 
-                            : (tab.id === 'finances' ? "bg-rose-500 text-white" : "bg-blue-600 text-white")
-                        )}>
-                          {tab.badge}
-                        </span>
-                      )}
+                          {tab.badge !== undefined && tab.badge > 0 && (
+                            <span className={cn(
+                              "ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] h-[18px] flex items-center justify-center shadow-sm animate-in zoom-in duration-300",
+                              activeTab === tab.id 
+                                ? "bg-white text-rose-500" 
+                                : "bg-rose-500 text-white"
+                            )}>
+                              {tab.badge}
+                            </span>
+                          )}
                     </>
                   ) : (
                     tab.badge !== undefined && tab.badge > 0 && (
                       <span className={cn(
                         "absolute top-1 right-2 text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm animate-in zoom-in duration-300",
                         activeTab === tab.id 
-                          ? "bg-white text-blue-600" 
-                          : (tab.id === 'finances' ? "bg-rose-500 text-white" : "bg-blue-600 text-white")
+                          ? "bg-white text-rose-500" 
+                          : "bg-rose-500 text-white"
                       )}>
                         {tab.badge}
                       </span>
@@ -1798,12 +1800,15 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
       
       const isPending = (p.unpaidSessionsCount || 0) > 0;
       let paymentStatus = isPending ? 'Pending' : 'Paid';
-      if (patientAppts.filter(a => a.status === 'completed').length === 0) paymentStatus = 'None';
+      if (patientAppts.filter(a => a.status === 'completed').length === 0 && (p.totalSessions || 0) === 0) paymentStatus = 'None';
       
       const initials = p.name ? p.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'PT';
+      
+      // Calculate total sessions from either the counter or completed appointments
+      const totalSessionsValue = Math.max(p.totalSessions || 0, patientAppts.filter(a => a.status === 'completed').length);
 
       return {
-        ...p, lastVisit, lastVisitTime, nextAppointment, nextAppointmentTime, status, paymentStatus, initials
+        ...p, lastVisit, lastVisitTime, nextAppointment, nextAppointmentTime, status, paymentStatus, initials, totalSessions: totalSessionsValue
       };
     });
   }, [patients, appointments]);
@@ -2002,13 +2007,18 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                                {expandedRow === p.id ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
                              </span>
                            </div>
-                           <div className="flex items-center gap-2 mt-1">
-                             <div className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">ID: {p.id.substring(0, 6)}</div>
-                           </div>
+
                          </div>
                       </div>
                     </td>
                     <td className="px-4 py-2 md:px-6 md:py-5 block md:table-cell border-none md:ml-16">
+                       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          <div className="text-[10px] font-bold text-indigo-600 bg-indigo-50/80 px-2 py-0.5 rounded flex items-center gap-1 border border-indigo-100/50 shadow-sm backdrop-blur-sm">
+                            <Zap className="w-2.5 h-2.5" />
+                            {p.totalSessions || 0} Sessions
+                          </div>
+                          <div className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100/50">ID: {p.id.substring(0, 6)}</div>
+                       </div>
                        <a href={`tel:${p.phone}`} onClick={(e)=>e.stopPropagation()} className="font-mono text-sm text-slate-700 font-bold flex items-center gap-1.5 hover:text-blue-600 transition-colors w-fit">
                           <Phone className="w-3 h-3 text-slate-400" /> {highlightText(p.phone, searchTerm)}
                        </a>
@@ -2027,10 +2037,10 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                     <td className="px-4 py-2 md:px-6 md:py-5 flex flex-wrap md:block gap-2 block md:table-cell border-none md:ml-16">
                        <div className="flex items-center gap-2 tooltip-trigger" title={`Status: ${p.status}`}>
                          <div className={cn(
-                           "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider border",
-                           p.status === 'Active' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
-                           p.status === 'In Treatment' ? "bg-amber-50 text-amber-700 border-amber-100" :
-                           "bg-slate-50 text-slate-600 border-slate-200"
+                           "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider border shadow-sm",
+                           p.status === 'Active' ? "bg-emerald-50 text-emerald-700 border-emerald-100/50" :
+                           p.status === 'In Treatment' ? "bg-amber-50 text-amber-700 border-amber-100/50" :
+                           "bg-slate-50 text-slate-600 border-slate-200/50"
                          )}>
                            {p.status === 'Active' && <CheckCircle2 className="w-3.5 h-3.5" />}
                            {p.status === 'In Treatment' && <Activity className="w-3.5 h-3.5" />}
@@ -6907,90 +6917,7 @@ export default function App() {
   };
 
   if (loading || (user && !role && isRoleLoading)) {
-    return (
-      <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center bg-[#F8FAFC] relative overflow-hidden">
-        {/* Decorative Background Elements */}
-        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-50 rounded-full blur-[120px] opacity-60"></div>
-        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-50 rounded-full blur-[120px] opacity-60"></div>
-        
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="flex flex-col items-center z-10"
-        >
-          {/* Logo with sophisticated ring animation */}
-          <div className="relative mb-10">
-            <motion.div 
-              animate={{ 
-                rotate: 360,
-                scale: [1, 1.05, 1]
-              }}
-              transition={{ 
-                rotate: { duration: 8, repeat: Infinity, ease: "linear" },
-                scale: { duration: 2, repeat: Infinity, ease: "easeInOut" }
-              }}
-              className="absolute -inset-4 border-2 border-dashed border-blue-200 rounded-full opacity-50"
-            ></motion.div>
-            
-            <div className="w-28 h-28 rounded-3xl bg-white flex items-center justify-center shadow-2xl shadow-blue-100 border border-slate-100 overflow-hidden relative z-10 p-2">
-              <img src={LogoImage} alt="FitRevive Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-            </div>
-          </div>
-
-          <div className="text-center space-y-3">
-            <motion.h1 
-              initial={{ opacity: 0, letterSpacing: "-0.05em" }}
-              animate={{ opacity: 1, letterSpacing: "0.02em" }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="text-3xl font-black text-slate-900 tracking-tight"
-            >
-              FitRevive <span className="text-blue-600">OS</span>
-            </motion.h1>
-            
-            <div className="flex flex-col items-center gap-4">
-              <motion.p 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.5 }}
-                className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]"
-              >
-                Initializing Clinical Environment
-              </motion.p>
-              
-              {/* Modern Progress Line */}
-              <div className="w-48 h-1 bg-slate-200 rounded-full overflow-hidden">
-                <motion.div 
-                  initial={{ width: "0%" }}
-                  animate={{ width: "100%" }}
-                  transition={{ 
-                    duration: 2.5, 
-                    repeat: Infinity, 
-                    ease: "easeInOut" 
-                  }}
-                  className="h-full bg-gradient-to-r from-blue-600 to-indigo-600"
-                ></motion.div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Footer info */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.6 }}
-          transition={{ delay: 1 }}
-          className="absolute bottom-12 flex items-center gap-6 text-[10px] font-bold text-slate-400"
-        >
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
-            <span>SECURE HIPAA COMPLIANT</span>
-          </div>
-          <div className="w-1 h-1 rounded-full bg-slate-300"></div>
-          <span>V2.4.0-STABLE</span>
-        </motion.div>
-      </div>
-    );
+    return <SplashScreen logo={LogoImage} />;
   }
 
   if (!user || !role) return <Login onDemoLogin={handleDemoLogin} />;
@@ -7001,8 +6928,8 @@ export default function App() {
   // Appointments: Appointments specifically for the selected globalDate
   const scheduledApptsCount = appointments.filter(a => a.status === 'scheduled' && a.date === globalDate).length;
   
-  // Finances: Number of pending unpaid sessions across all patients (this is a running total usually, but let's keep it visible)
-  const pendingPaymentsCount = patients.reduce((acc, p) => acc + (p.unpaidSessionsCount || 0), 0);
+  // Finances: Number of ledger entries (transactions) for the selected globalDate
+  const dailyFinEntriesCount = transactions.filter(t => t.date === globalDate).length;
   
   // Patients: Number of new patients registered on the selected globalDate
   const newPatientsTodayCount = patients.filter(p => p.createdAt && (typeof p.createdAt === 'string' ? p.createdAt.startsWith(globalDate) : p.createdAt.toDate && p.createdAt.toDate().toISOString().substring(0, 10) === globalDate)).length;
@@ -7027,7 +6954,7 @@ export default function App() {
           setRole={setRole}
           badges={{
             appointments: scheduledApptsCount,
-            finances: pendingPaymentsCount,
+            finances: dailyFinEntriesCount,
             patients: newPatientsTodayCount
           }}
         />
@@ -7091,8 +7018,15 @@ export default function App() {
                                    {p.name.charAt(0)}
                                  </div>
                                  <div className="flex flex-col">
-                                   <span className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{p.name}</span>
-                                   <span className="text-slate-500 dark:text-slate-400 text-[10px] font-medium flex items-center gap-1"><Phone className="w-2.5 h-2.5" /> {p.phone}</span>
+                                   <span className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors uppercase tracking-tight">{p.name}</span>
+                                   <div className="flex items-center gap-2 mt-0.5">
+                                      <span className="text-slate-500 dark:text-slate-400 text-[10px] font-medium flex items-center gap-1"><Phone className="w-2.5 h-2.5" /> {p.phone}</span>
+                                      <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700"></span>
+                                      <span className="text-blue-500 dark:text-blue-400 text-[9px] font-bold uppercase tracking-tight flex items-center gap-0.5 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded ring-1 ring-blue-100 dark:ring-blue-800/50">
+                                        <Zap className="w-2 h-2" />
+                                        {Math.max(p.totalSessions || 0, appointments.filter(a => a.patientId === p.id && a.status === 'completed').length)} Sessions
+                                      </span>
+                                   </div>
                                  </div>
                                </div>
                                <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0" />
@@ -7191,7 +7125,7 @@ export default function App() {
                 <div className="relative">
                   <Users className="w-5 h-5 mb-1 z-10 relative" />
                   {newPatientsTodayCount > 0 && (
-                    <span className="absolute -top-1 -right-1.5 bg-blue-600 text-white text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center ring-2 ring-white">
+                    <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-bold px-1 min-w-[15px] h-[15px] rounded-full flex items-center justify-center ring-2 ring-white shadow-sm z-20">
                       {newPatientsTodayCount}
                     </span>
                   )}
@@ -7203,7 +7137,7 @@ export default function App() {
                 <div className="relative">
                   <Calendar className="w-5 h-5 mb-1 z-10 relative" />
                   {scheduledApptsCount > 0 && (
-                    <span className="absolute -top-1 -right-1.5 bg-blue-600 text-white text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center ring-2 ring-white">
+                    <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-bold px-1 min-w-[15px] h-[15px] rounded-full flex items-center justify-center ring-2 ring-white shadow-sm z-20">
                       {scheduledApptsCount}
                     </span>
                   )}
@@ -7215,9 +7149,9 @@ export default function App() {
                   {activeTab === 'finances' && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/50 rounded-xl z-0" />}
                   <div className="relative">
                     <CircleDollarSign className="w-5 h-5 mb-1 z-10 relative" />
-                    {pendingPaymentsCount > 0 && (
-                      <span className="absolute -top-1 -right-1.5 bg-rose-500 text-white text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center ring-2 ring-white">
-                        {pendingPaymentsCount}
+                    {dailyFinEntriesCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-bold px-1 min-w-[15px] h-[15px] rounded-full flex items-center justify-center ring-2 ring-white shadow-sm z-20">
+                        {dailyFinEntriesCount}
                       </span>
                     )}
                   </div>

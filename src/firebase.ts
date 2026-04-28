@@ -206,14 +206,19 @@ export const logSession = async (
     });
   }
 
-  // 3. If unpaid, increment the patient's unpaid logic
+  // 3. Update patient counts
+  const patientRef = doc(db, 'patients', patientId);
+  const patientUpdates: any = {
+    totalSessions: increment(1),
+    updatedAt: Timestamp.now()
+  };
+
   if (sessionData.paymentStatus === 'unpaid') {
-    const patientRef = doc(db, 'patients', patientId);
-    batch.update(patientRef, {
-      unpaidSessionsCount: increment(1),
-      unpaidAmount: increment(sessionData.amount || 0)
-    });
+    patientUpdates.unpaidSessionsCount = increment(1);
+    patientUpdates.unpaidAmount = increment(sessionData.amount || 0);
   }
+
+  batch.update(patientRef, patientUpdates);
 
   return batch.commit();
 };
