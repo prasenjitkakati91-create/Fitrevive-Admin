@@ -308,7 +308,7 @@ const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, 
         )}
 
         {/* Navigation Menu */}
-        <nav className={cn("flex-1 px-3 space-y-4 overflow-y-auto mt-6 pt-2", isCollapsed ? "px-2" : "px-3")}>
+        <nav className={cn("flex-1 px-3 space-y-4 overflow-y-auto overscroll-contain mt-6 pt-2", isCollapsed ? "px-2" : "px-3")}>
           {filteredSections.map((section, sIdx) => (
             <div key={sIdx} className="space-y-1">
               {!isCollapsed && (
@@ -432,7 +432,9 @@ const Dashboard = ({
   onNotify,
   user,
   onStatusUpdate,
-  setViewTarget
+  setViewTarget,
+  globalDate,
+  setGlobalDate
 }: { 
   stats: DashboardStats, 
   transactions: Transaction[], 
@@ -444,15 +446,18 @@ const Dashboard = ({
   onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void,
   user: User,
   onStatusUpdate?: (apptId: string, status: any) => Promise<void>,
-  setViewTarget?: any
+  setViewTarget?: any,
+  globalDate: string,
+  setGlobalDate: (d: string) => void
 }) => {
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '6m'>('30d');
   const [patientSearch, setPatientSearch] = useState('');
-  const [ledgerDate, setLedgerDate] = useState(getLocalYMD());
+  const ledgerDate = globalDate;
+  const setLedgerDate = setGlobalDate;
   const [quickBill, setQuickBill] = useState({ patientId: '', service: 'physio', amount: '500' });
   const [isBilling, setIsBilling] = useState(false);
   
-  const todayDate = getLocalYMD();
+  const todayDate = globalDate;
   const todayAppts = appointments.filter(a => a.date === todayDate && a.status !== 'cancelled').sort((a, b) => a.time.localeCompare(b.time));
   const todayCompleted = useMemo(() => appointments.filter(a => a.date === todayDate && a.status === 'completed').length, [appointments, todayDate]);
   
@@ -986,8 +991,8 @@ const Dashboard = ({
                 <div className="flex items-center gap-3">
                    <div className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100"><Clock className="w-5 h-5 text-blue-600" /></div>
                    <div>
-                     <h2 className="text-lg font-black text-slate-900">Today's Schedule</h2>
-                     <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                     <h2 className="text-lg font-black text-slate-900">Daily Schedule</h2>
+                     <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{new Date(globalDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                    </div>
                 </div>
                 <button 
@@ -1572,6 +1577,17 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+
+  useEffect(() => {
+    if (showModal || showSessionModal || showHistoryModal) {
+      document.body.style.overflow = 'hidden';
+      // Fallback for some mobile browsers
+      document.body.classList.add('fixed', 'w-full');
+    } else {
+      document.body.style.overflow = '';
+      document.body.classList.remove('fixed', 'w-full');
+    }
+  }, [showModal, showSessionModal, showHistoryModal]);
 
   useEffect(() => {
     if (viewTarget?.type === 'patient' && viewTarget.id) {
@@ -2192,20 +2208,20 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
               <button title="Close Modal" type="button" onClick={() => { setShowModal(false); setEditPatientId(null); }} className="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors self-start"><X className="w-5 h-5" /></button>
             </div>
             
-            <div className="p-5 sm:p-8 overflow-y-auto custom-scrollbar">
+            <div className="p-5 sm:p-8 overflow-y-auto overscroll-contain custom-scrollbar">
               <form id="new-patient-form" onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="col-span-1 sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Full Name</label>
-                    <input required placeholder="E.g. John Doe" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" value={newPatient.name} onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })} />
+                    <input required placeholder="E.g. John Doe" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" value={newPatient.name} onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })} />
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Phone Number</label>
-                    <input required placeholder="+91 XXXXX XXXXX" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" value={newPatient.phone} onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })} />
+                    <input required placeholder="+91 XXXXX XXXXX" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" value={newPatient.phone} onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })} />
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Age</label>
-                    <input type="number" min="0" placeholder="Years" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" value={newPatient.age} onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })} />
+                    <input type="number" min="0" placeholder="Years" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" value={newPatient.age} onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })} />
                   </div>
                   <div className="col-span-1 sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Gender</label>
@@ -2220,19 +2236,19 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                   </div>
                   <div className="col-span-1 sm:col-span-2 relative">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Condition / Primary Complaint</label>
-                    <input list="conditions" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" placeholder="Select or type..." value={newPatient.condition} onChange={(e) => setNewPatient({ ...newPatient, condition: e.target.value })} />
+                    <input list="conditions" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" placeholder="Select or type..." value={newPatient.condition} onChange={(e) => setNewPatient({ ...newPatient, condition: e.target.value })} />
                     <datalist id="conditions">
                       {presetConditions.map((c, i) => <option key={i} value={c} />)}
                     </datalist>
                   </div>
                   <div className="col-span-1 sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Address</label>
-                    <textarea placeholder="Line 1, City, Zip..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm min-h-[60px]" value={newPatient.address} onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })}></textarea>
+                    <textarea placeholder="Line 1, City, Zip..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm min-h-[60px]" value={newPatient.address} onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })}></textarea>
                   </div>
                   <div className="col-span-1 sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Medical History Notes</label>
                     {role !== 'manager' ? (
-                      <textarea placeholder="Past surgeries, diabetic history, BP..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm min-h-[80px]" value={newPatient.medicalHistory} onChange={(e) => setNewPatient({ ...newPatient, medicalHistory: e.target.value })}></textarea>
+                      <textarea placeholder="Past surgeries, diabetic history, BP..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm min-h-[80px]" value={newPatient.medicalHistory} onChange={(e) => setNewPatient({ ...newPatient, medicalHistory: e.target.value })}></textarea>
                     ) : (
                       <div className="p-4 bg-slate-100 rounded-xl text-slate-400 text-xs italic border border-dashed border-slate-200">
                         Access Restricted: Clinical history is only viewable by Therapists and Admins.
@@ -2303,7 +2319,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                  <button onClick={() => { setShowSessionModal(true); }} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl sm:rounded-xl font-bold transition-all text-sm shadow-md shadow-blue-200 flex items-center justify-center gap-2 hover:-translate-y-0.5 flex-1 sm:flex-none"><Plus className="w-4 h-4"/> Log Session</button>
                </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50/50 space-y-6 sm:space-y-8 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-8 bg-slate-50/50 space-y-6 sm:space-y-8 custom-scrollbar">
                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 flex items-center gap-1"><Phone className="w-3 h-3"/> Contact Info</span>
@@ -2365,7 +2381,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                 <button title="Close Session Modal" onClick={() => setShowSessionModal(false)} className="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
              </div>
              
-             <div className="p-5 sm:p-8 overflow-y-auto">
+             <div className="p-5 sm:p-8 overflow-y-auto overscroll-contain">
                 <form id="session-form" onSubmit={handleSessionSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                      <div>
@@ -2396,7 +2412,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                      </div>
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Method</label>
-                        <select className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm appearance-none cursor-pointer" value={newSession.paymentMethod} onChange={e => setNewSession({...newSession, paymentMethod: e.target.value as any})}>
+                        <select className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm appearance-none cursor-pointer" value={newSession.paymentMethod} onChange={e => setNewSession({...newSession, paymentMethod: e.target.value as any})}>
                            <option value="cash">Cash</option>
                            <option value="upi">UPI / Online</option>
                         </select>
@@ -2404,7 +2420,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                   </div>
                   <div>
                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Treatment Notes</label>
-                     <textarea className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm min-h-[100px]" value={newSession.notes} onChange={e => setNewSession({...newSession, notes: e.target.value})} placeholder="What treatments were performed? Patient feedback..."></textarea>
+                     <textarea className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm min-h-[100px]" value={newSession.notes} onChange={e => setNewSession({...newSession, notes: e.target.value})} placeholder="What treatments were performed? Patient feedback..."></textarea>
                   </div>
                </form>
              </div>
@@ -3272,7 +3288,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                 </div>
                 <button type="button" onClick={() => setShowBillingModal(false)} className="text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
              </div>
-             <div className="p-5 sm:p-8 overflow-y-auto bg-slate-50/50 flex-1">
+             <div className="p-5 sm:p-8 overflow-y-auto overscroll-contain bg-slate-50/50 flex-1">
                {!selectedBillingPatient ? (
                  <div>
                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1 mb-2 block">Search Patient Name or Phone</label>
@@ -3406,7 +3422,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                 <button type="button" onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
              </div>
              
-             <div className="p-5 sm:p-8 overflow-y-auto">
+             <div className="p-5 sm:p-8 overflow-y-auto overscroll-contain">
                <form id="tx-form" onSubmit={handleSubmit} className="space-y-6">
                   {/* Type Selector - Hidden for non-admins as billing staff only log income */}
                   <div className={cn("flex bg-slate-50 p-1.5 rounded-2xl border border-slate-200", role !== 'admin' && "hidden")}>
@@ -3421,7 +3437,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                   {newTx.type === 'income' && (
                     <div>
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Patient (Optional)</label>
-                      <select className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-100 cursor-pointer" value={newTx.patientId} onChange={e => setNewTx({...newTx, patientId: e.target.value})}>
+                      <select className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-100 cursor-pointer" value={newTx.patientId} onChange={e => setNewTx({...newTx, patientId: e.target.value})}>
                          <option value="">Walk-In or Not Applicable...</option>
                          {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </select>
@@ -3510,7 +3526,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
       )}
 
       {printTx && (
-        <div className="fixed inset-0 bg-[#f1f5f9] z-[100] overflow-y-auto print:static print:h-auto print:overflow-visible">
+        <div className="fixed inset-0 bg-[#f1f5f9] z-[100] overflow-y-auto overscroll-contain print:static print:h-auto print:overflow-visible">
           <div className="max-w-4xl mx-auto py-8 px-4 print:p-0">
             {/* Action Bar */}
             <div className="flex flex-wrap items-center justify-between gap-4 mb-8 bg-[#ffffff] p-4 rounded-2xl shadow-sm border border-[#e2e8f0] print:hidden">
@@ -4291,8 +4307,7 @@ const KPICard = ({ title, value, trend, icon, color, highlighted = false, hideCu
   );
 };
 
-const AppointmentManager = ({ patients, appointments, members, onNotify, viewTarget, setViewTarget, setTab }: { patients: Patient[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, viewTarget?: {type: string, id: string, returnTo?: string} | null, setViewTarget?: any, setTab?: (tab: string) => void }) => {
-  const [selectedDate, setSelectedDate] = useState(getLocalYMD());
+const AppointmentManager = ({ patients, appointments, members, onNotify, viewTarget, setViewTarget, setTab, selectedDate, setSelectedDate }: { patients: Patient[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, viewTarget?: {type: string, id: string, returnTo?: string} | null, setViewTarget?: any, setTab?: (tab: string) => void, selectedDate: string, setSelectedDate: (d: string) => void }) => {
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editApptId, setEditApptId] = useState<string | null>(null);
@@ -4718,7 +4733,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
                <button type="button" onClick={closeModal} className="w-10 h-10 rounded-xl hover:bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all"><X className="w-5 h-5" /></button>
             </div>
             
-            <div className="p-8 overflow-y-auto space-y-8 bg-slate-50/20">
+            <div className="p-8 overflow-y-auto overscroll-contain space-y-8 bg-slate-50/20">
               <form id="appt-form" onSubmit={handleSubmit} className="space-y-8">
                  <motion.div 
                    initial={{ y: 20, opacity: 0 }}
@@ -4856,7 +4871,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
                        <div>
                           <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Procedure</label>
                           <select 
-                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-100 focus:border-emerald-400 focus:bg-white transition-all appearance-none cursor-pointer"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-100 focus:border-emerald-400 focus:bg-white transition-all appearance-none cursor-pointer"
                             value={newAppt.sessionType} 
                             onChange={e => setNewAppt({...newAppt, sessionType: e.target.value})}
                           >
@@ -4908,7 +4923,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
                        <span className="text-xs font-black text-slate-800 uppercase tracking-widest">Appointment Notes</span>
                     </div>
                     <textarea 
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:bg-white transition-all min-h-[140px] resize-none" 
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-base font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:bg-white transition-all min-h-[140px] resize-none" 
                       placeholder="Brief clinic instructions or specific requests..." 
                       value={newAppt.notes} 
                       onChange={e => setNewAppt({...newAppt, notes: e.target.value})}
@@ -4936,8 +4951,8 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
   );
 };
 
-const SessionManager = ({ appointments, onNotify }: { appointments: Appointment[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void }) => {
-  const todayDate = getLocalYMD();
+const SessionManager = ({ appointments, onNotify, selectedDate, setSelectedDate }: { appointments: Appointment[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, selectedDate: string, setSelectedDate: (d: string) => void }) => {
+  const todayDate = selectedDate;
   const sessions = appointments.filter(a => a.date === todayDate && a.status === 'scheduled');
   const [selectedSession, setSelectedSession] = useState<Appointment | null>(null);
   const [history, setHistory] = useState<any[]>([]);
@@ -4961,10 +4976,10 @@ const SessionManager = ({ appointments, onNotify }: { appointments: Appointment[
   return (
     <div className="space-y-6">
        <header className="border-b border-slate-200 pb-6 flex justify-between items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800 mb-1">Today's Schedule</h1>
-            <p className="text-sm text-slate-500">Manage and complete patient sessions.</p>
-          </div>
+           <div>
+             <h1 className="text-2xl font-bold text-slate-800 mb-1">Daily Schedule</h1>
+             <p className="text-sm text-slate-500">Manage and complete patient sessions.</p>
+           </div>
        </header>
 
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -5444,7 +5459,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
           <motion.div 
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] overflow-y-auto border border-slate-100 pb-safe"
+            className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] overflow-y-auto overscroll-contain border border-slate-100 pb-safe"
           >
             <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
               <div>
@@ -5622,7 +5637,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                   </button>
                </div>
 
-               <div className="flex-1 overflow-y-auto p-8 space-y-8">
+               <div className="flex-1 overflow-y-auto overscroll-contain p-8 space-y-8">
                   <div className="flex flex-col items-center text-center">
                      <div className="w-24 h-24 rounded-[2rem] bg-indigo-50 border border-indigo-100 flex items-center justify-center text-3xl font-black text-indigo-600 shadow-sm relative mb-4">
                         {selectedMember.name.charAt(0)}
@@ -5765,10 +5780,9 @@ const SummaryCard = ({ title, value, icon, color }: { title: string, value: numb
   );
 };
 
-const AttendanceManager = ({ role, members, currentUserEmail, onNotify }: { role: string, members: any[], currentUserEmail: string | null, onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void }) => {
+const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selectedDate, setSelectedDate }: { role: string, members: any[], currentUserEmail: string | null, onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, selectedDate: string, setSelectedDate: (d: string) => void }) => {
   const [attendance, setAttendance] = useState<any[]>([]);
   const [rangeAttendance, setRangeAttendance] = useState<any[]>([]);
-  const [selectedDate, setSelectedDate] = useState(getLocalYMD());
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -6483,7 +6497,7 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#F8FAFC] flex flex-col items-center justify-center p-4 overflow-y-auto overflow-x-hidden z-50 relative w-full">
+    <div className="min-h-[100dvh] bg-[#F8FAFC] flex flex-col items-center justify-center p-4 overflow-y-auto overscroll-contain overflow-x-hidden z-50 relative w-full">
       {/* Dynamic Background Accents */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-100/50 rounded-full blur-3xl opacity-50" />
@@ -6827,7 +6841,7 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
                            type="text" 
                            value={user.email || ''}
                            disabled
-                           className="w-full text-sm font-semibold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3.5 outline-none cursor-not-allowed opacity-70 text-slate-700 dark:text-slate-400" 
+                           className="w-full text-base font-semibold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3.5 outline-none cursor-not-allowed opacity-70 text-slate-700 dark:text-slate-400" 
                         />
                      </div>
                      <div className="space-y-1.5 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700/30">
@@ -7016,6 +7030,7 @@ export default function App() {
   const [debouncedGlobalSearch, setDebouncedGlobalSearch] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [globalDate, setGlobalDate] = useState(getLocalYMD());
 
   useEffect(() => {
     if (!user) {
@@ -7038,6 +7053,29 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
   }, []);
+
+  // History API for Android Back button (prevents exiting app and supports tab navigation)
+  useEffect(() => {
+    if (user && activeTab) {
+      if (!window.history.state || window.history.state.tab !== activeTab) {
+        window.history.pushState({ tab: activeTab, sidebar: isSidebarOpen }, '', window.location.pathname);
+      }
+    }
+  }, [activeTab, isSidebarOpen, user]);
+
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (isSidebarOpen) {
+        setIsSidebarOpen(false);
+      }
+      if (e.state && e.state.tab) {
+        setActiveTab(e.state.tab);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isSidebarOpen]);
+
   const [patients, setPatients] = useState<Patient[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -7231,12 +7269,14 @@ export default function App() {
   const todayDateStr = getLocalYMD();
   
   // Notification Counts
-  // Appointments: Any unhandled (scheduled) appointments from today or the past
-  const scheduledApptsCount = appointments.filter(a => a.status === 'scheduled' && a.date <= todayDateStr).length;
-  // Finances: Number of pending unpaid sessions across all patients
+  // Appointments: Appointments specifically for the selected globalDate
+  const scheduledApptsCount = appointments.filter(a => a.status === 'scheduled' && a.date === globalDate).length;
+  
+  // Finances: Number of pending unpaid sessions across all patients (this is a running total usually, but let's keep it visible)
   const pendingPaymentsCount = patients.reduce((acc, p) => acc + (p.unpaidSessionsCount || 0), 0);
-  // Patients: Number of new patients registered today
-  const newPatientsTodayCount = patients.filter(p => p.createdAt && (typeof p.createdAt === 'string' ? p.createdAt.startsWith(todayDateStr) : p.createdAt.toDate && p.createdAt.toDate().toISOString().substring(0, 10) === todayDateStr)).length;
+  
+  // Patients: Number of new patients registered on the selected globalDate
+  const newPatientsTodayCount = patients.filter(p => p.createdAt && (typeof p.createdAt === 'string' ? p.createdAt.startsWith(globalDate) : p.createdAt.toDate && p.createdAt.toDate().toISOString().substring(0, 10) === globalDate)).length;
 
   return (
     <div className="min-h-[100dvh] bg-[#F8FAFC] overflow-x-hidden">
@@ -7310,7 +7350,7 @@ export default function App() {
                         </div>
                     </div>
                     
-                    <div className="overflow-y-auto custom-scrollbar">
+                    <div className="overflow-y-auto overscroll-contain custom-scrollbar">
                       {/* Patients Section */}
                       {globalSearchResults.patients.length > 0 && (
                         <div className="py-2 border-b border-slate-50 dark:border-slate-800/50 last:border-0">
@@ -7395,6 +7435,17 @@ export default function App() {
               )}
             </div>
 
+            {/* Global Date Controls */}
+            <div className="hidden md:flex shrink-0 items-center gap-2">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden lg:block">System Date</span>
+              <input 
+                type="date" 
+                value={globalDate}
+                onChange={e => setGlobalDate(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 rounded-xl px-3 py-2 text-sm font-bold text-blue-600 dark:text-blue-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm cursor-pointer"
+              />
+            </div>
+
             {/* Desktop right alignment spacer if needed */}
             <div className="hidden md:flex w-10 shrink-0"></div>
           </div>
@@ -7402,23 +7453,23 @@ export default function App() {
           {/* Mobile Bottom Nav */}
           <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 px-2 py-2 flex justify-around items-center pb-safe print:hidden shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
              <button onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'dashboard' && !isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
-                {activeTab === 'dashboard' && !isSidebarOpen && <motion.div layoutId="mobileNavIndicator" className="absolute inset-0 bg-blue-50 rounded-xl z-0" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />}
+                {activeTab === 'dashboard' && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 rounded-xl z-0" />}
                 <LayoutDashboard className="w-5 h-5 mb-1 z-10 relative" />
                 <span className="text-[9px] font-bold z-10 relative">Home</span>
              </button>
              <button onClick={() => { setActiveTab('patients'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'patients' && !isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
-                {activeTab === 'patients' && !isSidebarOpen && <motion.div layoutId="mobileNavIndicator" className="absolute inset-0 bg-blue-50 rounded-xl z-0" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />}
+                {activeTab === 'patients' && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 rounded-xl z-0" />}
                 <Users className="w-5 h-5 mb-1 z-10 relative" />
                 <span className="text-[9px] font-bold z-10 relative">Patients</span>
              </button>
              <button onClick={() => { setActiveTab('appointments'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'appointments' && !isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
-                {activeTab === 'appointments' && !isSidebarOpen && <motion.div layoutId="mobileNavIndicator" className="absolute inset-0 bg-blue-50 dark:bg-blue-900/50 rounded-xl z-0" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />}
+                {activeTab === 'appointments' && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/50 rounded-xl z-0" />}
                 <Calendar className="w-5 h-5 mb-1 z-10 relative" />
                 <span className="text-[9px] font-bold z-10 relative">Bookings</span>
              </button>
              {role !== 'therapist' && (
                <button onClick={() => { setActiveTab('finances'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'finances' && !isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
-                  {activeTab === 'finances' && !isSidebarOpen && <motion.div layoutId="mobileNavIndicator" className="absolute inset-0 bg-blue-50 dark:bg-blue-900/50 rounded-xl z-0" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />}
+                  {activeTab === 'finances' && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/50 rounded-xl z-0" />}
                   <CircleDollarSign className="w-5 h-5 mb-1 z-10 relative" />
                   <span className="text-[9px] font-bold z-10 relative">Billing</span>
                </button>
@@ -7426,25 +7477,24 @@ export default function App() {
              <button onClick={() => { 
                 if (isSidebarOpen) {
                   setIsSidebarOpen(false);
-                  setActiveTab('dashboard');
                 } else {
                   setIsSidebarOpen(true);
                 }
              }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", !['dashboard', 'patients', 'appointments', 'finances'].includes(activeTab) || isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
-                {(!['dashboard', 'patients', 'appointments', 'finances'].includes(activeTab) || isSidebarOpen) && <motion.div layoutId="mobileNavIndicator" className="absolute inset-0 bg-blue-50 rounded-xl z-0" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />}
+                {(!['dashboard', 'patients', 'appointments', 'finances'].includes(activeTab) || isSidebarOpen) && <div className="absolute inset-0 bg-blue-50 rounded-xl z-0" />}
                 <Menu className="w-5 h-5 mb-1 z-10 relative" />
                 <span className="text-[9px] font-bold z-10 relative">More</span>
              </button>
           </div>
 
           <div className="p-4 md:p-8 max-w-7xl mx-auto">
-            {(activeTab === 'dashboard' || activeTab === 'more') && <Dashboard stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} role={role} setTab={setActiveTab} onNotify={showNotification} user={user!} onStatusUpdate={async (id, status) => { await updateAppointmentStatus(id, status); }} setViewTarget={setViewTarget} />}
-            {activeTab === 'appointments' && role !== 'therapist' && <AppointmentManager appointments={appointments} patients={patients} members={members} onNotify={showNotification} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} />}
+            {(activeTab === 'dashboard' || activeTab === 'more') && <Dashboard stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} role={role} setTab={setActiveTab} onNotify={showNotification} user={user!} onStatusUpdate={async (id, status) => { await updateAppointmentStatus(id, status); }} setViewTarget={setViewTarget} globalDate={globalDate} setGlobalDate={setGlobalDate} />}
+            {activeTab === 'appointments' && role !== 'therapist' && <AppointmentManager appointments={appointments} patients={patients} members={members} onNotify={showNotification} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} selectedDate={globalDate} setSelectedDate={setGlobalDate} />}
             {activeTab === 'patients' && <PatientManager patients={patients} appointments={appointments} transactions={transactions} onNotify={showNotification} role={role} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} />}
             {activeTab === 'finances' && role !== 'therapist' && <FinanceTracker transactions={transactions} patients={patients} onNotify={showNotification} role={role} viewTarget={viewTarget} setViewTarget={setViewTarget} />}
             {activeTab === 'team' && role === 'admin' && <TeamManager role={role} members={members} onNotify={showNotification} />}
-            {activeTab === 'attendance' && <AttendanceManager role={role} members={members} currentUserEmail={user?.email || null} onNotify={showNotification} />}
-            {activeTab === 'sessions' && role !== 'manager' && <SessionManager appointments={appointments} onNotify={showNotification} />}
+            {activeTab === 'attendance' && <AttendanceManager role={role} members={members} currentUserEmail={user?.email || null} onNotify={showNotification} selectedDate={globalDate} setSelectedDate={setGlobalDate} />}
+            {activeTab === 'sessions' && role !== 'manager' && <SessionManager appointments={appointments} onNotify={showNotification} selectedDate={globalDate} setSelectedDate={setGlobalDate} />}
             {activeTab === 'reports' && role === 'admin' && <Reports stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} onNotify={showNotification} />}
             {activeTab === 'settings' && <SettingsView user={user!} role={role} patients={patients} transactions={transactions} appointments={appointments} members={members} onNotify={showNotification} onLogout={logOut} />}
           </div>
