@@ -3539,7 +3539,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
 
       {printTx && (
         <div className="fixed inset-0 bg-[#f1f5f9] z-[100] overflow-y-auto overscroll-contain print:static print:h-auto print:overflow-visible">
-          <div className="max-w-4xl mx-auto py-8 px-4 print:p-0">
+          <div className="max-w-4xl mx-auto py-4 sm:py-8 px-2 sm:px-4 print:p-0">
             {/* Action Bar */}
             <div className="flex flex-wrap items-center justify-between gap-4 mb-8 bg-[#ffffff] p-4 rounded-2xl shadow-sm border border-[#e2e8f0] print:hidden">
               <div className="flex items-center gap-3">
@@ -3547,32 +3547,22 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                   <img src={LogoImage} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                 </div>
                 <div>
-                  <h2 className="font-black text-[#1e293b] tracking-tight">Receipt View</h2>
-                  <p className="text-xs font-bold text-[#64748b]">FitRevive Clinic Management</p>
+                  <h2 className="font-black text-[#1e293b] tracking-tight text-sm sm:text-base">Receipt View</h2>
+                  <p className="text-[10px] sm:text-xs font-bold text-[#64748b]">FitRevive Clinic Management</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <button 
-                  onClick={handleSaveAsPDF} 
-                  disabled={isSavingPdf} 
-                  className="px-4 py-2 bg-[#4f46e5] text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-[#4338ca] transition-all shadow-md shadow-indigo-100 disabled:opacity-50"
-                >
-                  <Download className="w-4 h-4" /> {isSavingPdf ? 'Generating...' : 'Save PDF'}
-                </button>
-                <button 
-                  onClick={() => {
-                    try { window.print(); } catch(e) { window.alert("Printing is blocked. Use 'Open in New Tab'."); }
-                  }} 
+                  onClick={() => window.print()} 
                   className="px-4 py-2 bg-[#2563eb] text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-[#1d4ed8] transition-all shadow-md shadow-blue-100"
                 >
                   <Printer className="w-4 h-4" /> Print
                 </button>
                 <button 
-                  onClick={shareReceiptFile}
-                  disabled={isSavingPdf}
-                  className="px-4 py-2 bg-[#16a34a] text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-[#15803d] transition-all shadow-md shadow-green-100 disabled:opacity-50"
+                  onClick={shareToWhatsApp}
+                  className="px-4 py-2 bg-[#16a34a] text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-[#15803d] transition-all shadow-md shadow-green-100"
                 >
-                  <Share2 className="w-4 h-4" /> Share / PDF
+                  <MessageSquare className="w-4 h-4" /> WhatsApp
                 </button>
                 <button 
                   onClick={() => setPrintTx(null)} 
@@ -3584,39 +3574,39 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
             </div>
 
             {/* Receipt Container */}
-            <div id="print-bill-container" className="bg-[#ffffff] shadow-2xl rounded-3xl border border-[#e2e8f0] overflow-hidden print:shadow-none print:border-none print:m-0">
+            <div id="print-bill-container" className="bg-[#ffffff] shadow-2xl rounded-2xl sm:rounded-3xl border border-[#e2e8f0] overflow-hidden print:shadow-none print:border-none print:m-0 print:rounded-none">
                {/* Header Section */}
-               <div className="relative overflow-hidden bg-[#ffffff] p-8 text-[#1e293b] border-b border-[#f1f5f9]">
+               <div className="relative overflow-hidden bg-[#ffffff] p-5 sm:p-8 text-[#1e293b] border-b border-[#f1f5f9]">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-[#f0f9ff] rounded-full -mr-20 -mt-20"></div>
                   <div className="relative z-10 flex flex-col md:flex-row justify-between items-start gap-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-[#ffffff] rounded-full flex items-center justify-center shadow-lg transform -rotate-2 hover:rotate-0 transition-transform overflow-hidden border border-[#e2e8f0]">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-[#ffffff] rounded-full flex items-center justify-center shadow-lg transform -rotate-2 hover:rotate-0 transition-transform overflow-hidden border border-[#e2e8f0]">
                         <img src={LogoImage} alt="FitRevive Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                       </div>
                       <div>
-                        <h1 className="text-3xl font-black tracking-tighter leading-none mb-1 text-[#1e293b]">FitRevive</h1>
-                        <p className="text-sm font-bold text-[#2563eb]">Physiotherapy clinic</p>
-                        <div className="mt-4 flex flex-col gap-1 text-xs font-semibold text-[#64748b]">
+                        <h1 className="text-2xl sm:text-3xl font-black tracking-tighter leading-none mb-1 text-[#1e293b]">FitRevive</h1>
+                        <p className="text-xs sm:text-sm font-bold text-[#2563eb]">Physiotherapy clinic</p>
+                        <div className="mt-3 flex flex-col gap-1 text-[10px] sm:text-xs font-semibold text-[#64748b]">
                            <div className="flex items-center gap-2"><MapPin className="w-3 h-3 text-[#2563eb]" /> Bangaon, Nalbari, 781303</div>
                            <div className="flex items-center gap-2"><Phone className="w-3 h-3 text-[#2563eb]" /> +91 84738-09386</div>
                            <div className="flex items-center gap-2"><Globe className="w-3 h-3 text-[#2563eb]" /> www.fitrevive.in</div>
                         </div>
                       </div>
                     </div>
-                    <div className="text-right flex flex-col items-end">
+                    <div className="text-left md:text-right flex flex-col items-start md:items-end">
                        <div className="bg-[#eff6ff] text-[#2563eb] px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-3 border border-[#dbeafe]">Official Invoice</div>
-                       <div className="text-2xl font-black tracking-tight mb-1 text-[#1e293b]">Total: ₹{printTx.amount.toLocaleString()}</div>
-                       <p className="text-xs font-bold text-[#64748b]">Date: {new Date(printTx.date).toLocaleDateString('en-GB')}</p>
+                       <div className="text-xl sm:text-2xl font-black tracking-tight mb-1 text-[#1e293b]">Total: ₹{printTx.amount.toLocaleString()}</div>
+                       <p className="text-[10px] sm:text-xs font-bold text-[#64748b]">Date: {new Date(printTx.date).toLocaleDateString('en-GB')}</p>
                     </div>
                   </div>
                </div>
 
-               <div className="p-8 space-y-8">
+               <div className="p-5 sm:p-8 space-y-6 sm:space-y-8">
                   {/* Patient & Invoice Info Row */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
                      {/* Patient Info Card */}
-                     <div className="bg-[#f8fafc] p-6 rounded-2xl border border-[#f1f5f9] shadow-sm">
-                        <h3 className="text-[10px] font-black text-[#94a3b8] uppercase tracking-[0.2em] mb-4">Patient Information</h3>
+                     <div className="bg-[#f8fafc] p-4 sm:p-6 rounded-2xl border border-[#f1f5f9] shadow-sm">
+                        <h3 className="text-[9px] sm:text-[10px] font-black text-[#94a3b8] uppercase tracking-[0.2em] mb-4">Patient Information</h3>
                         {(() => {
                            const patient = printTx.patientId ? patients.find(p => p.id === printTx.patientId) : null;
                            return (
@@ -3626,18 +3616,18 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                                     <User2 className="w-4 h-4 text-[#2563eb]" />
                                   </div>
                                   <div>
-                                    <p className="text-xs font-bold text-[#64748b]">Name</p>
-                                    <p className="text-sm font-black text-[#1e293b]">{patient?.name || 'Walk-In Patient'}</p>
+                                    <p className="text-[10px] font-bold text-[#64748b]">Name</p>
+                                    <p className="text-xs sm:text-sm font-black text-[#1e293b]">{patient?.name || 'Walk-In Patient'}</p>
                                   </div>
                                </div>
                                <div className="grid grid-cols-2 gap-4">
                                   <div>
-                                    <p className="text-xs font-bold text-[#64748b]">Age/Gender</p>
-                                    <p className="text-sm font-black text-[#1e293b]">{patient?.age || 'N/A'} / {patient?.gender || 'N/A'}</p>
+                                    <p className="text-[10px] font-bold text-[#64748b]">Age/Gender</p>
+                                    <p className="text-xs sm:text-sm font-black text-[#1e293b]">{patient?.age || 'N/A'} / {patient?.gender || 'N/A'}</p>
                                   </div>
                                   <div>
-                                    <p className="text-xs font-bold text-[#64748b]">Patient ID</p>
-                                    <p className="text-sm font-mono font-bold text-[#2563eb]">{patient?.id?.slice(0,8).toUpperCase() || 'P-GUEST'}</p>
+                                    <p className="text-[10px] font-bold text-[#64748b]">Patient ID</p>
+                                    <p className="text-xs sm:text-sm font-mono font-bold text-[#2563eb]">{patient?.id?.slice(0,8).toUpperCase() || 'P-GUEST'}</p>
                                   </div>
                                </div>
                              </div>
@@ -3646,23 +3636,23 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                      </div>
 
                      {/* Details Card */}
-                     <div className="bg-[#f8fafc] p-6 rounded-2xl border border-[#f1f5f9] shadow-sm">
-                        <h3 className="text-[10px] font-black text-[#94a3b8] uppercase tracking-[0.2em] mb-4">Invoice Details</h3>
+                     <div className="bg-[#f8fafc] p-4 sm:p-6 rounded-2xl border border-[#f1f5f9] shadow-sm">
+                        <h3 className="text-[9px] sm:text-[10px] font-black text-[#94a3b8] uppercase tracking-[0.2em] mb-4">Invoice Details</h3>
                         <div className="space-y-3">
                            <div className="flex justify-between items-center bg-[#ffffff] p-2 px-3 rounded-xl border border-[#e2e8f0]">
-                              <span className="text-xs font-bold text-[#64748b]">Receipt No</span>
-                              <span className="text-xs font-mono font-black text-[#1e293b]">FR-{printTx.date.replace(/-/g, '')}-{printTx.id.slice(0, 4).toUpperCase()}</span>
+                              <span className="text-[10px] font-bold text-[#64748b]">Receipt No</span>
+                              <span className="text-[10px] font-mono font-black text-[#1e293b]">FR-{printTx.date.replace(/-/g, '')}-{printTx.id.slice(0, 4).toUpperCase()}</span>
                            </div>
                            <div className="flex justify-between items-center bg-[#ffffff] p-2 px-3 rounded-xl border border-[#e2e8f0]">
-                              <span className="text-xs font-bold text-[#64748b]">Payment Method</span>
-                              <span className="text-xs font-black text-[#1e293b]">{printTx.paymentMethod || 'Cash'}</span>
+                              <span className="text-[10px] font-bold text-[#64748b]">Payment Method</span>
+                              <span className="text-[10px] font-black text-[#1e293b]">{printTx.paymentMethod || 'Cash'}</span>
                            </div>
                            <div className="space-y-1">
-                              <label className="text-xs font-bold text-[#64748b] ml-1">Assigned Therapist</label>
+                              <label className="text-[10px] font-bold text-[#64748b] ml-1">Assigned Therapist</label>
                               <input 
                                 value={therapistName} 
                                 onChange={(e) => setTherapistName(e.target.value)}
-                                className="w-full text-xs font-black bg-[#ffffff] border border-[#e2e8f0] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 print:border-none print:px-0 print:py-0"
+                                className="w-full text-xs font-black bg-[#ffffff] border border-[#e2e8f0] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 print:border-none print:px-0 print:py-0 text-[#1e293b]"
                               />
                            </div>
                         </div>
@@ -3671,54 +3661,54 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
 
                   {/* Services Table */}
                   <div className="overflow-x-auto w-full rounded-2xl border border-[#f1f5f9] shadow-sm mb-6">
-                     <table className="w-full text-left border-collapse min-w-[500px]">
+                     <table className="w-full text-left border-collapse min-w-full">
                         <thead className="bg-[#f8fafc] border-b border-[#f1f5f9]">
                            <tr>
-                              <th className="px-6 py-4 text-[10px] font-black text-[#64748b] uppercase tracking-widest">Service Description</th>
-                              <th className="px-6 py-4 text-[10px] font-black text-[#64748b] uppercase tracking-widest text-center">Qty</th>
-                              <th className="px-6 py-4 text-[10px] font-black text-[#64748b] uppercase tracking-widest text-right">Price</th>
-                              <th className="px-6 py-4 text-[10px] font-black text-[#64748b] uppercase tracking-widest text-right">Total</th>
+                              <th className="px-4 sm:px-6 py-4 text-[9px] sm:text-[10px] font-black text-[#64748b] uppercase tracking-widest whitespace-nowrap">Service</th>
+                              <th className="px-4 sm:px-6 py-4 text-[9px] sm:text-[10px] font-black text-[#64748b] uppercase tracking-widest text-center">Qty</th>
+                              <th className="px-4 sm:px-6 py-4 text-[9px] sm:text-[10px] font-black text-[#64748b] uppercase tracking-widest text-right">Price</th>
+                              <th className="px-4 sm:px-6 py-4 text-[9px] sm:text-[10px] font-black text-[#64748b] uppercase tracking-widest text-right">Total</th>
                            </tr>
                         </thead>
                         <tbody className="divide-y divide-[#f1f5f9]">
                            <tr>
-                              <td className="px-6 py-5">
-                                 <div className="font-black text-[#1e293b]">{printTx.category}</div>
-                                 <div className="text-xs font-medium text-[#64748b] mt-0.5">{printTx.description || 'Standard physical therapy session'}</div>
+                              <td className="px-4 sm:px-6 py-5">
+                                 <div className="text-xs sm:text-sm font-black text-[#1e293b]">{printTx.category}</div>
+                                 <div className="text-[10px] sm:text-xs font-medium text-[#64748b] mt-0.5">{printTx.description || 'Standard therapy session'}</div>
                               </td>
-                              <td className="px-6 py-5 text-center font-bold text-[#1e293b]">1</td>
-                              <td className="px-6 py-5 text-right font-bold text-[#1e293b]">₹{printTx.amount.toLocaleString()}</td>
-                              <td className="px-6 py-5 text-right font-black text-[#1e293b]">₹{printTx.amount.toLocaleString()}</td>
+                              <td className="px-4 sm:px-6 py-5 text-center text-xs sm:text-sm font-bold text-[#1e293b]">1</td>
+                              <td className="px-4 sm:px-6 py-5 text-right text-xs sm:text-sm font-bold text-[#1e293b]">₹{printTx.amount.toLocaleString()}</td>
+                              <td className="px-4 sm:px-6 py-5 text-right text-xs sm:text-sm font-black text-[#1e293b]">₹{printTx.amount.toLocaleString()}</td>
                            </tr>
                         </tbody>
                         <tfoot className="bg-[#f8fafc]/50">
                            <tr>
-                              <td colSpan={2} className="px-6 py-4"></td>
-                              <td className="px-6 py-4 text-xs font-bold text-[#64748b] text-right uppercase">Subtotal</td>
-                              <td className="px-6 py-4 text-sm font-black text-[#1e293b] text-right">₹{printTx.amount.toLocaleString()}</td>
+                              <td colSpan={2} className="px-4 sm:px-6 py-4"></td>
+                              <td className="px-4 sm:px-6 py-4 text-[10px] font-bold text-[#64748b] text-right uppercase">Subtotal</td>
+                              <td className="px-4 sm:px-6 py-4 text-xs sm:text-sm font-black text-[#1e293b] text-right">₹{printTx.amount.toLocaleString()}</td>
                            </tr>
                            <tr>
-                              <td colSpan={2} className="px-6 py-4"></td>
-                              <td className="px-6 py-4 text-xs font-bold text-[#64748b] text-right uppercase">Tax (0%)</td>
-                              <td className="px-6 py-4 text-sm font-black text-[#1e293b] text-right">₹0.00</td>
+                              <td colSpan={2} className="px-4 sm:px-6 py-4"></td>
+                              <td className="px-4 sm:px-6 py-4 text-[10px] font-bold text-[#64748b] text-right uppercase">Tax (0%)</td>
+                              <td className="px-4 sm:px-6 py-4 text-xs sm:text-sm font-black text-[#1e293b] text-right">₹0.00</td>
                            </tr>
                            <tr className="bg-[#f0f7ff]">
-                              <td colSpan={2} className="px-6 py-4"></td>
-                              <td className="px-6 py-4 text-[10px] font-black text-[#2563eb] text-right uppercase tracking-widest">Grand Total</td>
-                              <td className="px-6 py-4 text-2xl font-black text-[#2563eb] text-right tracking-tight">₹{printTx.amount.toLocaleString()}</td>
+                              <td colSpan={2} className="px-4 sm:px-6 py-4"></td>
+                              <td className="px-4 sm:px-6 py-4 text-[9px] sm:text-[10px] font-black text-[#2563eb] text-right uppercase tracking-widest">Grand Total</td>
+                              <td className="px-4 sm:px-6 py-4 text-lg sm:text-2xl font-black text-[#2563eb] text-right tracking-tight">₹{printTx.amount.toLocaleString()}</td>
                            </tr>
                         </tfoot>
                      </table>
                   </div>
 
                   {/* Payment & Footer */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-12 pt-4">
                      <div className="space-y-6">
                         <div className="flex items-start gap-4">
                            <div className="p-3 bg-[#ffffff] rounded-xl shadow-sm border border-[#e2e8f0] print:hidden">
                               <QRCodeCanvas 
                                 value={`upi://pay?pa=FITREVIVE@BANK&pn=FitReviveClinic&am=${printTx.amount}&cu=INR`} 
-                                size={80}
+                                size={60}
                                 level="M"
                               />
                            </div>
@@ -3728,7 +3718,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                            </div>
                         </div>
                         <div className="p-4 rounded-xl border-l-4 border-[#2563eb] bg-[#f8fafc]">
-                           <p className="text-xs italic font-bold text-[#64748b] leading-relaxed">
+                           <p className="text-[10px] sm:text-xs italic font-bold text-[#64748b] leading-relaxed">
                               "Thank you for choosing FitRevive Clinic. We are committed to your recovery and well-being. Wish you a speedy recovery!"
                            </p>
                         </div>
