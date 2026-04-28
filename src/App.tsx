@@ -1579,17 +1579,6 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
   useEffect(() => {
-    if (showModal || showSessionModal || showHistoryModal) {
-      document.body.style.overflow = 'hidden';
-      // Fallback for some mobile browsers
-      document.body.classList.add('fixed', 'w-full');
-    } else {
-      document.body.style.overflow = '';
-      document.body.classList.remove('fixed', 'w-full');
-    }
-  }, [showModal, showSessionModal, showHistoryModal]);
-
-  useEffect(() => {
     if (viewTarget?.type === 'patient' && viewTarget.id) {
        const p = patients.find(p => p.id === viewTarget.id);
        if (p) {
@@ -1604,6 +1593,15 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const itemsPerPage = 8;
   
+  useEffect(() => {
+    if (showModal || showSessionModal || showHistoryModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [showModal, showSessionModal, showHistoryModal]);
+
   const [newPatient, setNewPatient] = useState({ 
     name: '', phone: '', age: '', gender: 'Male', condition: '', address: '', medicalHistory: '', treatmentStatus: 'Active' as 'Active' | 'Completed'
   });
@@ -2386,18 +2384,18 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Date</label>
-                        <input type="date" required value={newSession.date} onChange={e => setNewSession({...newSession, date: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" />
+                        <input type="date" required value={newSession.date} onChange={e => setNewSession({...newSession, date: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" />
                      </div>
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Time</label>
-                        <input type="time" required value={newSession.time} onChange={e => setNewSession({...newSession, time: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" />
+                        <input type="time" required value={newSession.time} onChange={e => setNewSession({...newSession, time: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" />
                      </div>
                   </div>
                   <div>
                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Payment Status</label>
                      <div className="flex gap-3">
                        {['paid', 'unpaid'].map(status => (
-                         <label key={status} className={cn("flex-1 px-4 py-3 border rounded-xl text-sm font-bold text-center cursor-pointer transition-all flex items-center justify-center gap-2", newSession.paymentStatus === status ? (status === 'paid' ? "bg-emerald-50 border-emerald-500 text-emerald-700 ring-2 ring-emerald-100" : "bg-rose-50 border-rose-500 text-rose-700 ring-2 ring-rose-100") : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100")}>
+                         <label key={status} className={cn("flex-1 px-4 py-3 border rounded-xl text-base font-bold text-center cursor-pointer transition-all flex items-center justify-center gap-2", newSession.paymentStatus === status ? (status === 'paid' ? "bg-emerald-50 border-emerald-500 text-emerald-700 ring-2 ring-emerald-100" : "bg-rose-50 border-rose-500 text-rose-700 ring-2 ring-rose-100") : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100")}>
                            <input type="radio" className="hidden" name="paymentStatus" value={status} checked={newSession.paymentStatus === status} onChange={(e) => setNewSession({...newSession, paymentStatus: e.target.value as any})} />
                            {status === 'paid' ? <CheckCircle2 className="w-4 h-4"/> : <Clock3 className="w-4 h-4"/>}
                            {status === 'paid' ? 'Paid' : 'Unpaid (Due)'}
@@ -2408,7 +2406,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Amount (₹)</label>
-                        <input type="number" min="0" required value={newSession.amount} onChange={e => setNewSession({...newSession, amount: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" />
+                        <input type="number" min="0" required value={newSession.amount} onChange={e => setNewSession({...newSession, amount: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" />
                      </div>
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Method</label>
@@ -2450,6 +2448,15 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
   const [selectedSessionsForBill, setSelectedSessionsForBill] = useState<string[]>([]);
   const [billingMethod, setBillingMethod] = useState<'cash'|'upi'>('cash');
   const [isGeneratingBill, setIsGeneratingBill] = useState(false);
+
+  useEffect(() => {
+    if (showModal || showBillingModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [showModal, showBillingModal]);
 
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '6m'>('30d');
   const [searchTerm, setSearchTerm] = useState('');
@@ -2847,8 +2854,13 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
     }
   };
 
-  // Filter transactions based on date
+  // Filter data for summary cards and charts
   const filteredData = useMemo(() => {
+    // If a specific date filter is active in ledger, use it for stats too
+    if (dateFilter) {
+      return transactions.filter(t => t.date === dateFilter);
+    }
+
     const now = new Date();
     const limit = timeframe === '7d' ? 7 : timeframe === '30d' ? 30 : 6;
     const unit = timeframe === '6m' ? 'month' : 'day';
@@ -2863,7 +2875,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
         return diffMonths <= limit;
       }
     });
-  }, [transactions, timeframe]);
+  }, [transactions, timeframe, dateFilter]);
 
   // Statistics
   const stats = useMemo(() => {
@@ -3465,7 +3477,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Category</label>
-                        <select value={newTx.category} onChange={e => setNewTx({...newTx, category: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer">
+                        <select value={newTx.category} onChange={e => setNewTx({...newTx, category: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer">
                            {(newTx.type === 'income' ? categories.income : categories.expense).map(cat => (
                              <option key={cat} value={cat}>{cat}</option>
                            ))}
@@ -3473,7 +3485,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                      </div>
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Payment Method</label>
-                        <select value={newTx.paymentMethod} onChange={e => setNewTx({...newTx, paymentMethod: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer">
+                        <select value={newTx.paymentMethod} onChange={e => setNewTx({...newTx, paymentMethod: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer">
                            <option>Cash</option>
                            <option>UPI / Online</option>
                            <option>Card</option>
@@ -3483,17 +3495,17 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Date</label>
-                        <input type="date" value={newTx.date} onChange={e => setNewTx({...newTx, date: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100" />
+                        <input type="date" value={newTx.date} onChange={e => setNewTx({...newTx, date: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100" />
                      </div>
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Time</label>
-                        <input type="time" value={newTx.time} onChange={e => setNewTx({...newTx, time: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100" />
+                        <input type="time" value={newTx.time} onChange={e => setNewTx({...newTx, time: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100" />
                      </div>
                   </div>
                   <div className="grid grid-cols-1 gap-6">
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Notes / Description</label>
-                        <input type="text" placeholder="Remarks..." value={newTx.description} onChange={e => setNewTx({...newTx, description: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100" />
+                        <input type="text" placeholder="Remarks..." value={newTx.description} onChange={e => setNewTx({...newTx, description: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100" />
                      </div>
                   </div>
                </form>
@@ -4316,6 +4328,15 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
   const [viewType, setViewType] = useState<'day' | 'week'>('day');
   const [therapistFilter, setTherapistFilter] = useState('all');
   
+  useEffect(() => {
+    if (showModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [showModal]);
+
   const [isNewPatient, setIsNewPatient] = useState(false);
   const [newPatientData, setNewPatientData] = useState({
     name: '',
@@ -4777,7 +4798,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
                                  required={!isNewPatient && newAppt.sessionType !== 'Blocked Slot'}
                                  value={newAppt.patientId} 
                                  onChange={e => setNewAppt({...newAppt, patientId: e.target.value})} 
-                                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-100/50 focus:border-blue-400 focus:bg-white transition-all appearance-none cursor-pointer"
+                                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-base font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-100/50 focus:border-blue-400 focus:bg-white transition-all appearance-none cursor-pointer"
                                >
                                   <option value="">Start typing or select patient...</option>
                                   {patients.map(p => <option key={p.id} value={p.id}>{p.name} — {p.phone}</option>)}
