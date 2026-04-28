@@ -6620,13 +6620,55 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<'admin' | 'manager' | 'therapist' | null>(null);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [stats, setStats] = useState<DashboardStats>({
+    activePatients: 0,
+    monthlyRevenue: 0,
+    monthlyExpenses: 0,
+    netProfit: 0
+  });
+  const [members, setMembers] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<{ id: string, message: string, type: 'success' | 'error' | 'info' }[]>([]);
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [debouncedGlobalSearch, setDebouncedGlobalSearch] = useState('');
+
+  const globalSearchResults = useMemo(() => {
+    if (!debouncedGlobalSearch.trim()) return null;
+    const term = debouncedGlobalSearch.toLowerCase().trim();
+    
+    const matchedPatients = patients.filter(p => 
+      p.name.toLowerCase().includes(term) || 
+      p.phone.includes(term) || 
+      p.id.toLowerCase().includes(term) ||
+      (p.condition && p.condition.toLowerCase().includes(term))
+    ).slice(0, 3);
+    
+    const matchedBookings = appointments.filter(a => 
+      a.patientName.toLowerCase().includes(term) || 
+      (a.notes || '').toLowerCase().includes(term) ||
+      (a.sessionType || '').toLowerCase().includes(term) ||
+      a.id.toLowerCase().includes(term)
+    ).slice(0, 3);
+    
+    const matchedBilling = transactions.filter(t => 
+       (t.description || '').toLowerCase().includes(term) ||
+       t.amount.toString().includes(term) ||
+       (t.category || '').toLowerCase().includes(term) ||
+       t.id.toLowerCase().includes(term) ||
+       (t.patientId && patients.find(p => p.id === t.patientId)?.name.toLowerCase().includes(term))
+    ).slice(0, 3);
+    
+    return { patients: matchedPatients, bookings: matchedBookings, billing: matchedBilling };
+  }, [debouncedGlobalSearch, patients, appointments, transactions]);
+
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isRoleLoading, setIsRoleLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [viewTarget, setViewTarget] = useState<{type: 'patient' | 'appointment' | 'transaction' | 'book-appointment', id: string, returnTo?: string} | null>(null);
-  const [globalSearch, setGlobalSearch] = useState('');
-  const [debouncedGlobalSearch, setDebouncedGlobalSearch] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [globalDate, setGlobalDate] = useState(getLocalYMD());
@@ -6730,49 +6772,6 @@ export default function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [isSidebarOpen]);
-
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [stats, setStats] = useState<DashboardStats>({
-    activePatients: 0,
-    monthlyRevenue: 0,
-    monthlyExpenses: 0,
-    netProfit: 0
-  });
-
-  const globalSearchResults = useMemo(() => {
-    if (!debouncedGlobalSearch.trim()) return null;
-    const term = debouncedGlobalSearch.toLowerCase().trim();
-    
-    const matchedPatients = patients.filter(p => 
-      p.name.toLowerCase().includes(term) || 
-      p.phone.includes(term) || 
-      p.id.toLowerCase().includes(term) ||
-      (p.condition && p.condition.toLowerCase().includes(term))
-    ).slice(0, 3);
-    
-    const matchedBookings = appointments.filter(a => 
-      a.patientName.toLowerCase().includes(term) || 
-      (a.notes || '').toLowerCase().includes(term) ||
-      (a.sessionType || '').toLowerCase().includes(term) ||
-      a.id.toLowerCase().includes(term)
-    ).slice(0, 3);
-    
-    const matchedBilling = transactions.filter(t => 
-       (t.description || '').toLowerCase().includes(term) ||
-       t.amount.toString().includes(term) ||
-       (t.category || '').toLowerCase().includes(term) ||
-       t.id.toLowerCase().includes(term) ||
-       (t.patientId && patients.find(p => p.id === t.patientId)?.name.toLowerCase().includes(term))
-    ).slice(0, 3);
-    
-    return { patients: matchedPatients, bookings: matchedBookings, billing: matchedBilling };
-  }, [debouncedGlobalSearch, patients, appointments, transactions]);
-
-  const [role, setRole] = useState<'admin' | 'manager' | 'therapist' | null>(null);
-  const [members, setMembers] = useState<any[]>([]);
-  const [notifications, setNotifications] = useState<{ id: string, message: string, type: 'success' | 'error' | 'info' }[]>([]);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -6909,12 +6908,87 @@ export default function App() {
 
   if (loading || (user && !role && isRoleLoading)) {
     return (
-      <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center bg-white">
-         <div className="w-24 h-24 mb-6 animate-pulse rounded-full overflow-hidden border border-slate-100 shadow-sm bg-white">
-            <img src={LogoImage} alt="FitRevive Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-         </div>
-         <p className="font-black text-slate-800 tracking-tighter text-xl">FITREVIVE OS</p>
-         <p className="font-bold text-slate-400 text-xs mt-1 uppercase tracking-widest">Initializing Clinical Environment...</p>
+      <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center bg-[#F8FAFC] relative overflow-hidden">
+        {/* Decorative Background Elements */}
+        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-50 rounded-full blur-[120px] opacity-60"></div>
+        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-50 rounded-full blur-[120px] opacity-60"></div>
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="flex flex-col items-center z-10"
+        >
+          {/* Logo with sophisticated ring animation */}
+          <div className="relative mb-10">
+            <motion.div 
+              animate={{ 
+                rotate: 360,
+                scale: [1, 1.05, 1]
+              }}
+              transition={{ 
+                rotate: { duration: 8, repeat: Infinity, ease: "linear" },
+                scale: { duration: 2, repeat: Infinity, ease: "easeInOut" }
+              }}
+              className="absolute -inset-4 border-2 border-dashed border-blue-200 rounded-full opacity-50"
+            ></motion.div>
+            
+            <div className="w-28 h-28 rounded-3xl bg-white flex items-center justify-center shadow-2xl shadow-blue-100 border border-slate-100 overflow-hidden relative z-10 p-2">
+              <img src={LogoImage} alt="FitRevive Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+            </div>
+          </div>
+
+          <div className="text-center space-y-3">
+            <motion.h1 
+              initial={{ opacity: 0, letterSpacing: "-0.05em" }}
+              animate={{ opacity: 1, letterSpacing: "0.02em" }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="text-3xl font-black text-slate-900 tracking-tight"
+            >
+              FitRevive <span className="text-blue-600">OS</span>
+            </motion.h1>
+            
+            <div className="flex flex-col items-center gap-4">
+              <motion.p 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.5 }}
+                className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]"
+              >
+                Initializing Clinical Environment
+              </motion.p>
+              
+              {/* Modern Progress Line */}
+              <div className="w-48 h-1 bg-slate-200 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ 
+                    duration: 2.5, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                  className="h-full bg-gradient-to-r from-blue-600 to-indigo-600"
+                ></motion.div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Footer info */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.6 }}
+          transition={{ delay: 1 }}
+          className="absolute bottom-12 flex items-center gap-6 text-[10px] font-bold text-slate-400"
+        >
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
+            <span>SECURE HIPAA COMPLIANT</span>
+          </div>
+          <div className="w-1 h-1 rounded-full bg-slate-300"></div>
+          <span>V2.4.0-STABLE</span>
+        </motion.div>
       </div>
     );
   }
