@@ -95,34 +95,30 @@ const SplashScreen = ({ logo }: { logo: string }) => {
           
           {/* Logo Glass Container */}
           <motion.div 
-            initial={{ opacity: 0, scale: 0.5, rotate: -15 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ 
               opacity: 1, 
               scale: 1, 
-              rotate: 0,
-              y: [0, -10, 0] 
+              y: [0, -6, 0] 
             }}
             transition={{ 
-              opacity: { duration: 1 },
-              scale: { duration: 1.2, ease: [0.22, 1, 0.36, 1] },
-              rotate: { duration: 1.2, ease: "easeOut" },
-              y: { duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }
+              opacity: { duration: 0.2, ease: "easeOut" },
+              scale: { duration: 0.3, ease: "backOut" },
+              y: { duration: 3, repeat: Infinity, ease: "easeInOut" }
             }}
-            className="relative w-36 h-36 rounded-[2.8rem] bg-white/90 dark:bg-white/10 backdrop-blur-2xl border border-white dark:border-white/20 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.15)] dark:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)] flex items-center justify-center p-6 overflow-hidden"
+            className="relative w-36 h-36 rounded-full bg-white/95 dark:bg-white/10 backdrop-blur-2xl border border-white dark:border-white/20 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.15)] dark:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)] flex items-center justify-center p-7 overflow-hidden"
           >
-            {/* Glossy Scanner Effect */}
+            {/* Snappy Shine Effect */}
             <motion.div
-              animate={{ top: ['-100%', '200%'] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
-              className="absolute inset-x-0 h-1/2 bg-gradient-to-b from-transparent via-blue-400/10 dark:via-white/5 to-transparent skew-y-12 pointer-events-none"
+              animate={{ x: ['-200%', '200%'] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", repeatDelay: 2 }}
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 dark:via-white/5 to-transparent skew-x-12"
             />
             
             <motion.img 
               src={logo} 
               alt="Logo" 
-              className="w-full h-full object-contain relative z-10"
-              animate={{ rotate: [0, 2, -2, 0] }}
-              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+              className="w-full h-full object-contain relative z-10 rounded-full"
               referrerPolicy="no-referrer"
             />
           </motion.div>
