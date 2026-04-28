@@ -1,156 +1,197 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Activity } from 'lucide-react';
 
 const SplashScreen = ({ logo }: { logo: string }) => {
+  // Stagger variants for the tagline
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.8
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 5 },
+    visible: { opacity: 0.5, y: 0 }
+  };
+
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-[#0b0f1a] transition-colors duration-500">
       {/* Background Ambient Shapes */}
-      <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-400/10 dark:bg-blue-600/10 blur-[120px] animate-pulse" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-teal-400/10 dark:bg-teal-600/10 blur-[120px] animate-pulse delay-1000" />
+      <motion.div 
+        animate={{ 
+          scale: [1, 1.1, 1],
+          opacity: [0.05, 0.1, 0.05],
+          rotate: [0, 5, 0]
+        }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-blue-500/20 blur-[120px]" 
+      />
+      <motion.div 
+        animate={{ 
+          scale: [1, 1.2, 1],
+          opacity: [0.05, 0.15, 0.05],
+          rotate: [0, -5, 0]
+        }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-teal-500/20 blur-[120px]" 
+      />
       
-      {/* Subtle Floating Particles */}
-      {[...Array(6)].map((_, i) => (
+      {/* Dynamic Background Particles */}
+      {[...Array(12)].map((_, i) => (
         <motion.div
           key={i}
-          initial={{ opacity: 0, scale: 0 }}
+          initial={{ 
+            opacity: 0, 
+            scale: Math.random() * 0.5 + 0.5,
+            x: Math.random() * 100 - 50,
+            y: Math.random() * 100 - 50
+          }}
           animate={{ 
-            opacity: [0.1, 0.3, 0.1],
-            scale: [1, 1.2, 1],
-            x: [0, 20, 0],
-            y: [0, -20, 0]
+            opacity: [0.1, 0.4, 0.1],
+            scale: [1, 1.1, 1],
+            x: [0, (i % 2 === 0 ? 30 : -30), 0],
+            y: [0, (i % 3 === 0 ? -40 : 40), 0]
           }}
           transition={{
-            duration: 5 + i,
+            duration: 7 + i,
             repeat: Infinity,
             ease: "easeInOut",
-            delay: i * 0.5
+            delay: i * 0.3
           }}
-          className="absolute w-2 h-2 rounded-full bg-blue-500/20 dark:bg-blue-400/20 blur-sm"
+          className="absolute w-1.5 h-1.5 rounded-full bg-blue-500/30 dark:bg-blue-400/30 blur-[1px]"
           style={{
-            top: `${20 + i * 15}%`,
-            left: `${15 + i * 12}%`,
+            top: `${10 + Math.random() * 80}%`,
+            left: `${10 + Math.random() * 80}%`,
           }}
         />
       ))}
 
       <div className="relative flex flex-col items-center">
-        {/* Animated Logo Container */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-          className="relative mb-12"
-        >
-          {/* Pulsing Outer Rings */}
+        {/* Animated Logo Section */}
+        <div className="relative mb-14">
+          {/* Advanced Rotating Rings */}
           <motion.div
-            animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.5, 0.2] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -inset-8 rounded-full border-2 border-blue-500/20 blur-[2px]"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+            className="absolute -inset-10 rounded-full border border-blue-500/10 border-t-blue-500/40 blur-[1px]"
           />
           <motion.div
-            animate={{ scale: [1, 1.4, 1], opacity: [0.1, 0.3, 0.1] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-            className="absolute -inset-16 rounded-full border border-teal-500/10 blur-[4px]"
+            animate={{ rotate: -360 }}
+            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+            className="absolute -inset-14 rounded-full border border-teal-500/5 border-b-teal-500/30 blur-[2px]"
           />
           
-          {/* Glassmorphism Logo Box */}
+          {/* Secondary Pulse Waves */}
+          <motion.div
+            animate={{ scale: [1, 1.5], opacity: [0.3, 0] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
+            className="absolute -inset-4 rounded-[2.8rem] border-2 border-blue-400/20"
+          />
+          
+          {/* Logo Glass Container */}
           <motion.div 
-            whileHover={{ scale: 1.05 }}
-            animate={{ y: [0, -10, 0] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            className="relative w-32 h-32 rounded-[2.5rem] bg-white/80 dark:bg-white/5 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex items-center justify-center p-4 overflow-hidden group"
+            initial={{ opacity: 0, scale: 0.5, rotate: -15 }}
+            animate={{ 
+              opacity: 1, 
+              scale: 1, 
+              rotate: 0,
+              y: [0, -10, 0] 
+            }}
+            transition={{ 
+              opacity: { duration: 1 },
+              scale: { duration: 1.2, ease: [0.22, 1, 0.36, 1] },
+              rotate: { duration: 1.2, ease: "easeOut" },
+              y: { duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }
+            }}
+            className="relative w-36 h-36 rounded-[2.8rem] bg-white/90 dark:bg-white/10 backdrop-blur-2xl border border-white dark:border-white/20 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.15)] dark:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)] flex items-center justify-center p-6 overflow-hidden"
           >
-            {/* Shimmer overlay */}
+            {/* Glossy Scanner Effect */}
             <motion.div
-              animate={{ x: ['-100%', '100%'] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 dark:via-white/5 to-transparent skew-x-12"
+              animate={{ top: ['-100%', '200%'] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
+              className="absolute inset-x-0 h-1/2 bg-gradient-to-b from-transparent via-blue-400/10 dark:via-white/5 to-transparent skew-y-12 pointer-events-none"
             />
             
-            <img 
+            <motion.img 
               src={logo} 
-              alt="FitRevive" 
-              className="w-full h-full object-contain relative z-10 transition-transform duration-500 group-hover:rotate-3"
+              alt="Logo" 
+              className="w-full h-full object-contain relative z-10"
+              animate={{ rotate: [0, 2, -2, 0] }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
               referrerPolicy="no-referrer"
             />
           </motion.div>
           
-          {/* Logo Glow */}
-          <div className="absolute -inset-4 bg-blue-500/20 dark:bg-blue-400/10 blur-3xl -z-10 rounded-full" />
-        </motion.div>
+          {/* Core Glow */}
+          <div className="absolute -inset-10 bg-blue-500/15 dark:bg-blue-400/10 blur-[80px] -z-10 rounded-full" />
+        </div>
 
-        {/* Text Section */}
-        <div className="text-center space-y-4">
+        {/* Brand Presence */}
+        <div className="text-center">
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.8 }}
+            transition={{ delay: 0.5, duration: 1, ease: "easeOut" }}
           >
-            <h1 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white mb-2">
-              FitRevive <span className="text-blue-600 dark:text-blue-400">Clinic</span>
+            <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white mb-3">
+              FitRevive <span className="bg-gradient-to-r from-blue-600 to-teal-500 bg-clip-text text-transparent">Clinic</span>
             </h1>
-            <div className="flex items-center justify-center gap-3">
-               <motion.span 
-                 initial={{ opacity: 0 }} 
-                 animate={{ opacity: 0.5 }} 
-                 transition={{ delay: 0.6 }}
-                 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]"
-               >
-                 Care
-               </motion.span>
-               <span className="w-1 h-1 rounded-full bg-blue-500/30" />
-               <motion.span 
-                 initial={{ opacity: 0 }} 
-                 animate={{ opacity: 0.5 }} 
-                 transition={{ delay: 0.8 }}
-                 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]"
-               >
-                 Recovery
-               </motion.span>
-               <span className="w-1 h-1 rounded-full bg-blue-500/30" />
-               <motion.span 
-                 initial={{ opacity: 0 }} 
-                 animate={{ opacity: 0.5 }} 
-                 transition={{ delay: 1.0 }}
-                 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]"
-               >
-                 Strength
-               </motion.span>
-            </div>
+            
+            <motion.div 
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="flex items-center justify-center gap-3"
+            >
+               <motion.span variants={itemVariants} className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.25em]">Care</motion.span>
+               <motion.span variants={itemVariants} className="w-1 h-1 rounded-full bg-blue-500/40" />
+               <motion.span variants={itemVariants} className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.25em]">Recovery</motion.span>
+               <motion.span variants={itemVariants} className="w-1 h-1 rounded-full bg-blue-500/40" />
+               <motion.span variants={itemVariants} className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.25em]">Strength</motion.span>
+            </motion.div>
           </motion.div>
 
-          {/* Premium Progress Section */}
-          <div className="pt-12 w-64 mx-auto">
-            <div className="relative h-[3px] w-full bg-slate-200 dark:bg-white/5 rounded-full overflow-hidden">
+          {/* Progress Engineering */}
+          <div className="pt-16 w-72 mx-auto">
+            <div className="relative h-[2px] w-full bg-slate-200 dark:bg-white/5 rounded-full overflow-hidden">
               <motion.div
-                initial={{ width: "0%" }}
-                animate={{ width: "100%" }}
-                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-600 via-teal-500 to-indigo-600 shadow-[0_0_10px_rgba(37,99,235,0.5)]"
-              >
-                {/* Shimmer line */}
-                <motion.div
-                  animate={{ x: ['-100%', '200%'] }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent"
-                />
-              </motion.div>
+                initial={{ width: "0%", left: "-100%" }}
+                animate={{ width: ["20%", "60%", "30%"], left: ["-20%", "100%", "110%"] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute inset-y-0 bg-gradient-to-r from-transparent via-blue-600 to-transparent shadow-[0_0_15px_rgba(37,99,235,0.6)]"
+              />
             </div>
             
-            <motion.p
-              animate={{ opacity: [0.4, 0.7, 0.4] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="mt-4 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest"
+            <motion.div
+              animate={{ opacity: [0.3, 0.6, 0.3] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="mt-6 flex flex-col items-center gap-2"
             >
-              Syncing Clinical Records...
-            </motion.p>
+              <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em]">
+                Authenticating Session
+              </p>
+              <div className="flex gap-1">
+                {[0, 1, 2].map(i => (
+                  <motion.div
+                    key={i}
+                    animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
+                    transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                    className="w-1 h-1 rounded-full bg-blue-500"
+                  />
+                ))}
+              </div>
+            </motion.div>
           </div>
         </div>
       </div>
 
-      {/* Modern Waveform at bottom (decorative) */}
-      <div className="absolute bottom-[-20%] inset-x-0 h-[40%] bg-gradient-to-t from-blue-500/5 to-transparent pointer-none" />
+      {/* Atmospheric Soft Light (Bottom) */}
+      <div className="absolute bottom-[-15%] inset-x-0 h-[40%] bg-gradient-to-t from-blue-500/10 via-transparent to-transparent pointer-events-none" />
     </div>
   );
 };
