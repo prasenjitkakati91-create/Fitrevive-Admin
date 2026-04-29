@@ -40,6 +40,8 @@ import {
   AlertCircle,
   Smartphone,
   MapPin,
+  Mail,
+  Heart,
   Zap,
   ChevronDown,
   ChevronUp,
@@ -282,7 +284,7 @@ const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, 
             </div>
             {!isCollapsed && (
               <div className="flex flex-col animate-in fade-in slide-in-from-left-2 duration-300">
-                <span className="text-xl font-black text-slate-800 tracking-tight">FitRevive</span>
+                <span className="text-xl font-black text-slate-800 tracking-tight leading-tight">FitRevive</span>
                 <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest leading-none">Physiotherapy Clinic</span>
               </div>
             )}
@@ -6681,7 +6683,7 @@ export default function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [globalDate, setGlobalDate] = useState(getLocalYMD());
   const [printTx, setPrintTx] = useState<Transaction | null>(null);
-  const [therapistName, setTherapistName] = useState('Dr. Rahul Das');
+  const [therapistName, setTherapistName] = useState('FitRevive Clinical Team');
 
   const whatsappUrl = useMemo(() => {
     if (!printTx) return '';
@@ -6738,12 +6740,16 @@ export default function App() {
     }
     
     try {
-      const win = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-      if (!win) {
-        window.location.href = whatsappUrl;
-      }
+      const link = document.createElement('a');
+      link.href = whatsappUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (err) {
-      showNotification('Could not open WhatsApp. Please check browser settings.', 'error');
+      // Fallback
+      window.location.href = whatsappUrl;
     }
   };
 
@@ -7251,6 +7257,10 @@ export default function App() {
         <>
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
+              @page {
+                size: A4 portrait;
+                margin: 0 !important;
+              }
               html, body { 
                 background: white !important; 
                 margin: 0 !important; 
@@ -7259,87 +7269,85 @@ export default function App() {
                 print-color-adjust: exact !important;
               }
               .print-container { 
-                background: white !important;
-                box-shadow: none !important;
-                border: none !important;
-                margin: 0 !important;
                 padding: 0 !important;
+                margin: 0 !important;
                 width: 100% !important;
-                min-width: 100% !important;
+                max-width: 100% !important;
               }
               #print-bill-container {
                 box-shadow: none !important;
                 border: none !important;
                 border-radius: 0 !important;
                 margin: 0 !important;
-                padding: 0 !important;
+                padding: 5mm !important; /* Reduced padding for A4 */
                 width: 100% !important;
+                min-height: auto !important; /* Allow it to be smaller than A4 height */
+                max-height: 280mm !important; /* Keep within A4 height */
+                background: white !important;
+                transform: scale(0.92); /* Slightly smaller scale for extra safety */
+                transform-origin: top center;
+                page-break-after: avoid;
+                page-break-inside: avoid;
               }
+              .no-print { display: none !important; }
               * { 
                 box-shadow: none !important; 
                 text-shadow: none !important; 
                 filter: none !important; 
                 backdrop-filter: none !important;
-                transition: none !important;
               }
             }
             
-            /* FORCE LIGHT MODE FOR BILLING CONTAINER */
+            /* FORCE LIGHT MODE FOR BILLING CONTAINER AT ALL TIMES */
             #print-bill-container, 
             #print-bill-container * {
               color-scheme: light !important;
             }
             
-            #print-bill-container {
-              background-color: #ffffff !important;
-              color: #1e293b !important;
-            }
-            
-            /* Target all potential dark mode background classes and force them to light counterparts */
+            /* Aggressively override any dark mode inheritance */
             .dark #print-bill-container,
-            .dark #print-bill-container .bg-slate-900,
-            .dark #print-bill-container .bg-slate-800,
-            .dark #print-bill-container .dark\\:bg-slate-900,
-            .dark #print-bill-container .dark\\:bg-slate-800 {
+            #print-bill-container.receipt-theme-fixed {
               background-color: #ffffff !important;
+              background-image: none !important;
+              color: #0f172a !important;
+              box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
             }
             
-            .dark #print-bill-container .text-white,
-            .dark #print-bill-container .dark\\:text-white,
-            .dark #print-bill-container .dark\\:text-slate-200 {
-              color: #1e293b !important;
+            #print-bill-container table {
+              width: 100% !important;
+              table-layout: fixed !important;
             }
-            
-            .dark #print-bill-container .bg-white {
-               background-color: #ffffff !important;
-            }
-            
-            .dark #print-bill-container p,
-            .dark #print-bill-container span,
+
             .dark #print-bill-container div,
+            .dark #print-bill-container section,
+            .dark #print-bill-container article,
+            .dark #print-bill-container table,
+            .dark #print-bill-container tr,
             .dark #print-bill-container td,
             .dark #print-bill-container th,
             .dark #print-bill-container h1,
             .dark #print-bill-container h2,
-            .dark #print-bill-container h3 {
-               color: #1e293b !important;
-            }
-            
-            .dark #print-bill-container .text-blue-600,
-            .dark #print-bill-container .text-[#2563eb],
-            .dark #print-bill-container .dark\\:text-blue-400 {
-               color: #2563eb !important;
+            .dark #print-bill-container h3,
+            .dark #print-bill-container p,
+            .dark #print-bill-container span,
+            .dark #print-bill-container strong,
+            .dark #print-bill-container b {
+              background-color: transparent !important;
+              color: #0f172a !important;
+              border-color: #e2e8f0 !important;
             }
 
-            .dark #print-bill-container .text-slate-500,
-            .dark #print-bill-container .text-[#64748b],
-            .dark #print-bill-container .dark\\:text-slate-400 {
-               color: #64748b !important;
-            }
-            
-            #print-bill-container .bg-[#f8fafc] { background-color: #f8fafc !important; }
-            #print-bill-container .bg-[#eff6ff] { background-color: #eff6ff !important; }
-            #print-bill-container .bg-[#f0f9ff] { background-color: #f0f9ff !important; }
+            .dark #print-bill-container .bg-slate-900 { background-color: #0f172a !important; color: white !important; }
+            .dark #print-bill-container .bg-blue-600 { background-color: #2563eb !important; color: white !important; }
+            .dark #print-bill-container .text-blue-600 { color: #2563eb !important; }
+            .dark #print-bill-container .bg-slate-50 { background-color: #f8fafc !important; }
+            .dark #print-bill-container .border-blue-100 { border-color: #dbeafe !important; }
+            .dark #print-bill-container .bg-blue-50\/50 { background-color: rgba(239, 246, 255, 0.5) !important; }
+            .dark #print-bill-container .text-slate-400 { color: #94a3b8 !important; }
+            .dark #print-bill-container .text-slate-500 { color: #64748b !important; }
+            .dark #print-bill-container .text-slate-600 { color: #475569 !important; }
+            .dark #print-bill-container .text-white { color: #ffffff !important; }
+            .dark #print-bill-container .border-white\/10 { border-color: rgba(255, 255, 255, 0.1) !important; }
           `}} />
           <div className="fixed inset-0 bg-[#f1f5f9] z-[100] overflow-y-auto overscroll-contain print:static print:h-auto print:overflow-visible transition-all duration-300 animate-in fade-in">
             <div className="max-w-4xl mx-auto py-4 sm:py-8 px-2 sm:px-4 print:p-0 print-container">
@@ -7371,7 +7379,7 @@ export default function App() {
                       href={whatsappUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-11 h-11 bg-[#25D366] text-white rounded-xl flex items-center justify-center hover:bg-[#20ba59] transition-all shadow-md shadow-green-100 dark:shadow-none active:scale-95"
+                      className="w-11 h-11 bg-[#25D366] text-white rounded-xl flex items-center justify-center hover:bg-[#20ba59] transition-all active:scale-95 border-none outline-none ring-0 no-underline shadow-[0_4px_12px_rgba(37,211,102,0.3)]"
                       title="Share on WhatsApp"
                     >
                       <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current" xmlns="http://www.w3.org/2000/svg">
@@ -7381,7 +7389,7 @@ export default function App() {
                   ) : (
                     <button 
                       onClick={shareToWhatsApp}
-                      className="w-11 h-11 bg-[#25D366] text-white rounded-xl flex items-center justify-center hover:bg-[#20ba59] transition-all shadow-md shadow-green-100 dark:shadow-none active:scale-95"
+                      className="w-11 h-11 bg-[#25D366] text-white rounded-xl flex items-center justify-center hover:bg-[#20ba59] transition-all active:scale-95 border-none outline-none ring-0 shadow-[0_4px_12px_rgba(37,211,102,0.3)]"
                       title="Share on WhatsApp"
                     >
                       <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current" xmlns="http://www.w3.org/2000/svg">
@@ -7398,173 +7406,161 @@ export default function App() {
               </div>
             </div>
 
-            {/* Receipt Container - FORCED LIGHT THEME with high specificity */}
-            <div id="print-bill-container" className="receipt-theme-fixed !bg-white !text-[#1e293b] shadow-2xl rounded-2xl sm:rounded-3xl border border-[#e2e8f0] overflow-hidden print:shadow-none print:border-none print:m-0 print:rounded-none">
-               {/* Header Section */}
-               <div className="relative overflow-hidden !bg-white p-5 sm:p-8 !text-[#1e293b] border-b border-[#f1f5f9]">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-[#f0f9ff] rounded-full -mr-20 -mt-20 print:hidden"></div>
-                  <div className="relative z-10 flex flex-col md:flex-row justify-between items-start gap-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-[#ffffff] rounded-full flex items-center justify-center shadow-lg transform -rotate-2 overflow-hidden border border-[#e2e8f0]">
-                        <img src={LogoImage} alt="FitRevive Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                      </div>
-                      <div>
-                        <h1 className="text-2xl sm:text-3xl font-black tracking-tighter leading-none mb-1 text-[#1e293b]">FitRevive</h1>
-                        <p className="text-xs sm:text-sm font-bold text-[#2563eb]">Physiotherapy clinic</p>
-                        <div className="mt-3 flex flex-col gap-1 text-[10px] sm:text-xs font-semibold text-[#64748b]">
-                           <div className="flex items-center gap-2"><MapPin className="w-3 h-3 text-[#2563eb]" /> Bangaon, Nalbari, 781303</div>
-                           <div className="flex items-center gap-2"><Phone className="w-3 h-3 text-[#2563eb]" /> +91 84738-09386</div>
-                           <div className="flex items-center gap-2"><Globe className="w-3 h-3 text-[#2563eb]" /> www.fitrevive.in</div>
+               {/* Receipt Container */}
+               <div id="print-bill-container" className="receipt-theme-fixed !bg-white !text-slate-900 shadow-2xl rounded-3xl border-2 border-slate-100 overflow-hidden print:shadow-none print:border-none print:m-0 print:rounded-none relative px-8 sm:px-12 py-10 bg-white font-sans">
+                  {/* Header */}
+                  <div className="flex flex-col md:flex-row justify-between items-start gap-10 border-b border-slate-100 pb-10">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-white border border-slate-100 rounded-full flex items-center justify-center p-2 shadow-sm ring-4 ring-slate-50">
+                           <img src={LogoImage} alt="Clinic Logo" className="w-full h-full object-contain rounded-full" />
+                        </div>
+                        <div>
+                          <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase mb-0.5">FitRevive</h1>
+                          <p className="text-xs font-black text-blue-600 tracking-[0.2em] uppercase">Physiotherapy clinic</p>
                         </div>
                       </div>
+                      <div className="space-y-1 text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                        <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-slate-400" /> Bangaon, Nalbari, Assam - 781303</div>
+                        <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-slate-400" /> +91 84738 09386</div>
+                        <div className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 text-slate-400" /> fitrevive.org@gmail.com | www.fitrevive.in</div>
+                      </div>
                     </div>
-                    <div className="text-left md:text-right flex flex-col items-start md:items-end">
-                       <div className="bg-[#eff6ff] text-[#2563eb] px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-3 border border-[#dbeafe]">Official Invoice</div>
-                       <div className="text-xl sm:text-2xl font-black tracking-tight mb-1 text-[#1e293b]">Total: ₹{printTx.amount.toLocaleString()}</div>
-                       <p className="text-[10px] sm:text-xs font-bold text-[#64748b]">Date: {new Date(printTx.date).toLocaleDateString('en-GB')}</p>
+                    
+                    <div className="text-left md:text-right space-y-2">
+                       <div className="inline-block bg-blue-600 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest mb-2">Invoice #FR-{printTx.id.slice(-8).toUpperCase()}</div>
+                       <p className="text-[11px] font-black text-blue-600 uppercase tracking-widest pt-2">Date: {new Date(printTx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
                     </div>
                   </div>
-               </div>
 
-               <div className="p-5 sm:p-8 space-y-6 sm:space-y-8 bg-white">
-                  {/* Patient & Invoice Info Row */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
-                     {/* Patient Info Card */}
-                     <div className="bg-[#f8fafc] p-4 sm:p-6 rounded-2xl border border-[#f1f5f9] shadow-sm">
-                        <h3 className="text-[9px] sm:text-[10px] font-black text-[#94a3b8] uppercase tracking-[0.2em] mb-4">Patient Information</h3>
-                        {(() => {
-                           const patient = printTx.patientId ? patients.find(p => p.id === printTx.patientId) : null;
-                           return (
-                             <div className="space-y-3">
-                               <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-lg bg-[#ffffff] flex items-center justify-center border border-[#e2e8f0]">
-                                    <User2 className="w-4 h-4 text-[#2563eb]" />
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] font-bold text-[#64748b]">Name</p>
-                                    <p className="text-xs sm:text-sm font-black text-[#1e293b]">{patient?.name || 'Walk-In Patient'}</p>
-                                  </div>
-                               </div>
-                               <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <p className="text-[10px] font-bold text-[#64748b]">Age/Gender</p>
-                                    <p className="text-xs sm:text-sm font-black text-[#1e293b]">{patient?.age || 'N/A'} / {patient?.gender || 'N/A'}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] font-bold text-[#64748b]">Patient ID</p>
-                                    <p className="text-xs sm:text-sm font-mono font-bold text-[#2563eb]">{patient?.id?.slice(0,8).toUpperCase() || 'P-GUEST'}</p>
-                                  </div>
-                               </div>
-                             </div>
-                           );
-                        })()}
-                     </div>
+               <div className="p-8 sm:p-12 space-y-12 bg-white">
+                  {/* Patient & Transaction Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                           <div className="space-y-4">
+                              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                 <User2 className="w-3.5 h-3.5" /> Patient Record
+                              </h3>
+                              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+                                 <div>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Full Name</p>
+                                    <p className="text-base font-black text-slate-900">
+                                       {(() => {
+                                          const p = printTx.patientId ? patients.find(pat => pat.id === printTx.patientId) : null;
+                                          return p?.name || 'Walk-In Patient';
+                                       })()}
+                                    </p>
+                                 </div>
+                                 <div className="flex justify-between border-t border-slate-200 pt-3">
+                                    <div>
+                                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Age / Gender</p>
+                                       <p className="text-xs font-black text-slate-800">
+                                          {(() => {
+                                             const p = printTx.patientId ? patients.find(pat => pat.id === printTx.patientId) : null;
+                                             return `${p?.age || 'N/A'} Yrs / ${p?.gender || 'N/A'}`;
+                                          })()}
+                                       </p>
+                                    </div>
+                                    <div className="text-right">
+                                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">System ID</p>
+                                       <p className="text-[10px] font-mono font-black text-blue-600 uppercase">
+                                          {printTx.patientId?.slice(0, 8) || 'WALK-IN'}
+                                       </p>
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
 
-                     {/* Details Card */}
-                     <div className="bg-[#f8fafc] p-4 sm:p-6 rounded-2xl border border-[#f1f5f9] shadow-sm">
-                        <h3 className="text-[9px] sm:text-[10px] font-black text-[#94a3b8] uppercase tracking-[0.2em] mb-4">Invoice Details</h3>
-                        <div className="space-y-3">
-                           <div className="flex justify-between items-center bg-[#ffffff] p-2 px-3 rounded-xl border border-[#e2e8f0]">
-                              <span className="text-[10px] font-bold text-[#64748b]">Receipt No</span>
-                              <span className="text-[10px] font-mono font-black text-[#1e293b]">FR-{printTx.date.replace(/-/g, '')}-{printTx.id.slice(0, 4).toUpperCase()}</span>
+                           <div className="space-y-4">
+                              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                 <FileText className="w-3.5 h-3.5" /> Transaction Detail
+                              </h3>
+                              <div className="grid grid-cols-2 gap-4">
+                                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">S/N #</p>
+                                    <p className="text-xs font-black text-slate-900 font-mono tracking-tight uppercase">FR-{printTx.id.slice(-6)}</p>
+                                 </div>
+                                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Mode</p>
+                                    <p className="text-xs font-black text-slate-900 capitalize">{printTx.paymentMethod || printTx.method || 'Cash'}</p>
+                                 </div>
+                                 <div className="col-span-2 bg-blue-600 p-4 rounded-xl text-white">
+                                    <p className="text-[9px] font-bold opacity-50 uppercase tracking-widest mb-0.5">Payment Status</p>
+                                    <div className="flex items-center gap-2">
+                                       <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                       <p className="text-xs font-black uppercase tracking-widest">Transaction Confirmed</p>
+                                    </div>
+                                 </div>
+                              </div>
                            </div>
-                           <div className="flex justify-between items-center bg-[#ffffff] p-2 px-3 rounded-xl border border-[#e2e8f0]">
-                              <span className="text-[10px] font-bold text-[#64748b]">Payment Method</span>
-                              <span className="text-[10px] font-black text-[#1e293b]">{printTx.paymentMethod || 'Cash'}</span>
+                        </div>
+
+                        {/* Simplified Clinical Services Section */}
+                        <div className="py-6 border-y border-slate-100">
+                           <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+                              <div className="space-y-1.5 flex-1">
+                                 <div className="flex items-center gap-2 mb-1">
+                                    <span className="h-px w-4 bg-blue-600"></span>
+                                    <h3 className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Clinical Services</h3>
+                                 </div>
+                                 <p className="text-xl font-black text-slate-900 uppercase tracking-tight leading-tight">
+                                    {printTx.description || printTx.category || 'Standard Physiotherapy'}
+                                 </p>
+                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Physiotherapy & Rehabilitation Management</p>
+                              </div>
+                              <div className="flex gap-12 md:gap-16 items-start font-black text-slate-900 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-4 md:pt-0 border-dashed border-slate-100">
+                                 <div className="text-left md:text-center">
+                                    <p className="text-[8px] text-slate-400 uppercase tracking-widest mb-1">Quantity</p>
+                                    <p className="text-xs uppercase">01 Session</p>
+                                 </div>
+                                 <div className="text-right">
+                                    <p className="text-[8px] text-slate-400 uppercase tracking-widest mb-1">Total Amount</p>
+                                    <p className="text-3xl tracking-tighter">₹{printTx.amount.toLocaleString('en-IN')}.00</p>
+                                 </div>
+                              </div>
                            </div>
-                           <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-[#64748b] ml-1">Assigned Therapist</label>
-                              <input 
-                                value={therapistName} 
-                                onChange={(e) => setTherapistName(e.target.value)}
-                                className="w-full text-xs font-black bg-[#ffffff] border border-[#e2e8f0] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 print:border-none print:px-0 print:py-0 text-[#1e293b]"
-                              />
+                        </div>
+
+                        {/* Bottom Info Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-end">
+                           <div className="space-y-6">
+                              <div className="bg-slate-50 p-5 rounded-2xl border-l-4 border-blue-600">
+                                 <p className="text-[11px] font-bold text-slate-600 italic leading-relaxed">
+                                    "Continuous care is critical for recovery. Please adhere to the prescribed clinical home-exercise protocols. Wishing you a healthy recovery."
+                                 </p>
+                              </div>
+                              <div className="flex items-center gap-5 print:hidden border border-slate-100 p-4 rounded-2xl bg-white shadow-sm">
+                                 <div className="bg-white p-1 rounded-lg border border-slate-100">
+                                    <QRCodeCanvas 
+                                       value={`upi://pay?pa=FITREVIVE@BANK&pn=FitRevive&am=${printTx.amount}&cu=INR`} 
+                                       size={54} 
+                                    />
+                                 </div>
+                                 <div>
+                                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-0.5 flex items-center gap-2">
+                                       <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Secure Digital Bill
+                                    </p>
+                                    <p className="text-[9px] font-bold text-slate-400 leading-tight">Digital confirmation enabled via UPI network.</p>
+                                 </div>
+                              </div>
+                           </div>
+
+                           <div className="flex flex-col items-center md:items-end space-y-6">
+                              <div className="text-center w-full max-w-[180px]">
+                                 <div className="h-10 border-b-2 border-dashed border-slate-200 mb-2"></div>
+                                 <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Authorized Clinic Sign</p>
+                                 <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">FitRevive Clinical Administration</p>
+                              </div>
                            </div>
                         </div>
                      </div>
-                  </div>
 
-                  {/* Services Table */}
-                  <div className="overflow-x-auto w-full rounded-2xl border border-[#f1f5f9] shadow-sm mb-6 bg-white">
-                     <table className="w-full text-left border-collapse min-w-full">
-                        <thead className="bg-[#f8fafc] border-b border-[#f1f5f9]">
-                           <tr>
-                              <th className="px-4 sm:px-6 py-4 text-[9px] sm:text-[10px] font-black text-[#64748b] uppercase tracking-widest whitespace-nowrap">Service</th>
-                              <th className="px-4 sm:px-6 py-4 text-[9px] sm:text-[10px] font-black text-[#64748b] uppercase tracking-widest text-center">Qty</th>
-                              <th className="px-4 sm:px-6 py-4 text-[9px] sm:text-[10px] font-black text-[#64748b] uppercase tracking-widest text-right">Price</th>
-                              <th className="px-4 sm:px-6 py-4 text-[9px] sm:text-[10px] font-black text-[#64748b] uppercase tracking-widest text-right">Total</th>
-                           </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#f1f5f9] bg-white">
-                           <tr>
-                              <td className="px-4 sm:px-6 py-5">
-                                 <div className="text-xs sm:text-sm font-black text-[#1e293b]">{printTx.category}</div>
-                                 <div className="text-[10px] sm:text-xs font-medium text-[#64748b] mt-0.5">{printTx.description || 'Standard therapy session'}</div>
-                              </td>
-                              <td className="px-4 sm:px-6 py-5 text-center text-xs sm:text-sm font-bold text-[#1e293b]">1</td>
-                              <td className="px-4 sm:px-6 py-5 text-right text-xs sm:text-sm font-bold text-[#1e293b]">₹{printTx.amount.toLocaleString()}</td>
-                              <td className="px-4 sm:px-6 py-5 text-right text-xs sm:text-sm font-black text-[#1e293b]">₹{printTx.amount.toLocaleString()}</td>
-                           </tr>
-                        </tbody>
-                        <tfoot className="bg-[#f8fafc]/50">
-                           <tr className="bg-[#f8fafc]/30">
-                              <td colSpan={2} className="px-4 sm:px-6 py-4"></td>
-                              <td className="px-4 sm:px-6 py-4 text-[10px] font-bold text-[#64748b] text-right uppercase">Subtotal</td>
-                              <td className="px-4 sm:px-6 py-4 text-xs sm:text-sm font-black text-[#1e293b] text-right">₹{printTx.amount.toLocaleString()}</td>
-                           </tr>
-                           <tr className="bg-[#f8fafc]/30">
-                              <td colSpan={2} className="px-4 sm:px-6 py-4"></td>
-                              <td className="px-4 sm:px-6 py-4 text-[10px] font-bold text-[#64748b] text-right uppercase">Tax (0%)</td>
-                              <td className="px-4 sm:px-6 py-4 text-xs sm:text-sm font-black text-[#1e293b] text-right">₹0.00</td>
-                           </tr>
-                           <tr className="bg-[#f0f7ff]">
-                              <td colSpan={2} className="px-4 sm:px-6 py-4"></td>
-                              <td className="px-4 sm:px-6 py-4 text-[9px] sm:text-[10px] font-black text-[#2563eb] text-right uppercase tracking-widest">Grand Total</td>
-                              <td className="px-4 sm:px-6 py-4 text-lg sm:text-2xl font-black text-[#2563eb] text-right tracking-tight">₹{printTx.amount.toLocaleString()}</td>
-                           </tr>
-                        </tfoot>
-                     </table>
-                  </div>
-
-                  {/* Payment & Footer */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-12 pt-4 bg-white">
-                     <div className="space-y-6">
-                        <div className="flex items-start gap-4">
-                           <div className="p-3 bg-[#ffffff] rounded-xl shadow-sm border border-[#e2e8f0] print:hidden">
-                              <QRCodeCanvas 
-                                value={`upi://pay?pa=FITREVIVE@BANK&pn=FitReviveClinic&am=${printTx.amount}&cu=INR`} 
-                                size={60}
-                                level="M"
-                              />
-                           </div>
-                           <div>
-                              <p className="text-[10px] font-black text-[#64748b] uppercase tracking-widest mb-1">Scan to Pay (UPI)</p>
-                              <p className="text-[10px] font-bold text-[#94a3b8] max-w-[150px]">Secure payment directly to clinic account via any UPI app.</p>
-                           </div>
-                        </div>
-                        <div className="p-4 rounded-xl border-l-4 border-[#2563eb] bg-[#f8fafc]">
-                           <p className="text-[10px] sm:text-xs italic font-bold text-[#64748b] leading-relaxed">
-                              "Thank you for choosing FitRevive Clinic. We are committed to your recovery and well-being. Wish you a speedy recovery!"
-                           </p>
-                        </div>
-                     </div>
-
-                     <div className="flex flex-col justify-end items-end space-y-12">
-                        <div className="text-center w-full max-w-[200px]">
-                           <div className="h-10 w-full mb-2 border-b-2 border-dashed border-[#cbd5e1] flex items-end justify-center">
-                              {/* Placeholder for Signature/Stamp */}
-                           </div>
-                           <p className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">Authorized Signature</p>
-                        </div>
+                     {/* Copyright & Branch Footer */}
+                     <div className="pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">
+                        <span>© 2024 FitRevive Clinical CMS</span>
                      </div>
                   </div>
                </div>
-
-               {/* Design Footer Accent */}
-               <div className="h-2 bg-gradient-to-r from-blue-600 via-blue-400 to-emerald-400"></div>
-            </div>
           </div>
-        </div>
       </>
     )}
     </div>
