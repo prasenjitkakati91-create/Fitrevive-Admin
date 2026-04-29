@@ -6639,8 +6639,8 @@ export default function App() {
       }
       
       if (!rawPhone || rawPhone.length < 10) return '';
-      // api.whatsapp.com is sometimes more reliable for redirects in mobile iframes
-      return `https://api.whatsapp.com/send?phone=${rawPhone}&text=${encodeURIComponent(msg)}`;
+      // wa.me is generally more reliable for deep linking on mobile
+      return `https://wa.me/${rawPhone}?text=${encodeURIComponent(msg)}`;
     } catch (e) {
       return '';
     }
@@ -6659,18 +6659,14 @@ export default function App() {
       return;
     }
     
-    // Using a hidden anchor tag with target="_blank" is often the most reliable way 
-    // to trigger deep links on mobile devices from within an iframe.
+    // Direct window.open with fallback is often more reliable
     try {
-      const link = document.createElement('a');
-      link.href = whatsappUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (e) {
-      // Fallback to window.location.href if anchor fails
+      const win = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+      if (!win) {
+        // If window.open was blocked, fallback to location.href
+        window.location.href = whatsappUrl;
+      }
+    } catch (err) {
       window.location.href = whatsappUrl;
     }
   };
