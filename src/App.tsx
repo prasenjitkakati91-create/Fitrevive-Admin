@@ -2224,8 +2224,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
 
       {/* NEW PATIENT MODAL */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] pb-safe animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-[60] animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[85vh] pb-safe animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
             <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white">
               <div>
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">{editPatientId ? 'Edit Patient Profile' : 'Add New Patient'}</h3>
@@ -2305,8 +2305,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
 
       {/* HISTORY MODAL (Kept the same structural flow) */}
       {showHistoryModal && selectedPatient && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] pb-safe flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 animate-in fade-in">
+          <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-4xl max-h-[90dvh] sm:max-h-[90vh] pb-safe flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95">
             <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex flex-col sm:flex-row gap-4 sm:gap-0 justify-between items-start sm:items-center bg-white shrink-0 relative">
                <button title="Close window" onClick={() => setShowHistoryModal(false)} className="absolute top-5 right-5 sm:static sm:top-auto sm:right-auto text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
                <div className="flex items-center gap-5 pr-12 sm:pr-0">
@@ -2397,8 +2397,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
 
       {/* SESSION MODAL */}
       {showSessionModal && selectedPatient && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70] animate-in fade-in">
-          <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] pb-safe animate-in zoom-in-95 pointer-events-auto">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-[70] animate-in fade-in">
+          <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] pb-safe animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 pointer-events-auto">
              <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                 <div>
                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Log Session</h3>
@@ -2992,8 +2992,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
       </div>
 
       {showBillingModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] pb-safe animate-in zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-[100] p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] pb-safe animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95">
              <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                 <div>
                   <h3 className="text-xl font-black text-slate-800 tracking-tight">Generate Unpaid Bills</h3>
@@ -3125,8 +3125,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
 
       {/* New Transaction Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] pb-safe animate-in zoom-in-95 pointer-events-auto">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-[110] p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] pb-safe animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 pointer-events-auto">
              <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white">
                 <div>
                   <h3 className="text-xl font-black text-slate-800 tracking-tight">New Transaction</h3>
@@ -4265,11 +4265,11 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
         </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm transition-all animate-in fade-in duration-300">
+        <div className="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 backdrop-blur-sm transition-all animate-in fade-in duration-300">
           <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] border border-slate-100"
+            initial={{ y: 50, scale: 0.95, opacity: 0 }}
+            animate={{ y: 0, scale: 1, opacity: 1 }}
+            className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] pb-safe sm:max-h-[90vh] border border-slate-100"
           >
             <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white">
                <div className="flex items-center gap-4">
@@ -6765,7 +6765,7 @@ export default function App() {
       }
     }
     
-    const patientName = patient?.name || 'Valued Patient';
+    const patientName = patient?.name || '..........( name of the patient )';
     const amountStr = printTx.amount.toLocaleString('en-IN');
     const invoiceId = `FR-${printTx.id.slice(-8).toUpperCase()}`;
     const clinicName = "FitRevive Physiotherapy Clinic";
