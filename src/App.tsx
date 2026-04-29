@@ -3990,6 +3990,13 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
     try {
       await updateAppointmentStatus(apptId, newStatus);
       onNotify(`Appointment marked as ${newStatus}`);
+      if (newStatus === 'completed' && setTab && setViewTarget) {
+        const appt = appointments.find(a => a.id === apptId);
+        if (appt && appt.patientId) {
+          setTab('patients');
+          setViewTarget({ type: 'patient', id: appt.patientId, action: 'log-session' });
+        }
+      }
     } catch (error: any) {
       onNotify(error.message || "Failed to update status", "error");
     }
@@ -7296,7 +7303,7 @@ export default function App() {
           </div>
 
           <div className="p-4 md:p-8 max-w-7xl mx-auto">
-            {(activeTab === 'dashboard' || activeTab === 'more') && <Dashboard stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} role={role} setTab={setActiveTab} onNotify={showNotification} user={user!} onStatusUpdate={async (id, status) => { await updateAppointmentStatus(id, status); }} setViewTarget={setViewTarget} globalDate={globalDate} setGlobalDate={setGlobalDate} />}
+            {(activeTab === 'dashboard' || activeTab === 'more') && <Dashboard stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} role={role} setTab={setActiveTab} onNotify={showNotification} user={user!} onStatusUpdate={async (id, status) => { await updateAppointmentStatus(id, status); if (status === 'completed') { const appt = appointments.find(a => a.id === id); if (appt && appt.patientId) { setActiveTab('patients'); setViewTarget({ type: 'patient', id: appt.patientId, action: 'log-session' }); } } }} setViewTarget={setViewTarget} globalDate={globalDate} setGlobalDate={setGlobalDate} />}
             {activeTab === 'appointments' && role !== 'therapist' && <AppointmentManager appointments={appointments} patients={patients} members={members} onNotify={showNotification} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} selectedDate={globalDate} setSelectedDate={setGlobalDate} />}
             {activeTab === 'patients' && <PatientManager patients={patients} appointments={appointments} transactions={transactions} onNotify={showNotification} role={role} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} />}
             {activeTab === 'finances' && role !== 'therapist' && (
