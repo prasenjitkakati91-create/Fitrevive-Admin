@@ -76,7 +76,9 @@ import {
   UploadCloud,
   ShieldAlert,
   Moon,
-  Sun
+  Sun,
+  Banknote,
+  Camera
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -128,6 +130,8 @@ import {
   getAttendanceRange,
   logAttendance,
   clearDatabase,
+  uploadPatientDocument,
+  deletePatientDocument,
   db
 } from './firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -141,7 +145,79 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export const useAvatar = (user: User | null, defaultName?: string) => {
+   const [avatar, setAvatar] = useState((user?.photoURL && user.photoURL.trim() !== '') ? user.photoURL : `https://ui-avatars.com/api/?name=${encodeURIComponent(defaultName || user?.displayName || 'User')}&background=3b82f6&color=ffffff`);
+   
+   useEffect(() => {
+      if (!user) return;
+      const loadAvatar = () => {
+         const localAvatar = localStorage.getItem(`avatar_${user.uid}`);
+         if (localAvatar && localAvatar.trim() !== '') {
+            setAvatar(localAvatar);
+         } else if (user.photoURL && user.photoURL.trim() !== '') {
+            setAvatar(user.photoURL);
+         } else {
+            setAvatar(`https://ui-avatars.com/api/?name=${encodeURIComponent(defaultName || user.displayName || 'User')}&background=3b82f6&color=ffffff`);
+         }
+      };
+      
+      loadAvatar();
+      
+      const listener = () => loadAvatar();
+      window.addEventListener('avatar-updated', listener);
+      return () => window.removeEventListener('avatar-updated', listener);
+   }, [user, defaultName]);
+   
+   return avatar;
+};
+
 // --- Types ---
+export interface LocalDocument {
+  id: string;
+  patientId: string;
+  fileName: string;
+  fileType: string;
+  fileData: string;
+  uploadDate: string;
+}
+
+const getLocalDocuments = (patientId: string): LocalDocument[] => {
+  try {
+    const data = localStorage.getItem('fitrevive_patient_docs');
+    if (!data) return [];
+    const allDocs: LocalDocument[] = JSON.parse(data);
+    return allDocs.filter(d => d.patientId === patientId);
+  } catch (e) {
+    console.error("Failed to parse local documents", e);
+    return [];
+  }
+};
+
+const saveLocalDocument = (doc: LocalDocument) => {
+  try {
+    const data = localStorage.getItem('fitrevive_patient_docs');
+    const allDocs: LocalDocument[] = data ? JSON.parse(data) : [];
+    allDocs.push(doc);
+    localStorage.setItem('fitrevive_patient_docs', JSON.stringify(allDocs));
+    return true;
+  } catch (e) {
+    console.error("Failed to save local document. Storage might be full.", e);
+    return false;
+  }
+};
+
+const deleteLocalDocumentFromStorage = (docId: string) => {
+  try {
+    const data = localStorage.getItem('fitrevive_patient_docs');
+    if (!data) return;
+    let allDocs: LocalDocument[] = JSON.parse(data);
+    allDocs = allDocs.filter(d => d.id !== docId);
+    localStorage.setItem('fitrevive_patient_docs', JSON.stringify(allDocs));
+  } catch (e) {
+    console.error("Failed to delete local document", e);
+  }
+};
+
 interface Patient {
   id: string;
   name: string;
@@ -155,6 +231,7 @@ interface Patient {
   unpaidSessionsCount?: number;
   unpaidAmount?: number;
   totalSessions?: number;
+  documents?: { url: string; name: string; date: string; type: string; fullPath?: string }[];
 }
 
 interface Session {
@@ -219,6 +296,7 @@ const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, 
   setRole: (role: any) => void,
   badges?: { [key: string]: number }
 }) => {
+  const avatarUrl = useAvatar(user, user.displayName || 'Staff');
   const sections = [
     { 
       title: 'Main Menu', 
@@ -404,9 +482,9 @@ const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, 
           <div className={cn("flex items-center gap-3", isCollapsed ? "justify-center" : "")}>
             <div className="relative shrink-0 group cursor-pointer">
               <img 
-                src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}&background=3b82f6&color=ffffff`} 
+                src={avatarUrl} 
                 alt="User" 
-                className={cn("rounded-xl border border-white shadow-md transition-all group-hover:ring-4 group-hover:ring-blue-100", isCollapsed ? "w-10 h-10" : "w-12 h-12")}
+                className={cn("rounded-xl border border-white shadow-md transition-all group-hover:ring-4 group-hover:ring-blue-100 object-cover", isCollapsed ? "w-10 h-10" : "w-12 h-12")}
                 referrerPolicy="no-referrer"
               />
               <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full"></div>
@@ -468,6 +546,7 @@ const Dashboard = ({
 }) => {
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '6m'>('30d');
   const [patientSearch, setPatientSearch] = useState('');
+  const [showDuePatientsModal, setShowDuePatientsModal] = useState(false);
   const ledgerDate = globalDate;
   const setLedgerDate = setGlobalDate;
   const [quickBill, setQuickBill] = useState({ patientId: '', service: 'physio', amount: '500' });
@@ -909,7 +988,7 @@ const Dashboard = ({
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 group hover:shadow-md transition-all">
+        <div onClick={() => setShowDuePatientsModal(true)} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 group hover:shadow-md cursor-pointer transition-all">
           <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
              < IndianRupee className="w-6 h-6" />
           </div>
@@ -951,7 +1030,7 @@ const Dashboard = ({
                    placeholder="Search Patient by Name, Phone or ID..." 
                    value={patientSearch}
                    onChange={e => setPatientSearch(e.target.value)}
-                   className="w-full bg-transparent pl-16 pr-6 py-8 text-2xl font-black text-slate-900 dark:text-slate-200 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                   className="w-full bg-transparent pl-16 pr-6 py-5 text-xl font-bold text-slate-900 dark:text-slate-200 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
                  />
               </div>
             </div>
@@ -1267,6 +1346,7 @@ const Dashboard = ({
     const followUpsCount = patients.length > 5 ? 3 : 0; // Simulated follow-ups
     const currentMember = members.find(m => m.email?.toLowerCase() === user.email?.toLowerCase());
     const matchedName = currentMember?.name || user.displayName?.replace(/demo therapist/i, 'Sarah Jenkins') || 'Sarah Jenkins';
+    const avatarUrl = useAvatar(user, matchedName);
     
     return (
       <div className="space-y-6 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -1275,7 +1355,7 @@ const Dashboard = ({
           <div className="flex items-center gap-4">
             <div className="relative group">
               <img 
-                src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(matchedName)}&background=3b82f6&color=ffffff`} 
+                src={avatarUrl} 
                 alt="Therapist" 
                 className="w-16 h-16 rounded-2xl border-4 border-slate-50 object-cover shadow-sm group-hover:scale-105 transition-transform"
               />
@@ -1317,7 +1397,14 @@ const Dashboard = ({
             { label: "Unpaid Sessions", value: pendingPaymentsCount, icon: AlertCircle, color: "amber" },
             { label: "Follow-ups Due", value: followUpsCount, icon: History, color: "indigo" },
           ].map((card, i) => (
-            <div key={i} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+            <div 
+              key={i} 
+              onClick={() => {
+                if (card.label === "Unpaid Sessions") {
+                  setShowDuePatientsModal(true);
+                }
+              }}
+              className={`bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group ${card.label === "Unpaid Sessions" ? "cursor-pointer" : ""}`}>
               <div className={`w-10 h-10 rounded-xl bg-${card.color}-50 text-${card.color}-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                 <card.icon className="w-5 h-5" />
               </div>
@@ -1554,20 +1641,60 @@ const Dashboard = ({
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 pb-8 gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Live Updates</span>
-          </div>
-          <h1 className="text-3xl font-black text-slate-900">Clinic Overview</h1>
-          <p className="text-sm text-slate-500 font-bold">Operational control center for leadership & staff.</p>
+      <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-5">
+           <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200 shrink-0">
+              <Activity className="w-8 h-8" />
+           </div>
+           <div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Clinic Overview</h1>
+              <div className="flex items-center gap-2 mt-1">
+                 <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                 <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest leading-none">Live Updates</span>
+              </div>
+           </div>
         </div>
       </header>
 
       {role === 'admin' && <FinancialDashboard />}
       {role === 'manager' && <ManagerDashboard />}
       {role === 'therapist' && <TherapistDashboard />}
+
+      {showDuePatientsModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-5 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10 shrink-0">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Pending Payments</h3>
+                <p className="text-sm font-medium text-slate-500 mt-1">Patients with unpaid sessions</p>
+              </div>
+              <button type="button" onClick={() => setShowDuePatientsModal(false)} className="text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors shrink-0">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-5 sm:p-8 overflow-y-auto max-h-[60vh] bg-slate-50/50">
+               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+                  {patients.filter(p => (p.unpaidSessionsCount || 0) > 0 || (p.unpaidAmount || 0) > 0).map(p => (
+                     <div key={p.id} className="p-4 hover:bg-slate-50 flex justify-between items-center transition-colors">
+                        <div>
+                          <h4 className="font-bold text-slate-800">{p.name}</h4>
+                          <p className="text-xs text-slate-500 font-medium mt-0.5">{p.phone}</p>
+                        </div>
+                        <div className="text-right flex flex-col items-end">
+                            <span className="text-sm font-black text-rose-600">₹{(p.unpaidAmount || 0).toLocaleString()}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">{p.unpaidSessionsCount || 0} Sessions Due</span>
+                        </div>
+                     </div>
+                  ))}
+                  {patients.filter(p => (p.unpaidSessionsCount || 0) > 0 || (p.unpaidAmount || 0) > 0).length === 0 && (
+                    <div className="p-6 text-sm font-medium text-slate-500 text-center">No pending payments.</div>
+                  )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1593,6 +1720,41 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [localDocs, setLocalDocs] = useState<LocalDocument[]>([]);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<{fileData: string, fileType: string, fileName: string} | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedPatient) {
+       setLocalDocs(getLocalDocuments(selectedPatient.id));
+    }
+  }, [selectedPatient?.id]);
+
+  const handleDocumentDelete = async (docId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!selectedPatient) return;
+    
+    if (deleteConfirmId !== docId) {
+       setDeleteConfirmId(docId);
+       // Auto reset confirm state after 3 seconds
+       setTimeout(() => setDeleteConfirmId(null), 3000);
+       return;
+    }
+    
+    try {
+      deleteLocalDocumentFromStorage(docId);
+      setLocalDocs(getLocalDocuments(selectedPatient.id));
+      setDeleteConfirmId(null);
+      onNotify("Document deleted successfully", "success");
+    } catch (err: any) {
+      console.error("Delete doc error:", err);
+      onNotify("Failed to delete document", "error");
+    }
+  };
 
   useEffect(() => {
     if (viewTarget?.type === 'patient' && viewTarget.id) {
@@ -1749,6 +1911,133 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
     }
   };
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const compressImage = async (file: File): Promise<File> => {
+    if (!file.type.startsWith('image/')) return file;
+    return new Promise((resolve) => {
+       const reader = new FileReader();
+       reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+             const canvas = document.createElement('canvas');
+             const maxDim = 1600;
+             let { width, height } = img;
+             
+             if (width > maxDim || height > maxDim) {
+                if (width > height) {
+                   height = Math.round(maxDim * height / width);
+                   width = maxDim;
+                } else {
+                   width = Math.round(maxDim * width / height);
+                   height = maxDim;
+                }
+             }
+             
+             canvas.width = width;
+             canvas.height = height;
+             const ctx = canvas.getContext('2d');
+             ctx?.drawImage(img, 0, 0, width, height);
+             
+             canvas.toBlob((blob) => {
+                if (blob) {
+                   const compressedFile = new File([blob], file.name, { type: 'image/jpeg' });
+                   resolve(compressedFile);
+                } else {
+                   resolve(file);
+                }
+             }, 'image/jpeg', 0.7);
+          };
+          img.src = e.target?.result as string;
+       };
+       reader.readAsDataURL(file);
+    });
+  };
+
+  const processFile = async (file: File) => {
+    if (!file || !selectedPatient) return;
+    
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+       onNotify("Invalid file type. Please upload a PDF, JPG, or PNG.", "error");
+       if (fileInputRef.current) fileInputRef.current.value = '';
+       return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+       onNotify("File size must be less than 5MB", "error");
+       if (fileInputRef.current) fileInputRef.current.value = '';
+       return;
+    }
+    
+    setIsUploadingDoc(true);
+    setUploadProgress(20);
+    onNotify('Processing document...', 'info');
+    
+    try {
+        const fileToUpload = await compressImage(file);
+        setUploadProgress(60);
+        
+        // Convert to Base64
+        const base64Data = await new Promise<string>((resolve, reject) => {
+           const reader = new FileReader();
+           reader.onload = (e) => resolve(e.target?.result as string);
+           reader.onerror = (e) => reject(new Error("Failed to read file"));
+           reader.readAsDataURL(fileToUpload);
+        });
+        
+        setUploadProgress(90);
+
+        const newDoc: LocalDocument = {
+           id: Date.now().toString() + '_' + Math.random().toString(36).substr(2, 5),
+           patientId: selectedPatient.id,
+           fileName: file.name,
+           fileType: file.type.startsWith('image/') ? 'image' : file.type === 'application/pdf' ? 'pdf' : 'other',
+           fileData: base64Data,
+           uploadDate: new Date().toISOString()
+        };
+
+        const isSaved = saveLocalDocument(newDoc);
+        if (isSaved) {
+           setLocalDocs(getLocalDocuments(selectedPatient.id));
+           onNotify("Document uploaded successfully!", "success");
+        } else {
+           onNotify("Failed to save. Device storage might be full.", "error");
+        }
+    } catch (err: any) {
+        console.error("Upload error:", err);
+        onNotify(err.message || "Failed to upload document", "error");
+    } finally {
+        setIsUploadingDoc(false);
+        setUploadProgress(0);
+        setIsDragging(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
   // Load history immediately when row expands
   useEffect(() => {
     if (expandedRow) {
@@ -1886,10 +2175,15 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center pb-2 gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Patient Directory</h1>
-          <p className="text-sm text-slate-500 font-medium mt-1">Manage profiles, histories, and treatments.</p>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-5">
+           <div className="w-14 h-14 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-lg shadow-teal-200 shrink-0">
+              <Users className="w-8 h-8" />
+           </div>
+           <div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Patient Directory</h1>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Manage profiles • histories • treatments</p>
+           </div>
         </div>
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
           <button onClick={() => setShowModal(true)} className="flex-1 sm:flex-none justify-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm shadow-blue-200 transition-all flex items-center gap-2 text-sm hover:scale-[1.02] active:scale-95">
@@ -2097,9 +2391,6 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                            <button onClick={(e) => { e.stopPropagation(); if(setTab && setViewTarget) { setTab('appointments'); setViewTarget({ type: 'book-appointment', id: p.id, returnTo: 'patients' }); } }} className="p-2 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm transition-all bg-white" title="Book Appointment">
                               <CalendarCheck className="w-5 h-5 md:w-4 md:h-4" />
                            </button>
-                           <button onClick={(e) => { e.stopPropagation(); setSelectedPatient(p); setShowSessionModal(true); }} className="p-2 border border-slate-200 hover:border-purple-300 hover:bg-purple-50 text-slate-400 hover:text-purple-600 rounded-xl shadow-sm transition-all bg-white" title="Log Session">
-                              <FileText className="w-5 h-5 md:w-4 md:h-4" />
-                           </button>
                          </div>
                       </div>
                     </td>
@@ -2225,80 +2516,125 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
       {/* NEW PATIENT MODAL */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-[60] animate-in fade-in duration-200">
-          <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[85vh] pb-safe animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+          <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[85vh] pb-safe animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
             <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white">
-              <div>
-                <h3 className="text-xl font-black text-slate-900 tracking-tight">{editPatientId ? 'Edit Patient Profile' : 'Add New Patient'}</h3>
-                <p className="text-sm font-medium text-slate-500 mt-1">{editPatientId ? 'Update existing patient details.' : 'Enter patient details to create profile.'}</p>
-              </div>
+               <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center border border-teal-100 shrink-0">
+                     {editPatientId ? <Edit className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">{editPatientId ? 'Edit Patient Profile' : 'Add New Patient'}</h3>
+                    <p className="text-sm font-medium text-slate-500 mt-1">{editPatientId ? 'Update existing patient details.' : 'Enter patient details to create profile.'}</p>
+                  </div>
+               </div>
               <button title="Close Modal" type="button" onClick={() => { setShowModal(false); setEditPatientId(null); }} className="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors self-start"><X className="w-5 h-5" /></button>
             </div>
             
-            <div className="p-5 sm:p-8 overflow-y-auto overscroll-contain custom-scrollbar">
-              <form id="new-patient-form" onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="col-span-1 sm:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Full Name</label>
-                    <input required placeholder="E.g. John Doe" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" value={newPatient.name} onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Phone Number</label>
-                    <input required placeholder="+91 XXXXX XXXXX" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" value={newPatient.phone} onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Age</label>
-                    <input type="number" min="0" placeholder="Years" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" value={newPatient.age} onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })} />
-                  </div>
-                  <div className="col-span-1 sm:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Gender</label>
-                    <div className="flex gap-3">
-                      {['Male', 'Female', 'Other'].map(g => (
-                        <label key={g} className={cn("flex-1 px-4 py-3 border rounded-xl text-sm font-bold text-center cursor-pointer transition-all", newPatient.gender === g ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100" : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100")}>
-                          <input type="radio" className="hidden" name="gender" value={g} checked={newPatient.gender === g} onChange={(e) => setNewPatient({...newPatient, gender: e.target.value})} />
-                          {g}
-                        </label>
-                      ))}
+            <div className="flex-1 overflow-y-auto overscroll-contain bg-slate-50/50 p-5 sm:p-8 custom-scrollbar">
+              <form id="new-patient-form" onSubmit={handleSubmit} className="space-y-8">
+                <div className="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="col-span-1 sm:col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Full Name</label>
+                      <input required placeholder="E.g. John Doe" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" value={newPatient.name} onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Phone Number</label>
+                      <input required placeholder="+91 XXXXX XXXXX" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" value={newPatient.phone} onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Age</label>
+                      <input type="number" min="0" placeholder="Years" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" value={newPatient.age} onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })} />
+                    </div>
+                    <div className="col-span-1 sm:col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Gender</label>
+                      <div className="flex gap-3">
+                        {['Male', 'Female', 'Other'].map(g => (
+                          <label key={g} className={cn("flex-1 px-4 py-3 border rounded-xl text-sm font-bold text-center cursor-pointer transition-all shadow-sm", newPatient.gender === g ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100" : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-white")}>
+                            <input type="radio" className="hidden" name="gender" value={g} checked={newPatient.gender === g} onChange={(e) => setNewPatient({...newPatient, gender: e.target.value})} />
+                            {g}
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                  <div className="col-span-1 sm:col-span-2 relative">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Condition / Primary Complaint</label>
-                    <input list="conditions" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" placeholder="Select or type..." value={newPatient.condition} onChange={(e) => setNewPatient({ ...newPatient, condition: e.target.value })} />
-                    <datalist id="conditions">
-                      {presetConditions.map((c, i) => <option key={i} value={c} />)}
-                    </datalist>
-                  </div>
-                  <div className="col-span-1 sm:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Address</label>
-                    <textarea placeholder="Line 1, City, Zip..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm min-h-[60px]" value={newPatient.address} onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })}></textarea>
-                  </div>
-                  <div className="col-span-1 sm:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Medical History Notes</label>
-                    {role !== 'manager' ? (
-                      <textarea placeholder="Past surgeries, diabetic history, BP..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm min-h-[80px]" value={newPatient.medicalHistory} onChange={(e) => setNewPatient({ ...newPatient, medicalHistory: e.target.value })}></textarea>
-                    ) : (
-                      <div className="p-4 bg-slate-100 rounded-xl text-slate-400 text-xs italic border border-dashed border-slate-200">
-                        Access Restricted: Clinical history is only viewable by Therapists and Admins.
+                </div>
+
+                <div className="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="col-span-1 sm:col-span-2 relative">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Condition / Primary Complaint</label>
+                      <input list="conditions" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" placeholder="Select or type..." value={newPatient.condition} onChange={(e) => setNewPatient({ ...newPatient, condition: e.target.value })} />
+                      <datalist id="conditions">
+                        {presetConditions.map((c, i) => <option key={i} value={c} />)}
+                      </datalist>
+                    </div>
+                    <div className="col-span-1 sm:col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Treatment Status</label>
+                      <div className="flex gap-3">
+                        {['Active', 'Completed'].map(status => (
+                          <label key={status} className={cn("flex-1 px-4 py-3 border rounded-xl text-sm font-bold text-center cursor-pointer transition-all shadow-sm", newPatient.treatmentStatus === status ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100" : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-white")}>
+                            <input type="radio" className="hidden" name="treatmentStatus" value={status} checked={newPatient.treatmentStatus === status} onChange={(e) => setNewPatient({...newPatient, treatmentStatus: e.target.value as 'Active' | 'Completed'})} />
+                            {status}
+                          </label>
+                        ))}
                       </div>
-                    )}
+                    </div>
                   </div>
-                  <div className="col-span-1 sm:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Treatment Status</label>
-                    <div className="flex gap-3">
-                      {['Active', 'Completed'].map(status => (
-                        <label key={status} className={cn("flex-1 px-4 py-3 border rounded-xl text-sm font-bold text-center cursor-pointer transition-all", newPatient.treatmentStatus === status ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100" : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100")}>
-                          <input type="radio" className="hidden" name="treatmentStatus" value={status} checked={newPatient.treatmentStatus === status} onChange={(e) => setNewPatient({...newPatient, treatmentStatus: e.target.value as 'Active' | 'Completed'})} />
-                          {status}
-                        </label>
-                      ))}
+                </div>
+
+                <div className="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="col-span-1 sm:col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Address</label>
+                      <textarea placeholder="Line 1, City, Zip..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm min-h-[60px]" value={newPatient.address} onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })}></textarea>
+                    </div>
+                    <div className="col-span-1 sm:col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Medical History Notes</label>
+                      {role !== 'manager' ? (
+                        <textarea placeholder="Past surgeries, diabetic history, BP..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm min-h-[100px]" value={newPatient.medicalHistory} onChange={(e) => setNewPatient({ ...newPatient, medicalHistory: e.target.value })}></textarea>
+                      ) : (
+                        <div className="p-4 bg-slate-100 rounded-xl text-slate-400 text-xs italic border border-dashed border-slate-200">
+                          Access Restricted: Clinical history is only viewable by Therapists and Admins.
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               </form>
             </div>
-            <div className="px-5 sm:px-8 py-5 sm:py-6 border-t border-slate-100 bg-white flex justify-end gap-3 z-10 shrink-0">
-              <button type="button" onClick={() => { setShowModal(false); setEditPatientId(null); }} className="px-4 sm:px-6 py-3 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-colors">Cancel</button>
-              <button type="submit" form="new-patient-form" className="px-6 sm:px-8 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-600/20 hover:-translate-y-0.5 transition-all outline-none focus:ring-4 focus:ring-blue-100 flex items-center gap-2">{editPatientId ? 'Update Patient' : 'Save Patient'} <ChevronDown className="w-4 h-4 -rotate-90" /></button>
+            <div className="px-5 sm:px-8 py-5 border-t border-slate-100 bg-white sm:bg-slate-50 flex sm:hidden md:flex justify-end gap-3 shrink-0 rounded-b-[2rem]">
+              <button type="button" onClick={() => { setShowModal(false); setEditPatientId(null); }} className="px-6 py-2.5 text-slate-600 font-bold hover:bg-slate-200 rounded-xl transition-colors w-full sm:w-auto bg-slate-100 sm:bg-transparent">Cancel</button>
+              <button type="submit" form="new-patient-form" className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-transform active:scale-95 shadow-md shadow-blue-200 flex items-center justify-center gap-2 w-full sm:w-auto">{editPatientId ? 'Update Patient' : 'Save Patient'} <ChevronDown className="w-4 h-4 -rotate-90 hidden sm:block" /></button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* DOCUMENT PREVIEW MODAL */}
+      {previewDoc && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 z-[90] animate-in fade-in" onClick={() => setPreviewDoc(null)}>
+          <div className="relative w-full max-w-5xl max-h-[95vh] flex flex-col items-center justify-center animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+             <button title="Close preview" onClick={() => setPreviewDoc(null)} className="absolute -top-12 right-0 text-white hover:text-slate-200 bg-white/10 hover:bg-white/20 p-2.5 rounded-full transition-colors z-50"><X className="w-6 h-6" /></button>
+             
+             {previewDoc.fileType === 'pdf' ? (
+                <div className="w-full h-[85vh] bg-white rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+                   <iframe src={previewDoc.fileData} className="w-full h-full border-0" title="PDF Preview" />
+                </div>
+             ) : previewDoc.fileType === 'image' ? (
+                <div className="relative max-h-[85vh] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+                   <img src={previewDoc.fileData} alt="Document preview" className="max-w-full max-h-[85vh] object-contain" />
+                </div>
+             ) : (
+                <div className="bg-white p-8 rounded-2xl text-center shadow-2xl max-w-sm">
+                   <FileText className="w-16 h-16 text-indigo-200 mx-auto mb-4" />
+                   <h3 className="text-lg font-bold text-slate-800 mb-2">Can't Preview File</h3>
+                   <p className="text-slate-500 mb-6 text-sm">This file type cannot be previewed in the browser.</p>
+                   <a href={previewDoc.fileData} download={previewDoc.fileName} target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors">
+                      <Download className="w-4 h-4" /> Download File
+                   </a>
+                </div>
+             )}
           </div>
         </div>
       )}
@@ -2366,7 +2702,112 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                  </div>
                </div>
                
-               <div className="bg-white p-5 sm:p-8 rounded-3xl shadow-sm border border-slate-100">
+               <div 
+                  className={cn(
+                    "bg-white p-5 sm:p-8 rounded-3xl shadow-sm border mt-6 lg:mt-8 transition-colors",
+                    isDragging ? "border-indigo-400 bg-indigo-50/30" : "border-slate-100"
+                  )}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+               >
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+                     <div>
+                        <h4 className="font-black text-slate-900 leading-none flex items-center gap-3"><FileText className="w-6 h-6 text-indigo-500 p-1 bg-indigo-50 rounded-lg" /> Patient Documents</h4>
+                        <p className="text-xs text-slate-500 mt-2 font-medium">Upload PDF or images (max 5MB). Drag & drop here.</p>
+                     </div>
+                     <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <button disabled={isUploadingDoc} onClick={() => fileInputRef.current?.click()} className="flex-1 sm:flex-none px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl font-bold transition-all text-sm shadow-sm flex items-center justify-center gap-2 disabled:opacity-50">
+                           {isUploadingDoc ? <Activity className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />} 
+                           {isUploadingDoc ? 'Uploading...' : 'Upload'}
+                        </button>
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/jpeg,image/png,image/jpg,application/pdf" onChange={handleDocumentUpload} />
+                     </div>
+                  </div>
+
+                  {isUploadingDoc && (
+                     <div className="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <div className="flex justify-between text-xs font-bold text-slate-500 mb-2">
+                           <span>Uploading Document...</span>
+                           <span>{Math.round(uploadProgress)}%</span>
+                        </div>
+                        <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                           <div className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                        </div>
+                     </div>
+                  )}
+
+                  {(localDocs.length === 0) ? (
+                     <div className="text-center py-12 px-6 relative z-10 text-slate-400 font-bold border-2 border-dashed border-slate-200 rounded-2xl w-full mx-auto bg-slate-50/50 flex flex-col items-center justify-center gap-3 group">
+                        <div className="w-16 h-16 bg-white border border-slate-100 rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                           <UploadCloud className="w-6 h-6 text-indigo-400" />
+                        </div>
+                        <p className="text-sm">Drag & drop files or click Upload above.</p>
+                     </div>
+                  ) : (
+                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-4">
+                        {localDocs.map((doc, idx) => (
+                           <div key={doc.id} className="group border border-slate-100 bg-white shadow-sm rounded-2xl hover:border-indigo-200 hover:shadow-md transition-all flex flex-col relative overflow-hidden">
+                              <div 
+                                className="h-28 sm:h-32 bg-slate-50 w-full relative overflow-hidden flex flex-col items-center justify-center cursor-pointer"
+                                onClick={() => {
+                                  if (doc.fileType === 'pdf') {
+                                    const pdfWindow = window.open("");
+                                    if(pdfWindow) {
+                                      pdfWindow.document.write(`<iframe width='100%' height='100%' src='${doc.fileData}' style='border:none'></iframe>`);
+                                    }
+                                  } else {
+                                    setPreviewDoc(doc);
+                                  }
+                                }}
+                              >
+                                 {doc.fileType === 'image' ? (
+                                    <img src={doc.fileData} alt={doc.fileName} className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500" />
+                                 ) : (
+                                    <FileText className="w-10 h-10 text-indigo-300/50 mt-2" />
+                                 )}
+                                 <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-colors flex items-center justify-center">
+                                    <span className="bg-white/90 text-slate-800 text-[10px] font-bold px-2.5 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm shadow-sm scale-95 group-hover:scale-100">Click to Preview</span>
+                                 </div>
+                              </div>
+                              <div className="p-3 bg-white z-10 border-t border-slate-50 flex items-center justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                   <div className="w-full truncate text-[11px] font-bold text-slate-700" title={doc.fileName}>{doc.fileName}</div>
+                                   <div className="text-[9px] font-black uppercase text-slate-400 mt-0.5">{new Date(doc.uploadDate).toLocaleDateString()}</div>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                   <a 
+                                     href={doc.fileData} 
+                                     download={doc.fileName} 
+                                     target="_blank" 
+                                     rel="noopener noreferrer" 
+                                     className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-md transition-colors"
+                                     title="Download"
+                                     onClick={(e) => e.stopPropagation()}
+                                   >
+                                      <Download className="w-3.5 h-3.5" />
+                                   </a>
+                                   <button 
+                                     onClick={(e) => handleDocumentDelete(doc.id, e)}
+                                     className={cn(
+                                       "h-6 flex items-center justify-center rounded-md transition-colors",
+                                       deleteConfirmId === doc.id
+                                         ? "px-2 bg-rose-500 hover:bg-rose-600 text-white text-[10px] font-bold shadow-sm"
+                                         : "w-6 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600"
+                                     )}
+                                     title="Delete"
+                                   >
+                                      {deleteConfirmId === doc.id ? "Confirm?" : <Trash2 className="w-3.5 h-3.5" />}
+                                   </button>
+                                </div>
+                              </div>
+                           </div>
+                        ))}
+                     </div>
+                  )}
+               </div>
+
+               <div className="bg-white p-5 sm:p-8 rounded-3xl shadow-sm border border-slate-100 mt-6 lg:mt-8">
                   <h4 className="font-black text-slate-900 leading-none flex items-center gap-3 mb-6 sm:mb-8"><History className="w-6 h-6 text-blue-500 p-1 bg-blue-50 rounded-lg" /> Interaction History</h4>
                   <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent pl-4 md:pl-0">
                   {patientHistory.map((s, idx) => (
@@ -2398,63 +2839,75 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
       {/* SESSION MODAL */}
       {showSessionModal && selectedPatient && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-[70] animate-in fade-in">
-          <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] pb-safe animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 pointer-events-auto">
+          <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] pb-safe animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 pointer-events-auto">
              <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
-                <div>
-                   <h3 className="text-xl font-black text-slate-900 tracking-tight">Log Session</h3>
-                   <p className="text-sm font-bold text-slate-500 mt-1">for {selectedPatient.name}</p>
-                </div>
-                <button title="Close Session Modal" onClick={() => setShowSessionModal(false)} className="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
-             </div>
-             
-             <div className="p-5 sm:p-8 overflow-y-auto overscroll-contain">
-                <form id="session-form" onSubmit={handleSessionSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Date</label>
-                        <input type="date" required value={newSession.date} onChange={e => setNewSession({...newSession, date: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" />
-                     </div>
-                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Time</label>
-                        <input type="time" required value={newSession.time} onChange={e => setNewSession({...newSession, time: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" />
-                     </div>
+               <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 shrink-0">
+                     <FileText className="w-6 h-6" />
                   </div>
                   <div>
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Payment Status</label>
-                     <div className="flex gap-3">
-                       {['paid', 'unpaid'].map(status => (
-                         <label key={status} className={cn("flex-1 px-4 py-3 border rounded-xl text-base font-bold text-center cursor-pointer transition-all flex items-center justify-center gap-2", newSession.paymentStatus === status ? (status === 'paid' ? "bg-emerald-50 border-emerald-500 text-emerald-700 ring-2 ring-emerald-100" : "bg-rose-50 border-rose-500 text-rose-700 ring-2 ring-rose-100") : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100")}>
-                           <input type="radio" className="hidden" name="paymentStatus" value={status} checked={newSession.paymentStatus === status} onChange={(e) => setNewSession({...newSession, paymentStatus: e.target.value as any})} />
-                           {status === 'paid' ? <CheckCircle2 className="w-4 h-4"/> : <Clock3 className="w-4 h-4"/>}
-                           {status === 'paid' ? 'Paid' : 'Unpaid (Due)'}
-                         </label>
-                       ))}
-                     </div>
+                     <h3 className="text-xl font-black text-slate-900 tracking-tight">Log Session</h3>
+                     <p className="text-sm font-bold text-slate-500 mt-1">for {selectedPatient.name}</p>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Amount (₹)</label>
-                        <input type="number" min="0" required value={newSession.amount} onChange={e => setNewSession({...newSession, amount: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" />
-                     </div>
-                     {newSession.paymentStatus === 'paid' && (
-                        <div>
-                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Method</label>
-                           <select className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm appearance-none cursor-pointer" value={newSession.paymentMethod} onChange={e => setNewSession({...newSession, paymentMethod: e.target.value as any})}>
-                              <option value="cash">Cash</option>
-                              <option value="upi">UPI / Online</option>
-                           </select>
-                        </div>
-                     )}
-                  </div>
-                  <div>
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Treatment Notes</label>
-                     <textarea className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm min-h-[100px]" value={newSession.notes} onChange={e => setNewSession({...newSession, notes: e.target.value})} placeholder="What treatments were performed? Patient feedback..."></textarea>
-                  </div>
-               </form>
+               </div>
+                <button title="Close Session Modal" onClick={() => setShowSessionModal(false)} className="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors self-start"><X className="w-5 h-5" /></button>
              </div>
-             <div className="px-5 sm:px-8 py-5 sm:py-6 border-t border-slate-100 bg-white flex justify-end gap-3 z-10 shrink-0">
-               <button type="button" onClick={() => setShowSessionModal(false)} className="px-4 sm:px-6 py-3 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-colors">Cancel</button>
-               <button type="submit" form="session-form" className="px-6 sm:px-8 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-600/20 hover:-translate-y-0.5 transition-all outline-none focus:ring-4 focus:ring-blue-100 flex items-center gap-2 z-10">Save Log <ChevronDown className="w-4 h-4 -rotate-90" /></button>
+             <div className="flex-1 overflow-y-auto overscroll-contain bg-slate-50/50 p-5 sm:p-8 custom-scrollbar">
+                <form id="session-form" onSubmit={handleSessionSubmit} className="space-y-8">
+                  <div className="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                       <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Date</label>
+                          <input type="date" required value={newSession.date} onChange={e => setNewSession({...newSession, date: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-purple-100 focus:border-purple-500 focus:bg-white transition-all shadow-sm" />
+                       </div>
+                       <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Time</label>
+                          <input type="time" required value={newSession.time} onChange={e => setNewSession({...newSession, time: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-purple-100 focus:border-purple-500 focus:bg-white transition-all shadow-sm" />
+                       </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+                    <div>
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Payment Status</label>
+                       <div className="flex gap-3">
+                         {['paid', 'unpaid'].map(status => (
+                           <label key={status} className={cn("flex-1 px-4 py-3 border rounded-xl text-base font-bold text-center cursor-pointer transition-all flex items-center justify-center gap-2", newSession.paymentStatus === status ? (status === 'paid' ? "bg-emerald-50 border-emerald-500 text-emerald-700 ring-2 ring-emerald-100 shadow-sm" : "bg-rose-50 border-rose-500 text-rose-700 ring-2 ring-rose-100 shadow-sm") : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-white")}>
+                             <input type="radio" className="hidden" name="paymentStatus" value={status} checked={newSession.paymentStatus === status} onChange={(e) => setNewSession({...newSession, paymentStatus: e.target.value as any})} />
+                             {status === 'paid' ? <CheckCircle2 className="w-4 h-4"/> : <Clock3 className="w-4 h-4"/>}
+                             {status === 'paid' ? 'Paid' : 'Unpaid (Due)'}
+                           </label>
+                         ))}
+                       </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                       <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Amount (₹)</label>
+                          <input type="number" min="0" required value={newSession.amount} onChange={e => setNewSession({...newSession, amount: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-purple-100 focus:border-purple-500 focus:bg-white transition-all shadow-sm" />
+                       </div>
+                       {newSession.paymentStatus === 'paid' && (
+                          <div>
+                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Method</label>
+                             <select className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-purple-100 focus:border-purple-500 focus:bg-white transition-all shadow-sm appearance-none cursor-pointer" value={newSession.paymentMethod} onChange={e => setNewSession({...newSession, paymentMethod: e.target.value as any})}>
+                                <option value="cash">Cash</option>
+                                <option value="upi">UPI / Online</option>
+                             </select>
+                          </div>
+                       )}
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+                    <div>
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Treatment Notes</label>
+                       <textarea className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-purple-100 focus:border-purple-500 focus:bg-white transition-all shadow-sm min-h-[120px] custom-scrollbar" value={newSession.notes} onChange={e => setNewSession({...newSession, notes: e.target.value})} placeholder="What treatments were performed? Patient feedback..."></textarea>
+                    </div>
+                  </div>
+                </form>
+             </div>
+             <div className="px-5 sm:px-8 py-5 border-t border-slate-100 bg-white sm:bg-slate-50 flex sm:hidden md:flex justify-end gap-3 shrink-0 rounded-b-[2rem]">
+                <button type="button" onClick={() => setShowSessionModal(false)} className="px-6 py-2.5 text-slate-600 font-bold hover:bg-slate-200 rounded-xl transition-colors w-full sm:w-auto bg-slate-100 sm:bg-transparent">Cancel</button>
+                <button type="submit" form="session-form" className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold transition-transform active:scale-95 shadow-lg shadow-purple-200 flex items-center justify-center gap-2 w-full sm:w-auto">Save Log <ChevronDown className="w-4 h-4 -rotate-90 hidden sm:block" /></button>
              </div>
           </div>
         </div>
@@ -2797,19 +3250,24 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
 
   return (
     <div className="space-y-8 pb-12">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center pb-2 gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Transaction Ledger</h1>
-          <p className="text-sm text-slate-500 font-medium mt-1">Manage and track all clinic financial records.</p>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-5">
+           <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-200 shrink-0">
+              <Banknote className="w-8 h-8" />
+           </div>
+           <div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Transaction Ledger</h1>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Manage & track all clinic finances</p>
+           </div>
         </div>
-        <div className="flex gap-3">
-           <button onClick={() => setShowBillingModal(true)} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_14px_0_rgba(79,70,229,0.39)] rounded-xl font-bold transition-all flex items-center gap-2 text-sm hover:-translate-y-0.5 active:scale-95">
+        <div className="flex flex-wrap gap-3 w-full justify-start md:w-auto md:justify-end">
+           <button onClick={() => setShowBillingModal(true)} className="flex-1 sm:flex-none justify-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_14px_0_rgba(79,70,229,0.39)] rounded-xl font-bold transition-all flex items-center gap-2 text-sm hover:-translate-y-0.5 active:scale-95">
              <ClipboardList className="w-5 h-5" />
-             <span>Unpaid Bills</span>
+             <span className="whitespace-nowrap">Unpaid Bills</span>
            </button>
-           <button onClick={openNewModal} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] rounded-xl font-bold transition-all flex items-center gap-2 text-sm hover:-translate-y-0.5 active:scale-95">
+           <button onClick={openNewModal} className="flex-1 sm:flex-none justify-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] rounded-xl font-bold transition-all flex items-center gap-2 text-sm hover:-translate-y-0.5 active:scale-95">
              <Plus className="w-5 h-5" />
-             <span>New Transaction</span>
+             <span className="whitespace-nowrap">New Transaction</span>
            </button>
         </div>
       </header>
@@ -3015,6 +3473,31 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                         className="w-full bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-2xl pl-10 pr-5 py-3.5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20 focus:border-blue-500 dark:focus:border-blue-500 transition-all shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
                       />
                     </div>
+                    {billingPatientSearch.length === 0 && (
+                      <div className="mt-6">
+                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Patients with Due Payments</h4>
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+                          {patients.filter(p => (p.unpaidSessionsCount || 0) > 0 || (p.unpaidAmount || 0) > 0).map(p => (
+                             <div key={p.id} className="p-4 hover:bg-slate-50 cursor-pointer flex justify-between items-center transition-colors" onClick={() => setSelectedBillingPatient(p)}>
+                                <div>
+                                  <h4 className="font-bold text-slate-800">{p.name}</h4>
+                                  <p className="text-xs text-slate-500 font-medium mt-0.5">{p.phone}</p>
+                                </div>
+                                <div className="text-right flex items-center gap-3">
+                                  <div className="flex flex-col items-end">
+                                    <span className="text-sm font-black text-rose-600">₹{(p.unpaidAmount || 0).toLocaleString()}</span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase">{p.unpaidSessionsCount || 0} Sessions</span>
+                                  </div>
+                                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                                </div>
+                             </div>
+                          ))}
+                          {patients.filter(p => (p.unpaidSessionsCount || 0) > 0 || (p.unpaidAmount || 0) > 0).length === 0 && (
+                            <div className="p-6 text-sm font-medium text-slate-500 text-center">No pending payments.</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     {billingPatientSearch.length > 0 && (
                       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6 divide-y divide-slate-100">
                          {patients.filter(p => p.name.toLowerCase().includes(billingPatientSearch.toLowerCase()) || p.phone.includes(billingPatientSearch)).map(p => (
@@ -3126,114 +3609,125 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
       {/* New Transaction Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-[110] p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] pb-safe animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 pointer-events-auto">
+          <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] pb-safe animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 pointer-events-auto">
              <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white">
-                <div>
-                  <h3 className="text-xl font-black text-slate-800 tracking-tight">New Transaction</h3>
-                  <p className="text-sm font-medium text-slate-500 mt-1">Log income or operational expense.</p>
-                </div>
-                <button type="button" onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+               <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shrink-0">
+                     <Plus className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight">New Transaction</h3>
+                    <p className="text-sm font-medium text-slate-500 mt-1">Log income or operational expense.</p>
+                  </div>
+               </div>
+                <button type="button" onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors self-start"><X className="w-5 h-5" /></button>
              </div>
              
-             <div className="p-5 sm:p-8 overflow-y-auto overscroll-contain">
-               <form id="tx-form" onSubmit={handleSubmit} className="space-y-6">
-                  {/* Type Selector - Hidden for non-admins as billing staff only log income */}
-                  <div className={cn("flex bg-slate-50 p-1.5 rounded-2xl border border-slate-200", role !== 'admin' && "hidden")}>
-                     <button type="button" onClick={() => setNewTx({...newTx, type: 'income', category: categories.income[0]})} className={cn("flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2", newTx.type === 'income' ? "bg-white text-emerald-600 shadow-[0_2px_10px_-4px_rgba(16,185,129,0.3)] border border-emerald-100" : "text-slate-500 hover:text-slate-700 hover:bg-slate-100")}>
-                        <ArrowDownRight className="w-4 h-4" /> Income / Credit
-                     </button>
-                     <button type="button" onClick={() => setNewTx({...newTx, type: 'expense', category: categories.expense[0]})} className={cn("flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2", newTx.type === 'expense' ? "bg-white text-rose-600 shadow-[0_2px_10px_-4px_rgba(244,63,94,0.3)] border border-rose-100" : "text-slate-500 hover:text-slate-700 hover:bg-slate-100")}>
-                        <ArrowUpRight className="w-4 h-4" /> Expense / Debit
-                     </button>
-                  </div>
-                  
-                  {newTx.type === 'income' && (
-                    <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Patient (Optional)</label>
-                      <select className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-100 cursor-pointer" value={newTx.patientId} onChange={e => setNewTx({...newTx, patientId: e.target.value})}>
-                         <option value="">Walk-In or Not Applicable...</option>
-                         {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Base Amount (₹)</label>
-                        <input required type="number" min="0" value={newTx.amount} onChange={e => setNewTx({...newTx, amount: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-lg font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 font-mono" />
+             <div className="flex-1 overflow-y-auto overscroll-contain bg-slate-50/50 p-5 sm:p-8 custom-scrollbar">
+               <form id="tx-form" onSubmit={handleSubmit} className="space-y-8">
+                  <div className="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+                     {/* Type Selector - Hidden for non-admins as billing staff only log income */}
+                     <div className={cn("flex bg-slate-50 p-1.5 rounded-2xl border border-slate-200", role !== 'admin' && "hidden")}>
+                        <button type="button" onClick={() => setNewTx({...newTx, type: 'income', category: categories.income[0]})} className={cn("flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2", newTx.type === 'income' ? "bg-white text-emerald-600 shadow-[0_2px_10px_-4px_rgba(16,185,129,0.3)] border border-emerald-100" : "text-slate-500 hover:text-slate-700 hover:bg-slate-100")}>
+                           <ArrowDownRight className="w-4 h-4" /> Income / Credit
+                        </button>
+                        <button type="button" onClick={() => setNewTx({...newTx, type: 'expense', category: categories.expense[0]})} className={cn("flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2", newTx.type === 'expense' ? "bg-white text-rose-600 shadow-[0_2px_10px_-4px_rgba(244,63,94,0.3)] border border-rose-100" : "text-slate-500 hover:text-slate-700 hover:bg-slate-100")}>
+                           <ArrowUpRight className="w-4 h-4" /> Expense / Debit
+                        </button>
                      </div>
-                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Discount (₹)</label>
-                        <input type="number" min="0" value={newTx.discount} onChange={e => setNewTx({...newTx, discount: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-lg font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 font-mono" />
-                     </div>
+                     
+                     {newTx.type === 'income' && (
+                       <div>
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Patient (Optional)</label>
+                         <select className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-100 cursor-pointer" value={newTx.patientId} onChange={e => setNewTx({...newTx, patientId: e.target.value})}>
+                            <option value="">Walk-In or Not Applicable...</option>
+                            {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                         </select>
+                       </div>
+                     )}
                   </div>
 
-                  <div className={cn("p-5 border rounded-2xl text-center shadow-inner", newTx.type === 'income' ? "bg-emerald-50/50 border-emerald-100" : "bg-rose-50/50 border-rose-100")}>
-                     <span className="text-[10px] font-black uppercase tracking-widest block mb-1 text-slate-500">Net Total</span>
-                     <div className={cn("text-3xl font-black font-mono tracking-tight", newTx.type === 'income' ? "text-emerald-700" : "text-rose-700")}>
-                        ₹{netTotal.toLocaleString()}
+                  <div className="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Base Amount (₹)</label>
+                           <input required type="number" min="0" value={newTx.amount} onChange={e => setNewTx({...newTx, amount: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-lg font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 font-mono shadow-sm" />
+                        </div>
+                        <div>
+                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Discount (₹)</label>
+                           <input type="number" min="0" value={newTx.discount} onChange={e => setNewTx({...newTx, discount: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-lg font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 font-mono shadow-sm" />
+                        </div>
                      </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Category</label>
-                        <select value={newTx.category} onChange={e => setNewTx({...newTx, category: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer">
-                           {(newTx.type === 'income' ? categories.income : categories.expense).map(cat => (
-                             <option key={cat} value={cat}>{cat}</option>
-                           ))}
-                        </select>
-                     </div>
-                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Payment Status</label>
-                        <div className="flex gap-2">
-                           {['paid', 'unpaid'].map(status => (
-                              <label key={status} className={cn(
-                                 "flex-1 px-3 py-3 border rounded-xl text-sm font-bold text-center cursor-pointer transition-all flex items-center justify-center gap-1.5",
-                                 newTx.paymentStatus === status 
-                                    ? (status === 'paid' ? "bg-emerald-50 border-emerald-500 text-emerald-700 ring-2 ring-emerald-100" : "bg-rose-50 border-rose-500 text-rose-700 ring-2 ring-rose-100")
-                                    : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"
-                              )}>
-                                 <input type="radio" name="txPaymentStatus" className="hidden" checked={newTx.paymentStatus === status} onChange={() => setNewTx({...newTx, paymentStatus: status as any})} />
-                                 {status === 'paid' ? <CheckCircle2 className="w-4 h-4"/> : <Clock3 className="w-4 h-4"/>}
-                                 {status === 'paid' ? 'Paid' : 'Unpaid'}
-                              </label>
-                           ))}
+                     <div className={cn("p-5 border rounded-2xl text-center shadow-inner", newTx.type === 'income' ? "bg-emerald-50/50 border-emerald-100" : "bg-rose-50/50 border-rose-100")}>
+                        <span className="text-[10px] font-black uppercase tracking-widest block mb-1 text-slate-500">Net Total</span>
+                        <div className={cn("text-3xl font-black font-mono tracking-tight", newTx.type === 'income' ? "text-emerald-700" : "text-rose-700")}>
+                           ₹{netTotal.toLocaleString()}
                         </div>
                      </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                     {newTx.paymentStatus === 'paid' && (
+
+                  <div className="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
-                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Payment Method</label>
-                           <select value={newTx.paymentMethod} onChange={e => setNewTx({...newTx, paymentMethod: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer">
-                              <option>Cash</option>
-                              <option>UPI / Online</option>
-                              <option>Card</option>
+                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Category</label>
+                           <select value={newTx.category} onChange={e => setNewTx({...newTx, category: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer shadow-sm">
+                              {(newTx.type === 'income' ? categories.income : categories.expense).map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                              ))}
                            </select>
                         </div>
-                     )}
-                     <div className={newTx.paymentStatus !== 'paid' ? "sm:col-span-2" : ""}>
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Date</label>
-                         <input type="date" value={newTx.date} onChange={e => setNewTx({...newTx, date: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100" />
+                        <div>
+                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Payment Status</label>
+                           <div className="flex gap-2">
+                              {['paid', 'unpaid'].map(status => (
+                                 <label key={status} className={cn(
+                                    "flex-1 px-3 py-3 border rounded-xl text-sm font-bold text-center cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-sm",
+                                    newTx.paymentStatus === status 
+                                       ? (status === 'paid' ? "bg-emerald-50 border-emerald-500 text-emerald-700 ring-2 ring-emerald-100" : "bg-rose-50 border-rose-500 text-rose-700 ring-2 ring-rose-100")
+                                       : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"
+                                 )}>
+                                    <input type="radio" name="txPaymentStatus" className="hidden" checked={newTx.paymentStatus === status} onChange={() => setNewTx({...newTx, paymentStatus: status as any})} />
+                                    {status === 'paid' ? <CheckCircle2 className="w-4 h-4"/> : <Clock3 className="w-4 h-4"/>}
+                                    {status === 'paid' ? 'Paid' : 'Unpaid'}
+                                 </label>
+                              ))}
+                           </div>
+                        </div>
                      </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Time</label>
-                        <input type="time" value={newTx.time} onChange={e => setNewTx({...newTx, time: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100" />
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        {newTx.paymentStatus === 'paid' && (
+                           <div>
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Payment Method</label>
+                              <select value={newTx.paymentMethod} onChange={e => setNewTx({...newTx, paymentMethod: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer shadow-sm">
+                                 <option>Cash</option>
+                                 <option>UPI / Online</option>
+                                 <option>Card</option>
+                              </select>
+                           </div>
+                        )}
+                        <div className={newTx.paymentStatus !== 'paid' ? "sm:col-span-2" : ""}>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Date</label>
+                            <input type="date" value={newTx.date} onChange={e => setNewTx({...newTx, date: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 shadow-sm" />
+                        </div>
                      </div>
-                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Notes / Description</label>
-                        <input type="text" placeholder="Remarks..." value={newTx.description} onChange={e => setNewTx({...newTx, description: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100" />
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Time</label>
+                           <input type="time" value={newTx.time} onChange={e => setNewTx({...newTx, time: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 shadow-sm" />
+                        </div>
+                        <div>
+                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Notes / Description</label>
+                           <input type="text" placeholder="Remarks..." value={newTx.description} onChange={e => setNewTx({...newTx, description: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 shadow-sm" />
+                        </div>
                      </div>
                   </div>
                </form>
              </div>
              
-             <div className="px-5 sm:px-8 py-5 border-t border-[#f1f5f9] bg-[#ffffff] flex flex-col sm:flex-row justify-end gap-3 shrink-0">
-               <button type="button" onClick={() => setShowModal(false)} className="px-4 sm:px-6 py-3 rounded-xl font-bold text-[#475569] hover:bg-[#f9fafb] transition-colors border border-transparent hover:border-[#e5e7eb] w-full sm:w-auto">Cancel</button>
-               <button type="submit" form="tx-form" className={cn("px-6 sm:px-8 py-3 rounded-xl font-bold text-white shadow-xl transition-all hover:-translate-y-0.5 w-full sm:w-auto", newTx.type === 'income' ? "bg-[#059669] hover:bg-[#047857] shadow-emerald-600/20" : "bg-[#e11d48] hover:bg-[#be123c] shadow-rose-600/20")}>
+             <div className="px-5 sm:px-8 py-5 border-t border-slate-100 bg-white sm:bg-slate-50 flex sm:hidden md:flex justify-end gap-3 shrink-0 rounded-b-[2rem]">
+               <button type="button" onClick={() => setShowModal(false)} className="px-6 py-2.5 text-slate-600 font-bold hover:bg-slate-200 rounded-xl transition-colors w-full sm:w-auto bg-slate-100 sm:bg-transparent">Cancel</button>
+               <button type="submit" form="tx-form" className={cn("px-6 sm:px-8 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 text-white shadow-md transition-transform active:scale-95 w-full sm:w-auto", newTx.type === 'income' ? "bg-[#059669] hover:bg-[#047857] shadow-emerald-600/20" : "bg-[#e11d48] hover:bg-[#be123c] shadow-rose-600/20")}>
                   Save {newTx.type === 'income' ? 'Revenue' : 'Expense'}
                </button>
              </div>
@@ -3415,25 +3909,25 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-        <div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
-                <CircleDollarSign className="w-6 h-6 text-white" />
-             </div>
-             Clinic Analytics Dashboard
-          </h1>
-          <p className="text-slate-500 font-medium mt-1">Real-time performance tracking and growth insights.</p>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-5">
+           <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-200 shrink-0">
+              <CircleDollarSign className="w-8 h-8" />
+           </div>
+           <div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Clinic Analytics Dashboard</h1>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Real-time performance • growth insights</p>
+           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-          <div className="bg-white p-1 rounded-xl border border-slate-200 shadow-sm flex items-center overflow-hidden">
+        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 custom-scrollbar sm:custom-scrollbar-none">
+          <div className="bg-slate-50 p-1 rounded-2xl border border-slate-200 shadow-sm flex items-center shrink-0">
             {(['7d', '30d', '90d', 'all'] as const).map((r) => (
               <button
                 key={r}
                 onClick={() => { setTimeRange(r); setCurrentPage(1); }}
                 className={cn(
-                  "px-4 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
-                  timeRange === r ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "text-slate-500 hover:bg-slate-50"
+                  "px-4 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
+                  timeRange === r ? "bg-white text-blue-600 shadow-sm border border-slate-200/50" : "text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-transparent"
                 )}
               >
                 {r === 'all' ? 'All Time' : r.toUpperCase()}
@@ -3442,9 +3936,10 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
           </div>
           <button 
             onClick={exportCSV}
-            className="flex-1 lg:flex-none px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-2"
+            title="Export CSV"
+            className="w-10 h-10 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-2xl transition-all shadow-sm flex items-center justify-center shrink-0 active:scale-95"
           >
-            <Download className="w-5 h-5 text-slate-400" /> Export CSV
+            <Download className="w-5 h-5 text-slate-500" />
           </button>
         </div>
       </header>
@@ -4082,19 +4577,19 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
     <div className="space-y-6 animate-in">
       <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
         <div className="flex items-center gap-5">
-           <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-200">
+           <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-200 shrink-0">
               <CalendarRange className="w-8 h-8" />
            </div>
            <div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Appointment Schedule</h1>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Appointment Schedule</h1>
               <div className="flex items-center gap-2 mt-1">
                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest leading-none">Real-time sync active</span>
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Real-time sync active</span>
               </div>
            </div>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
           <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 hidden">
           </div>
 
@@ -4112,19 +4607,19 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
           
           <div className="h-8 w-px bg-slate-200 mx-1 hidden sm:block"></div>
 
-          <div className="flex gap-2 flex-1 sm:flex-none">
+          <div className="flex gap-3">
              <input 
                type="date" 
                value={selectedDate}
                onChange={e => setSelectedDate(e.target.value)}
-               className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer"
+               className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer"
              />
+             <button onClick={() => openApptModal()} className="flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white font-black px-5 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-100">
+               <Plus className="w-4 h-4" />
+               <span className="hidden sm:inline">Book Appt</span>
+               <span className="sm:hidden">Book</span>
+             </button>
           </div>
-
-          <button onClick={() => openApptModal()} className="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-100 ml-auto">
-            <Plus className="w-4 h-4" />
-            <span>Book Appt</span>
-          </button>
         </div>
       </header>
 
@@ -4533,12 +5028,17 @@ const SessionManager = ({ appointments, onNotify, selectedDate, setSelectedDate,
 
   return (
     <div className="space-y-6">
-       <header className="border-b border-slate-200 pb-6 flex justify-between items-center gap-4">
-           <div>
-             <h1 className="text-2xl font-bold text-slate-800 mb-1">Daily Schedule</h1>
-             <p className="text-sm text-slate-500">Manage and complete patient sessions.</p>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-5">
+           <div className="w-14 h-14 rounded-2xl bg-violet-600 text-white flex items-center justify-center shadow-lg shadow-violet-200 shrink-0">
+              <Activity className="w-8 h-8" />
            </div>
-       </header>
+           <div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Daily Schedule</h1>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Manage & complete patient sessions</p>
+           </div>
+        </div>
+      </header>
 
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sessions.map(s => (
@@ -4695,15 +5195,15 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-        <div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
-                <Users className="w-6 h-6 text-white" />
-             </div>
-             Staff Management Hub
-          </h1>
-          <p className="text-slate-500 font-medium mt-1">Manage permissions, track activity, and optimize your clinic team.</p>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-5">
+           <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200 shrink-0">
+              <Users className="w-8 h-8" />
+           </div>
+           <div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Staff Management Hub</h1>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Manage permissions • track activity • optimize team</p>
+           </div>
         </div>
         <div className="flex w-full lg:w-auto">
           {role === 'admin' && (
@@ -4788,9 +5288,13 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                             <td className="px-4 md:px-8 py-3 md:py-5 block md:table-cell md:border-none">
                                <div className="flex items-start md:items-center justify-between md:justify-start w-full">
                                   <div className="flex items-center gap-4 w-full">
-                                     <div className="w-11 h-11 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold shadow-sm relative shrink-0">
-                                        {member.name.charAt(0)}
-                                        {member.isActive && <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white"></div>}
+                                     <div className="w-11 h-11 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold shadow-sm relative shrink-0 overflow-visible">
+                                        {(member.photoURL && member.photoURL.trim() !== '') ? (
+                                           <img src={member.photoURL} alt={member.name} className="w-full h-full rounded-full object-cover" />
+                                        ) : (
+                                           <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || 'User')}&background=e0e7ff&color=4f46e5`} alt={member.name} className="w-full h-full rounded-full object-cover" />
+                                        )}
+                                        {member.isActive && <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white translate-x-0.5 translate-y-0.5 z-10"></div>}
                                      </div>
                                      <div className="flex-1">
                                         <div className="flex items-center gap-2 flex-wrap">
@@ -5197,10 +5701,14 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
 
                <div className="flex-1 overflow-y-auto overscroll-contain p-8 space-y-8">
                   <div className="flex flex-col items-center text-center">
-                     <div className="w-24 h-24 rounded-[2rem] bg-indigo-50 border border-indigo-100 flex items-center justify-center text-3xl font-black text-indigo-600 shadow-sm relative mb-4">
-                        {selectedMember.name.charAt(0)}
+                     <div className="w-24 h-24 rounded-[2rem] bg-indigo-50 border border-indigo-100 flex items-center justify-center text-3xl font-black text-indigo-600 shadow-sm relative mb-4 overflow-visible">
+                        {(selectedMember.photoURL && selectedMember.photoURL.trim() !== '') ? (
+                           <img src={selectedMember.photoURL} alt={selectedMember.name} className="w-full h-full rounded-[2rem] object-cover" />
+                        ) : (
+                           <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(selectedMember.name || 'User')}&background=e0e7ff&color=4f46e5`} alt={selectedMember.name} className="w-full h-full rounded-[2rem] object-cover" />
+                        )}
                         <div className={cn(
-                          "absolute bottom-2 right-2 w-6 h-6 rounded-full border-4 border-white shadow-sm",
+                          "absolute bottom-2 right-2 w-6 h-6 rounded-full border-4 border-white shadow-sm translate-x-1/2 translate-y-1/2 z-10",
                           selectedMember.isActive ? "bg-emerald-500" : "bg-slate-300"
                         )}></div>
                      </div>
@@ -5390,9 +5898,6 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
   const markAllPresent = async () => {
     const todayDateObj = new Date();
     const today = `${todayDateObj.getFullYear()}-${String(todayDateObj.getMonth() + 1).padStart(2, '0')}-${String(todayDateObj.getDate()).padStart(2, '0')}`;
-    if (selectedDate !== today) {
-      if (!window.confirm("You are marking all present for a date other than today. Continue?")) return;
-    }
     const unMarked = members.filter(m => m.isActive && !attendance.find(a => a.memberId === m.id));
     if (unMarked.length === 0) {
       onNotify("All staff members are already marked for today.", "info");
@@ -5477,15 +5982,15 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
-              <Clock className="w-5 h-5 text-white" strokeWidth={2.5} />
-            </div>
-            Attendance Dashboard
-          </h1>
-          <p className="text-sm text-slate-500 font-medium mt-1">Real-time presence monitoring and insights</p>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-5">
+           <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-200 shrink-0">
+              <Clock className="w-8 h-8" />
+           </div>
+           <div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Attendance Dashboard</h1>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Real-time presence • monitoring • insights</p>
+           </div>
         </div>
         <div className="flex items-center gap-2 w-full md:w-auto">
           <div className="bg-white px-3 py-2 rounded-xl border border-slate-100 shadow-sm flex items-center gap-2 group focus-within:ring-2 focus-within:ring-blue-100 transition-all flex-1 md:flex-none">
@@ -5665,12 +6170,16 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
                       return (
                         <div key={member.id} className="group bg-white p-4 rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                            <div className="flex items-center gap-4">
-                              <div className="relative">
-                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center font-black text-slate-500 shadow-inner border border-white">
-                                  {member.name.split(' ').map((n:any)=>n[0]).join('').substring(0,2).toUpperCase()}
+                              <div className="relative overflow-visible z-10 w-12 h-12">
+                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center font-black text-slate-500 shadow-inner border border-white shrink-0 overflow-hidden">
+                                  {(member.photoURL && member.photoURL.trim() !== '') ? (
+                                    <img src={member.photoURL} alt={member.name} className="w-full h-full rounded-2xl object-cover" />
+                                  ) : (
+                                     <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || 'User')}&background=f1f5f9&color=64748b`} alt={member.name} className="w-full h-full rounded-2xl object-cover" />
+                                  )}
                                 </div>
                                 <div className={cn(
-                                  "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white",
+                                  "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white z-20",
                                   record ? (record.status === 'absent' ? "bg-rose-500" : "bg-emerald-500") : "bg-slate-300"
                                 )}></div>
                               </div>
@@ -6212,6 +6721,57 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
   const [activeCategory, setActiveCategory] = useState<'account'|'clinic'|'appearance'|'notifications'|'security'|'billing'>('account');
   const [displayName, setDisplayName] = useState(user.displayName || '');
   const [isSaving, setIsSaving] = useState(false);
+  const avatarUrl = useAvatar(user, displayName);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const size = 400; // Target avatar size (400x400)
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            // Find the cropping aspect ratio to fill 400x400 (which is 1:1)
+            const minDim = Math.min(img.width, img.height);
+            const scale = size / minDim;
+            
+            const scaledWidth = img.width * scale;
+            const scaledHeight = img.height * scale;
+            
+            const dx = (size - scaledWidth) / 2;
+            const dy = (size - scaledHeight) / 2;
+            
+            // Fill background white just in case
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, size, size);
+            
+            ctx.drawImage(img, 0, 0, img.width, img.height, dx, dy, scaledWidth, scaledHeight);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            localStorage.setItem(`avatar_${user.uid}`, dataUrl);
+            window.dispatchEvent(new Event('avatar-updated'));
+            onNotify("Profile picture updated!", "success");
+            
+            // Optionally try storing to Firestore team member if matched
+            const currentMember = members.find(m => m.email?.toLowerCase() === user.email?.toLowerCase());
+            if (currentMember) {
+                updateTeamMember(currentMember.id, { photoURL: dataUrl }).catch(() => {});
+            }
+          }
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+    // reset input
+    if (e.target) e.target.value = '';
+  };
   
   const [clinicName, setClinicName] = useState('Nirvana Physiotherapy');
   const [clinicEmail, setClinicEmail] = useState('contact@nirvanaphysio.com');
@@ -6338,10 +6898,15 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
 
   return (
     <div className="space-y-6 pb-20 md:pb-6 max-w-5xl mx-auto">
-      <header className="flex justify-between items-center bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-800 transition-colors">
-        <div>
-           <h1 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-200 tracking-tight">Settings Workspace</h1>
-           <p className="text-sm font-bold tracking-tight text-slate-400 dark:text-slate-500 mt-1">Manage your account, preferences, and clinic system</p>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-800 transition-colors">
+        <div className="flex items-center gap-5">
+           <div className="w-14 h-14 rounded-2xl bg-slate-800 text-white flex items-center justify-center shadow-lg shadow-slate-200 shrink-0">
+              <Settings className="w-8 h-8" />
+           </div>
+           <div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-200 tracking-tight">Settings Workspace</h1>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Manage account • preferences • system</p>
+           </div>
         </div>
       </header>
 
@@ -6374,12 +6939,16 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
                <div className="p-6">
                   <form onSubmit={handleSaveProfile} className="space-y-6 max-w-lg">
                      <div className="flex items-center gap-4 mb-6">
-                       <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl font-black shrink-0">
-                         {displayName.charAt(0) || user.email?.charAt(0).toUpperCase()}
+                       <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                         <img src={avatarUrl} alt="Profile" className="w-16 h-16 rounded-full object-cover shadow-sm transition-opacity group-hover:opacity-75" />
+                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-full">
+                           <Camera className="w-6 h-6 text-white drop-shadow-md" />
+                         </div>
+                         <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleImageUpload} />
                        </div>
                        <div>
-                         <div className="font-bold text-slate-800 dark:text-slate-200">Profile Initial</div>
-                         <div className="text-xs text-slate-500 font-medium">Used for avatars across the system.</div>
+                         <div className="font-bold text-slate-800 dark:text-slate-200">Profile Picture</div>
+                         <div className="text-xs text-slate-500 font-medium">Click to upload from gallery. Max 2MB.</div>
                        </div>
                      </div>
                      <div className="space-y-1.5">
@@ -7330,7 +7899,7 @@ export default function App() {
       </div>
 
       {/* Global Notifications */}
-      <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-[100] flex flex-col items-end gap-3 pointer-events-none print:hidden">
+      <div className="fixed bottom-24 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-[100] flex flex-col items-end gap-3 pointer-events-none print:hidden">
         <AnimatePresence>
           {notifications.map(n => (
             <motion.div
@@ -7341,12 +7910,17 @@ export default function App() {
               transition={{ duration: 0.1, ease: "easeOut" }}
               className={cn(
                 "w-full sm:w-auto px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border pointer-events-auto",
-                n.type === 'success' ? "bg-white border-emerald-100 text-emerald-800" : "bg-white border-rose-100 text-rose-800"
+                n.type === 'success' ? "bg-white border-emerald-100 text-emerald-800" :
+                n.type === 'info' ? "bg-white border-blue-100 text-blue-800" : "bg-white border-rose-100 text-rose-800"
               )}
             >
               {n.type === 'success' ? (
                 <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
                   <BadgeCheck className="w-5 h-5" />
+                </div>
+              ) : n.type === 'info' ? (
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                  <Activity className="w-5 h-5" />
                 </div>
               ) : (
                 <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">

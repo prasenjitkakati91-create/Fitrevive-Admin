@@ -42,14 +42,20 @@ service cloud.firestore {
             && data.phone is string && data.phone.size() > 0 && data.phone.size() <= 20
             && data.age is number && data.age >= 0 && data.age <= 150
             && (!('medicalHistory' in data) || data.medicalHistory == null || (data.medicalHistory is string && data.medicalHistory.size() <= 2000))
+            && (!('gender' in data) || data.gender is string)
+            && (!('condition' in data) || data.condition is string)
+            && (!('address' in data) || data.address is string)
+            && (!('treatmentStatus' in data) || data.treatmentStatus is string)
+            && (!('totalSessions' in data) || data.totalSessions is number)
             && (!('unpaidSessionsCount' in data) || data.unpaidSessionsCount is number)
-            && (!('unpaidAmount' in data) || data.unpaidAmount is number);
+            && (!('unpaidAmount' in data) || data.unpaidAmount is number)
+            && (!('documents' in data) || data.documents is list);
       }
 
       allow read: if isSignedIn();
       allow create: if isSignedIn() && isValidId(patientId) && isValidPatient(incoming());
       allow update: if isSignedIn() && isValidPatient(incoming()) 
-                     && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'age', 'gender', 'condition', 'address', 'medicalHistory', 'unpaidSessionsCount', 'unpaidAmount', 'updatedAt']);
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'age', 'gender', 'condition', 'address', 'medicalHistory', 'treatmentStatus', 'totalSessions', 'unpaidSessionsCount', 'unpaidAmount', 'documents', 'updatedAt']);
       allow delete: if isSignedIn();
     }
 

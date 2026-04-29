@@ -1,11 +1,13 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserSessionPersistence, updateProfile } from 'firebase/auth';
 import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, updateDoc, deleteDoc, Timestamp, onSnapshot, where, writeBatch, increment } from 'firebase/firestore';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const storage = getStorage(app);
 
 // Secondary app instance specifically used so Admin doesn't get logged out when creating new staff accounts
 const adminApp = initializeApp(firebaseConfig, 'AdminApp');
@@ -495,6 +497,41 @@ export const updateTeamMember = async (id: string, data: any) => {
   });
 };
 
+export const uploadPatientDocument = (
+  patientId: string, 
+  file: File, 
+  onProgress: (progress: number) => void
+): Promise<{ url: string, fullPath: string }> => {
+  return new Promise((resolve, reject) => {
+    const timestamp = new Date().getTime();
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const storageRef = ref(storage, `patients/${patientId}/documents/${timestamp}_${safeName}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on('state_changed', 
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        onProgress(progress);
+      }, 
+      (error) => {
+        reject(error);
+      }, 
+      async () => {
+        try {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve({ url: downloadURL, fullPath: storageRef.fullPath });
+        } catch (err) {
+          reject(err);
+        }
+      }
+    );
+  });
+};
+
+export const deletePatientDocument = async (fullPath: string) => {
+  const storageRef = ref(storage, fullPath);
+  return deleteObject(storageRef);
+};
 export const getTeamMembers = (callback: (members: any[]) => void) => {
   const q = query(collection(db, 'team'), orderBy('name', 'asc'));
   return onSnapshot(q, (snapshot) => {
