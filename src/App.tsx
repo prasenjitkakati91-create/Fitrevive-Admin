@@ -1517,7 +1517,7 @@ const Dashboard = ({
                       radius={[4, 4, 0, 0]} 
                       barSize={12} 
                     />
-                    <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                    <Tooltip cursor={{ fill: '#f9fafb' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -2220,8 +2220,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
 
       {/* NEW PATIENT MODAL */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-[60] animate-in fade-in duration-200">
-          <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] pb-safe animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] pb-safe animate-in zoom-in-95 duration-200">
             <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white">
               <div>
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">{editPatientId ? 'Edit Patient Profile' : 'Add New Patient'}</h3>
@@ -2301,8 +2301,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
 
       {/* HISTORY MODAL (Kept the same structural flow) */}
       {showHistoryModal && selectedPatient && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 animate-in fade-in">
-          <div className="bg-white rounded-t-[2rem] sm:rounded-3xl w-full max-w-4xl max-h-[95dvh] sm:max-h-[90vh] pb-safe flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] pb-safe flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95">
             <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex flex-col sm:flex-row gap-4 sm:gap-0 justify-between items-start sm:items-center bg-white shrink-0 relative">
                <button title="Close window" onClick={() => setShowHistoryModal(false)} className="absolute top-5 right-5 sm:static sm:top-auto sm:right-auto text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
                <div className="flex items-center gap-5 pr-12 sm:pr-0">
@@ -2393,8 +2393,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
 
       {/* SESSION MODAL */}
       {showSessionModal && selectedPatient && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in">
-          <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] pb-safe animate-in zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70] animate-in fade-in">
+          <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] pb-safe animate-in zoom-in-95 pointer-events-auto">
              <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                 <div>
                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Log Session</h3>
@@ -2988,8 +2988,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
       </div>
 
       {showBillingModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-[100] p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-t-[2rem] sm:rounded-[24px] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] pb-safe animate-in slide-in-from-bottom sm:zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] pb-safe animate-in zoom-in-95">
              <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                 <div>
                   <h3 className="text-xl font-black text-slate-800 tracking-tight">Generate Unpaid Bills</h3>
@@ -3121,8 +3121,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
 
       {/* New Transaction Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] pb-safe animate-in zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] pb-safe animate-in zoom-in-95 pointer-events-auto">
              <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white">
                 <div>
                   <h3 className="text-xl font-black text-slate-800 tracking-tight">New Transaction</h3>
@@ -3182,10 +3182,20 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                      </div>
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Payment Status</label>
-                        <select value={newTx.paymentStatus} onChange={e => setNewTx({...newTx, paymentStatus: e.target.value as any})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer">
-                           <option value="paid">Paid</option>
-                           <option value="unpaid">Unpaid / Due</option>
-                        </select>
+                        <div className="flex gap-2">
+                           {['paid', 'unpaid'].map(status => (
+                              <label key={status} className={cn(
+                                 "flex-1 px-3 py-3 border rounded-xl text-sm font-bold text-center cursor-pointer transition-all flex items-center justify-center gap-1.5",
+                                 newTx.paymentStatus === status 
+                                    ? (status === 'paid' ? "bg-emerald-50 border-emerald-500 text-emerald-700 ring-2 ring-emerald-100" : "bg-rose-50 border-rose-500 text-rose-700 ring-2 ring-rose-100")
+                                    : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"
+                              )}>
+                                 <input type="radio" name="txPaymentStatus" className="hidden" checked={newTx.paymentStatus === status} onChange={() => setNewTx({...newTx, paymentStatus: status as any})} />
+                                 {status === 'paid' ? <CheckCircle2 className="w-4 h-4"/> : <Clock3 className="w-4 h-4"/>}
+                                 {status === 'paid' ? 'Paid' : 'Unpaid'}
+                              </label>
+                           ))}
+                        </div>
                      </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -3218,7 +3228,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
              </div>
              
              <div className="px-5 sm:px-8 py-5 border-t border-[#f1f5f9] bg-[#ffffff] flex flex-col sm:flex-row justify-end gap-3 shrink-0">
-               <button type="button" onClick={() => setShowModal(false)} className="px-4 sm:px-6 py-3 rounded-xl font-bold text-[#475569] hover:bg-[#f8fafc] transition-colors border border-transparent hover:border-[#e2e8f0] w-full sm:w-auto">Cancel</button>
+               <button type="button" onClick={() => setShowModal(false)} className="px-4 sm:px-6 py-3 rounded-xl font-bold text-[#475569] hover:bg-[#f9fafb] transition-colors border border-transparent hover:border-[#e5e7eb] w-full sm:w-auto">Cancel</button>
                <button type="submit" form="tx-form" className={cn("px-6 sm:px-8 py-3 rounded-xl font-bold text-white shadow-xl transition-all hover:-translate-y-0.5 w-full sm:w-auto", newTx.type === 'income' ? "bg-[#059669] hover:bg-[#047857] shadow-emerald-600/20" : "bg-[#e11d48] hover:bg-[#be123c] shadow-rose-600/20")}>
                   Save {newTx.type === 'income' ? 'Revenue' : 'Expense'}
                </button>
@@ -4244,7 +4254,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
         </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 backdrop-blur-sm transition-all animate-in fade-in duration-300">
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm transition-all animate-in fade-in duration-300">
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -5557,7 +5567,7 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
                     tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }}
                   />
                   <Tooltip 
-                    cursor={{ fill: '#f8fafc' }}
+                    cursor={{ fill: '#f9fafb' }}
                     contentStyle={{ 
                       borderRadius: '16px', 
                       border: 'none', 
@@ -6605,101 +6615,233 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [globalDate, setGlobalDate] = useState(getLocalYMD());
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   const [printTx, setPrintTx] = useState<Transaction | null>(null);
   const [therapistName, setTherapistName] = useState('FitRevive Clinical Team');
 
-  const whatsappUrl = useMemo(() => {
-    if (!printTx) return '';
-    try {
-      const patient = printTx.patientId ? patients.find(p => p.id === printTx.patientId) : null;
-      if (!patient?.phone) return '';
-      
-      const patientName = patient?.name || 'Valued Patient';
-      const amountStr = printTx.amount.toLocaleString('en-IN');
-      const dateNo = printTx.date.replace(/-/g, '');
-      const txIdPart = printTx.id.slice(0, 4).toUpperCase();
-      const receiptNo = `FR-${dateNo}-${txIdPart}`;
-      const dateStr = new Date(printTx.date).toLocaleDateString('en-GB');
-      
-      // Precise cleaning for WhatsApp: numbers only, international format (91 for India)
-      let rawPhone = (patient?.phone || '').replace(/\D/g, '');
-      
-      // Handle the case where the phone starts with 0
-      if (rawPhone.startsWith('0')) rawPhone = rawPhone.substring(1);
-      
-      // If it starts with 910 (common error in India +91 0...), remove the 0
-      if (rawPhone.startsWith('910') && rawPhone.length === 13) {
-        rawPhone = '91' + rawPhone.substring(3);
-      }
-      
-      // If exactly 10 digits, assume India and add 91
-      if (rawPhone.length === 10) rawPhone = '91' + rawPhone;
-      
-      if (!rawPhone || rawPhone.length < 11) return ''; // International numbers usually 11+
-      
-      // Compact message to stay within URL length limits
-      const msg = `*FitRevive Physiotherapy Receipt*\n` +
-                  `Hi ${patientName},\n` +
-                  `Received Rs ${amountStr} for ${printTx.category}.\n` +
-                  `Date: ${dateStr}\n` +
-                  `Receipt ID: ${receiptNo}\n\n` +
-                  `Thank you! - FitRevive Team`;
-
-      return `https://api.whatsapp.com/send?phone=${rawPhone}&text=${encodeURIComponent(msg)}`;
-    } catch (e) {
-      console.error('WhatsApp URL error:', e);
-      return '';
-    }
-  }, [printTx, patients, therapistName]);
-
-  const downloadBillAsImage = async () => {
-    const element = document.getElementById('print-bill-container');
-    if (!element) return;
+  const generatePDFFile = async (filename: string): Promise<File | null> => {
+    const element = document.getElementById('receipt-section');
+    if (!element) return null;
     
     try {
-      showNotification('Generating bill image...', 'info');
-      // Import html2canvas dynamically to keep main bundle smaller
       const html2canvasModule = await import('html2canvas');
       const html2canvas = html2canvasModule.default;
+      const { jsPDF } = await import('jspdf');
       
       const canvas = await html2canvas(element, {
-        scale: 2, // 2x scale for clarity without being massive
+        scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
         onclone: (clonedDoc) => {
-          const el = clonedDoc.getElementById('print-bill-container');
+          const el = clonedDoc.getElementById('receipt-section');
           if (el) {
-            el.className = el.className.replace('receipt-theme-fixed', '');
-            el.style.transform = 'none';
-            el.style.margin = '0';
-            el.style.boxShadow = 'none';
+            el.style.maxHeight = 'none';
+            el.style.overflow = 'visible';
+            el.style.height = 'auto';
+            el.style.display = 'block';
+            el.style.padding = '30px 40px'; 
+            el.style.width = '794px';
+            el.style.backgroundColor = '#ffffff';
             el.style.borderRadius = '0';
+            el.style.boxShadow = 'none';
+            el.style.transform = 'none';
+            
+            const headings = el.querySelectorAll('h1, h2, h3');
+            headings.forEach(h => { if (h instanceof HTMLElement) h.style.marginBottom = '8px'; });
+            
+            const pb10 = el.querySelectorAll('.pb-10');
+            pb10.forEach(n => { if (n instanceof HTMLElement) n.style.paddingBottom = '20px'; });
+            
+            const mb10 = el.querySelectorAll('.mb-10, .mb-12, .mb-8');
+            mb10.forEach(n => { if (n instanceof HTMLElement) n.style.marginBottom = '20px'; });
+
+            const gap10 = el.querySelectorAll('.gap-10');
+            gap10.forEach(n => { if (n instanceof HTMLElement) n.style.gap = '20px'; });
+            
+            const bgNodes = clonedDoc.querySelectorAll('.bg-white, [class*="bg-slate-50"]');
+            bgNodes.forEach((n) => {
+              if (n instanceof HTMLElement) n.style.backgroundColor = '#ffffff';
+            });
+            
+            const allElements = el.getElementsByTagName('*');
+            const view = clonedDoc.defaultView;
+            
+            for (let i = 0; i < allElements.length; i++) {
+              const node = allElements[i] as HTMLElement;
+              const style = view?.getComputedStyle(node);
+              
+              if (style) {
+                 if (style.color.includes('oklch')) node.style.color = '#111827';
+                 if (style.backgroundColor.includes('oklch')) node.style.backgroundColor = 'transparent';
+                 if (style.borderColor.includes('oklch')) node.style.borderColor = '#e5e7eb';
+              }
+
+              if (node.classList.contains('text-blue-600')) node.style.color = '#2563eb';
+              if (node.classList.contains('text-slate-900')) node.style.color = '#111827';
+              if (node.classList.contains('bg-blue-600')) node.style.backgroundColor = '#2563eb';
+              if (node.classList.contains('border-slate-200')) node.style.borderColor = '#e5e7eb';
+            }
           }
         }
       });
       
-      const image = canvas.toDataURL('image/png', 1.0);
+      const imgData = canvas.toDataURL('image/jpeg', 1.0);
+      const pdf = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4' 
+      });
       
-      // Secondary check for empty image or failure
-      if (image.length < 100) {
-        throw new Error('Image data generation failed.');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const imgProps = pdf.getImageProperties(imgData);
+      const margin = 5;
+      const availableHeight = pdfHeight - (margin * 2);
+      const availableWidth = pdfWidth - (margin * 2);
+      
+      let finalWidth = availableWidth;
+      let finalHeight = (imgProps.height * finalWidth) / imgProps.width;
+      
+      if (finalHeight > availableHeight) {
+        finalHeight = availableHeight;
+        finalWidth = (imgProps.width * finalHeight) / imgProps.height;
+      }
+      
+      const xOffset = (pdfWidth - finalWidth) / 2;
+      const yOffset = margin;
+      
+      pdf.addImage(imgData, 'JPEG', xOffset, yOffset, finalWidth, finalHeight);
+      const pdfBlob = pdf.output('blob');
+      return new File([pdfBlob], filename, { type: 'application/pdf' });
+    } catch (err) {
+      console.error('Error generating PDF Blob:', err);
+      return null;
+    }
+  };
+
+  const shareViaWhatsApp = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    console.log('WhatsApp share button clicked');
+    
+    if (!printTx) {
+       console.error('No transaction available to share.');
+       return;
+    }
+    
+    const patient = printTx.patientId ? patients.find(p => p.id === printTx.patientId) : null;
+    let phone = patient?.phone?.replace(/\D/g, '') || '';
+    
+    if (phone) {
+      if (phone.length === 10) {
+        phone = '91' + phone;
+      } else if (phone.length === 11 && phone.startsWith('0')) {
+        phone = '91' + phone.substring(1);
       }
 
-      const link = document.createElement('a');
-      const dateNo = printTx?.date.replace(/-/g, '') || '0000';
-      const patient = printTx?.patientId ? patients.find(p => p.id === printTx.patientId) : null;
-      const patientName = (patient?.name || 'Patient').replace(/\s+/g, '_');
-      
-      link.download = `Bill_${patientName}_${dateNo}.png`;
-      link.href = image;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showNotification('Bill saved as image!', 'success');
+      if (phone.length < 10) {
+         phone = ''; // Fallback to sharing with anyone if number is invalid
+      }
+    }
+    
+    const patientName = patient?.name || 'Valued Patient';
+    const amountStr = printTx.amount.toLocaleString('en-IN');
+    const invoiceId = `FR-${printTx.id.slice(-8).toUpperCase()}`;
+    const clinicName = "FitRevive Physiotherapy Clinic";
+    const dateStr = new Date(printTx.date).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    });
+    
+    const msg = `*RECEIPT: ${clinicName}*\n\n` +
+                `*Hello ${patientName},*\n` +
+                `Your transaction at FitRevive has been recorded successfully.\n\n` +
+                `*Invoice No:* ${invoiceId}\n` +
+                `*Date:* ${dateStr}\n` +
+                `*Total Amount:* ₹${amountStr}\n` +
+                `*Status:* PAID\n\n` +
+                `_Keep this for your records. Wishing you a healthy recovery!_`;
+
+    setIsSharing(true);
+    showNotification('Generating document...', 'info');
+
+    try {
+      const filename = `FitRevive_Receipt_${invoiceId}.pdf`;
+      const file = await generatePDFFile(filename);
+
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        console.log('Web Share API supported. Sharing PDF file...');
+        await navigator.share({
+          title: 'FitRevive Receipt',
+          text: msg,
+          files: [file]
+        });
+        showNotification('Receipt shared successfully!', 'success');
+      } else {
+        console.log('Web Share API not supported or failed. Falling back to URL.');
+        const finalUrl = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+        const isWebView = /wv|x-web-view|android|ios|iphone|ipad/i.test(navigator.userAgent) && !/chrome|safari/i.test(navigator.userAgent);
+        
+        if (isWebView) {
+           window.location.href = finalUrl;
+        } else {
+           const win = window.open(finalUrl, '_blank');
+           if (!win || win.closed || typeof win.closed === 'undefined') {
+              window.location.href = finalUrl;
+           } else {
+              win.focus();
+           }
+        }
+      }
     } catch (err) {
-      console.error('Error generating image:', err);
-      showNotification('Failed to save bill. Browser might be blocking the download.', 'error');
+      if ((err as Error).name !== 'AbortError') {
+        console.error('Share action failed:', err);
+        showNotification('Sharing action was interrupted or failed.', 'error');
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const downloadBillAsPDF = async () => {
+    if (isGeneratingPDF) return;
+    setIsGeneratingPDF(true);
+    showNotification('Preparing your PDF receipt...', 'info');
+    
+    try {
+      const invoiceId = `FR-${printTx?.id.slice(-8).toUpperCase()}`;
+      const filename = `FitRevive_Receipt_${invoiceId}.pdf`;
+      const file = await generatePDFFile(filename);
+      
+      if (file) {
+        const url = URL.createObjectURL(file);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showNotification('Receipt downloaded successfully!', 'success');
+      } else {
+        throw new Error('PDF Generation returned null');
+      }
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      showNotification('Failed to generate PDF. Please use the Print option.', 'error');
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -7203,173 +7345,73 @@ export default function App() {
       </div>
 
       {printTx && (
-        <>
-          <style dangerouslySetInnerHTML={{ __html: `
-            @media print {
-              @page {
-                size: A4 portrait;
-                margin: 0 !important;
-              }
-              html, body { 
-                background: white !important; 
-                margin: 0 !important; 
-                padding: 0 !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-              .print-container { 
-                padding: 0 !important;
-                margin: 0 !important;
-                width: 100% !important;
-                max-width: 100% !important;
-              }
-              #print-bill-container {
-                box-shadow: none !important;
-                border: none !important;
-                border-radius: 0 !important;
-                margin: 0 !important;
-                padding: 5mm !important; /* Reduced padding for A4 */
-                width: 100% !important;
-                min-height: auto !important; /* Allow it to be smaller than A4 height */
-                max-height: 280mm !important; /* Keep within A4 height */
-                background: white !important;
-                transform: scale(0.92); /* Slightly smaller scale for extra safety */
-                transform-origin: top center;
-                page-break-after: avoid;
-                page-break-inside: avoid;
-              }
-              .no-print { display: none !important; }
-              * { 
-                box-shadow: none !important; 
-                text-shadow: none !important; 
-                filter: none !important; 
-                backdrop-filter: none !important;
-              }
-            }
-            
-            /* FORCE LIGHT MODE FOR BILLING CONTAINER AT ALL TIMES */
-            #print-bill-container, 
-            #print-bill-container * {
-              color-scheme: light !important;
-            }
-            
-            /* Aggressively override any dark mode inheritance */
-            .dark #print-bill-container,
-            #print-bill-container.receipt-theme-fixed {
-              background-color: #ffffff !important;
-              background-image: none !important;
-              color: #0f172a !important;
-              box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
-            }
-            
-            #print-bill-container table {
-              width: 100% !important;
-              table-layout: fixed !important;
-            }
-
-            .dark #print-bill-container div,
-            .dark #print-bill-container section,
-            .dark #print-bill-container article,
-            .dark #print-bill-container table,
-            .dark #print-bill-container tr,
-            .dark #print-bill-container td,
-            .dark #print-bill-container th,
-            .dark #print-bill-container h1,
-            .dark #print-bill-container h2,
-            .dark #print-bill-container h3,
-            .dark #print-bill-container p,
-            .dark #print-bill-container span,
-            .dark #print-bill-container strong,
-            .dark #print-bill-container b {
-              background-color: transparent !important;
-              color: #0f172a !important;
-              border-color: #e2e8f0 !important;
-            }
-
-            .dark #print-bill-container .bg-slate-900 { background-color: #0f172a !important; color: white !important; }
-            .dark #print-bill-container .bg-blue-600 { background-color: #2563eb !important; color: white !important; }
-            .dark #print-bill-container .text-blue-600 { color: #2563eb !important; }
-            .dark #print-bill-container .bg-slate-50 { background-color: #f8fafc !important; }
-            .dark #print-bill-container .border-blue-100 { border-color: #dbeafe !important; }
-            .dark #print-bill-container .bg-blue-50\/50 { background-color: rgba(239, 246, 255, 0.5) !important; }
-            .dark #print-bill-container .text-slate-400 { color: #94a3b8 !important; }
-            .dark #print-bill-container .text-slate-500 { color: #64748b !important; }
-            .dark #print-bill-container .text-slate-600 { color: #475569 !important; }
-            .dark #print-bill-container .text-white { color: #ffffff !important; }
-            .dark #print-bill-container .border-white\/10 { border-color: rgba(255, 255, 255, 0.1) !important; }
-          `}} />
-          <div className="fixed inset-0 bg-[#f1f5f9] z-[100] overflow-y-auto overscroll-contain print:static print:h-auto print:overflow-visible transition-all duration-300 animate-in fade-in">
-            <div className="max-w-4xl mx-auto py-4 sm:py-8 px-2 sm:px-4 print:p-0 print-container">
+        <div className="fixed inset-0 bg-[#f1f5f9] z-[100] overflow-y-auto overscroll-contain print:static print:h-auto print:overflow-visible transition-all duration-300 animate-in fade-in">
+          <div className="max-w-4xl mx-auto py-4 sm:py-8 px-2 sm:px-4 print:p-0 print-container">
               {/* Action Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-4 mb-8 bg-[#ffffff] p-4 rounded-2xl shadow-sm border border-[#e2e8f0] print:hidden">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-8 bg-[#ffffff] p-4 rounded-2xl shadow-sm border border-[#e5e7eb] print:hidden">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-white text-[#ffffff] flex items-center justify-center border border-[#e2e8f0] overflow-hidden">
+                  <div className="w-10 h-10 rounded-full bg-white text-[#ffffff] flex items-center justify-center border border-[#e5e7eb] overflow-hidden">
                     <img src={LogoImage} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                   </div>
                   <div>
-                    <h2 className="font-black text-[#1e293b] tracking-tight text-sm sm:text-base">Receipt View</h2>
+                    <h2 className="font-black text-[#111827] tracking-tight text-sm sm:text-base">Receipt View</h2>
                     <p className="text-[10px] sm:text-xs font-bold text-[#64748b]">FitRevive Clinic Management</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
-                    onClick={() => {
-                      // Slight delay to ensure UI is ready
-                      setTimeout(() => {
-                        window.print();
-                      }, 100);
-                    }} 
-                    className="px-4 py-2 bg-[#2563eb] active:scale-95 text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-[#1d4ed8] transition-all shadow-md shadow-blue-100"
+                    onClick={handlePrint}
+                    className="px-4 py-2 bg-[#2563eb] active:scale-95 text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-[#1d4ed8] transition-all shadow-md shadow-blue-100 disabled:opacity-50 disabled:pointer-events-none"
+                    disabled={isGeneratingPDF}
                   >
                     <Printer className="w-4 h-4" /> Print
                   </button>
                   <button 
-                    onClick={downloadBillAsImage}
-                    className="px-4 py-2 bg-slate-800 active:scale-95 text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all shadow-md shadow-slate-100"
-                    title="Save as Image"
+                    onClick={downloadBillAsPDF}
+                    className="px-4 py-2 bg-slate-800 active:scale-95 text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all shadow-md shadow-slate-100 disabled:opacity-50 disabled:pointer-events-none"
+                    title="Save as PDF"
+                    disabled={isGeneratingPDF}
                   >
-                    <Download className="w-4 h-4" /> Save
+                    {isGeneratingPDF ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                    {isGeneratingPDF ? 'Saving...' : 'Save'}
                   </button>
                   <button 
-                    onClick={() => {
-                      if (!whatsappUrl) {
-                        const patient = printTx.patientId ? patients.find(p => p.id === printTx.patientId) : null;
-                        if (!patient?.phone) {
-                          showNotification('Please add a phone number to this patient first.', 'info');
-                        } else {
-                          showNotification('Could not generate WhatsApp link.', 'error');
-                        }
-                        return;
-                      }
-                      
-                      // Use window.open for better iframe compatibility
-                      try {
-                        const win = window.open(whatsappUrl, '_blank');
-                        if (!win) {
-                          showNotification('Popup blocked. Please allow popups for WhatsApp.', 'info');
-                        }
-                      } catch (err) {
-                        window.location.href = whatsappUrl;
-                      }
-                    }}
-                    className="w-11 h-11 bg-[#25D366] text-white rounded-xl flex items-center justify-center hover:bg-[#20ba59] transition-all active:scale-95 border-none outline-none ring-0 shadow-[0_4px_12px_rgba(37,211,102,0.3)]"
-                    title="Share on WhatsApp"
+                    type="button"
+                    onClick={shareViaWhatsApp}
+                    className={cn(
+                      "px-4 py-2 bg-[#25D366] text-white rounded-xl font-bold flex items-center gap-2 hover:bg-[#20ba59] transition-all active:scale-95 shadow-md shadow-emerald-200/50 disabled:opacity-50 border-none decoration-none no-underline",
+                      (isGeneratingPDF || isSharing) && "pointer-events-none opacity-50",
+                      isSharing && "animate-pulse cursor-wait"
+                    )}
+                    disabled={isGeneratingPDF || isSharing}
                   >
-                    <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.431 5.63 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                    </svg>
+                    <div className={cn("flex items-center gap-2", isSharing ? "opacity-0" : "opacity-100")}>
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.431 5.63 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                      </svg>
+                      <span className="hidden sm:inline">WhatsApp</span>
+                    </div>
+                    {isSharing && (
+                      <div className="absolute inset-x-0 bottom-0 top-0 flex items-center justify-center">
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      </div>
+                    )}
                   </button>
                 <button 
                   onClick={() => setPrintTx(null)} 
-                  className="p-2 bg-[#f8fafc] text-[#64748b] border border-[#e2e8f0] rounded-xl hover:bg-[#f1f5f9] transition-all"
+                  className="p-2 bg-[#f9fafb] text-[#64748b] border border-[#e5e7eb] rounded-xl hover:bg-[#f1f5f9] transition-all"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-               {/* Receipt Container */}
-               <div id="print-bill-container" className="receipt-theme-fixed !bg-white !text-slate-900 shadow-2xl rounded-3xl border-2 border-slate-100 overflow-hidden print:shadow-none print:border-none print:m-0 print:rounded-none relative px-8 sm:px-12 py-10 bg-white font-sans">
+               {/* Receipt Section */}
+               <div id="receipt-section" className="receipt-theme-fixed !bg-white !text-slate-900 shadow-2xl rounded-3xl border-2 border-slate-100 overflow-visible print:shadow-none print:border-none print:m-0 print:rounded-none relative px-8 sm:px-12 pt-10 pb-20 bg-white font-sans">
                   {/* Header */}
                   <div className="flex flex-col md:flex-row justify-between items-start gap-10 border-b border-slate-100 pb-10">
                     <div className="space-y-4">
@@ -7492,7 +7534,7 @@ export default function App() {
                               </div>
                               <div className="flex items-center gap-6 p-1">
                                  <div className="bg-slate-900 p-4 rounded-[2rem] shadow-xl flex flex-col items-center gap-2 border-4 border-slate-800">
-                                    <div className="bg-white p-2 rounded-2xl overflow-hidden flex items-center justify-center">
+                                    <div className="bg-white p-2 rounded-2xl overflow-visible flex items-center justify-center">
                                        <QRCodeCanvas 
                                           value={`upi://pay?pa=8473809386-3@ibl&pn=FitRevive&am=${printTx.amount.toFixed(2)}&cu=INR`} 
                                           size={100} 
@@ -7529,7 +7571,6 @@ export default function App() {
                   </div>
                </div>
           </div>
-      </>
     )}
     </div>
   );
