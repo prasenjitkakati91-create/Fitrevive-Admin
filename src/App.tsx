@@ -559,8 +559,8 @@ const Dashboard = ({
   // Pending payments: Sum of all unpaid sessions and amounts across all patients
   const { pendingPaymentsCount, pendingPaymentsAmount } = useMemo(() => {
     return patients.reduce((acc, p) => ({
-      pendingPaymentsCount: acc.pendingPaymentsCount + (p.unpaidSessionsCount || 0),
-      pendingPaymentsAmount: acc.pendingPaymentsAmount + (p.unpaidAmount || 0)
+      pendingPaymentsCount: acc.pendingPaymentsCount + (Number(p.unpaidSessionsCount) || 0),
+      pendingPaymentsAmount: acc.pendingPaymentsAmount + (Number(p.unpaidAmount) || 0)
     }), { pendingPaymentsCount: 0, pendingPaymentsAmount: 0 });
   }, [patients]);
 
@@ -631,24 +631,38 @@ const Dashboard = ({
       return;
     }
     
+    const amount = parseFloat(quickBill.amount);
+    if (isNaN(amount) || amount <= 0) {
+      onNotify("Please enter a valid billing amount.", "error");
+      return;
+    }
+    
     setIsBilling(true);
     try {
       const patient = patients.find(p => p.id === quickBill.patientId);
-      const serviceNames: any = { physio: 'Physiotherapy', dry: 'Dry Needling', manual: 'Manual Therapy' };
+      const serviceNames: any = { 
+        consultation: 'Physiotherapy Consultation',
+        manual: 'Manual Therapy',
+        dry: 'Dry Needling',
+        cupping: 'Cupping Therapy',
+        taping: 'Taping Therapy',
+        electro: 'Electro Therapy',
+        others: 'Other Services'
+      };
       
       await logTransaction({
-        amount: parseFloat(quickBill.amount),
+        amount: amount,
         category: serviceNames[quickBill.service] || 'Therapy',
         date: new Date().toISOString().split('T')[0],
         time: new Date().toTimeString().substring(0, 5),
         type: 'income',
-        description: `Quick Billing: ${serviceNames[quickBill.service]} for ${patient?.name}`,
+        description: `Quick Billing: ${serviceNames[quickBill.service] || 'Therapy Session'} for ${patient?.name}`,
         patientId: quickBill.patientId,
         paymentMethod: 'Cash' // Default
       });
       
-      onNotify(`Bill of ₹${quickBill.amount} generated for ${patient?.name}`);
-      setQuickBill({ patientId: '', service: 'physio', amount: '500' });
+      onNotify(`Bill of ₹${amount} generated for ${patient?.name}`);
+      setQuickBill({ ...quickBill, patientId: '', amount: '500' });
     } catch (err: any) {
       onNotify(err.message || "Billing failed", "error");
     } finally {
@@ -1023,14 +1037,14 @@ const Dashboard = ({
           {/* 3. SEARCH SECTION (MAKE IT POWERFUL) */}
           <div className="relative group">
             <div className="absolute inset-0 bg-blue-600 rounded-2xl blur-xl opacity-0 group-hover:opacity-10 transition-opacity"></div>
-            <div className="relative flex bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden p-1 transition-colors">
+            <div className="relative flex bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden p-0.5 transition-colors">
               <div className="flex-1 relative flex items-center">
-                 <Search className="absolute left-6 w-5 h-5 text-slate-400 dark:text-slate-500" />
+                 <Search className="absolute left-4 w-4 h-4 text-slate-400 dark:text-slate-500" />
                  <input 
                    placeholder="Search Patient by Name, Phone or ID..." 
                    value={patientSearch}
                    onChange={e => setPatientSearch(e.target.value)}
-                   className="w-full bg-transparent pl-16 pr-6 py-5 text-xl font-bold text-slate-900 dark:text-slate-200 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                   className="w-full bg-transparent pl-11 pr-4 py-2.5 text-sm font-bold text-slate-900 dark:text-slate-200 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
                  />
               </div>
             </div>
@@ -1081,17 +1095,17 @@ const Dashboard = ({
           </div>
 
           {/* 4. TODAY’S APPOINTMENTS (CORE SECTION) */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden min-h-[400px]">
-             <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden min-h-[400px]">
+             <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
                 <div className="flex items-center gap-3">
-                   <div className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100"><Clock className="w-5 h-5 text-blue-600" /></div>
+                   <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700"><Clock className="w-5 h-5 text-blue-600 dark:text-blue-500" /></div>
                    <div>
-                     <h2 className="text-lg font-black text-slate-900">Daily Schedule</h2>
+                     <h2 className="text-lg font-black text-slate-900 dark:text-white">Daily Schedule</h2>
                      <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{new Date(globalDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                    </div>
                 </div>
                 <button 
-                  onClick={() => setTab('appointments')}
+                  onClick={() => { if(setViewTarget) { setViewTarget({ type: 'book-appointment', id: 'new', returnTo: 'dashboard' }); } setTab('appointments'); }}
                   className="flex items-center gap-2 text-xs font-black text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg transition-all"
                 >
                   <Plus className="w-4 h-4" /> Book Appointment
@@ -1115,7 +1129,7 @@ const Dashboard = ({
                          <div className="flex items-center justify-between md:justify-start gap-2">
                            <div className="flex items-center gap-2">
                              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                             <span className="font-black text-slate-950 text-base">{appt.time}</span>
+                             <span className="font-black text-slate-950 dark:text-slate-50 text-base">{appt.time}</span>
                            </div>
                            <span className={cn(
                              "md:hidden px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
@@ -1129,7 +1143,7 @@ const Dashboard = ({
                        </td>
                        <td className="px-4 md:px-8 py-2 md:py-5 block md:table-cell md:border-none">
                          <div className="flex flex-col">
-                           <span className="font-bold text-slate-800 tracking-tight">{appt.patientName}</span>
+                           <span className="font-bold text-slate-800 dark:text-slate-200 tracking-tight">{appt.patientName}</span>
                            <span className="text-[11px] text-slate-400 font-bold">{appt.sessionType || 'Session'}</span>
                          </div>
                        </td>
@@ -1210,7 +1224,7 @@ const Dashboard = ({
                                    <span className="text-[10px] uppercase hidden md:inline">Incomplete</span>
                                 </button>
                               )}
-                              <button className="p-2 bg-white md:bg-transparent border border-slate-200 md:border-transparent md:hover:bg-blue-50 rounded-lg text-slate-400 hover:text-blue-600 transition-all" title="View">
+                              <button onClick={() => { if(setViewTarget && setTab) { setViewTarget({ type: 'patient', id: appt.patientId, returnTo: 'dashboard' }); setTab('patients'); } }} className="p-2 bg-white md:bg-transparent border border-slate-200 md:border-transparent md:hover:bg-blue-50 rounded-lg text-slate-400 hover:text-blue-600 transition-all" title="View Patient Profile">
                                  <ArrowUpRight className="w-4 h-4" />
                               </button>
                             </div>
@@ -1243,17 +1257,17 @@ const Dashboard = ({
              <div className="relative">
                 <h3 className="text-xl font-black text-slate-900 mb-6">Quick Actions</h3>
                 <div className="grid grid-cols-2 gap-4">
-                   <button onClick={() => setTab('patients')} className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-all gap-2 group">
+                   <button onClick={() => { setViewTarget({ type: 'add-patient', returnTo: 'dashboard' }); setTab('patients'); }} className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-all gap-2 group">
                       <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                          <UserPlus className="w-5 h-5" />
                       </div>
                       <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Add Patient</span>
                    </button>
-                   <button onClick={() => setTab('appointments')} className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50 transition-all gap-2 group">
+                   <button onClick={() => setTab('staff')} className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50 transition-all gap-2 group">
                       <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                         <CalendarCheck className="w-5 h-5" />
+                         <ShieldCheck className="w-5 h-5" />
                       </div>
-                      <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Book Visit</span>
+                      <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Staff List</span>
                    </button>
                 </div>
              </div>
@@ -1276,17 +1290,22 @@ const Dashboard = ({
                       onChange={e => setQuickBill({...quickBill, service: e.target.value})}
                       className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-700 focus:border-blue-500 outline-none transition-all text-xs"
                     >
-                      <option value="physio">Physiotherapy</option>
-                      <option value="dry">Dry Needling</option>
+                      <option value="consultation">Consultation</option>
                       <option value="manual">Manual Therapy</option>
+                      <option value="dry">Dry Needling</option>
+                      <option value="cupping">Cupping Therapy</option>
+                      <option value="taping">Taping Therapy</option>
+                      <option value="electro">Electro Therapy</option>
+                      <option value="others">Others</option>
                     </select>
                     <div className="relative">
-                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input 
                         type="number" 
+                        placeholder="Amount"
                         value={quickBill.amount}
                         onChange={e => setQuickBill({...quickBill, amount: e.target.value})}
-                        className="w-full bg-slate-50 border border-slate-200 p-3.5 pl-8 rounded-xl font-black text-slate-800 outline-none focus:border-emerald-500 transition-all text-sm" 
+                        className="w-full bg-slate-50 border border-slate-200 p-3.5 pl-10 rounded-xl font-black text-slate-800 outline-none focus:border-emerald-500 transition-all text-sm" 
                       />
                     </div>
                   </div>
@@ -1675,19 +1694,19 @@ const Dashboard = ({
             
             <div className="p-5 sm:p-8 overflow-y-auto max-h-[60vh] bg-slate-50/50">
                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
-                  {patients.filter(p => (p.unpaidSessionsCount || 0) > 0 || (p.unpaidAmount || 0) > 0).map(p => (
+                  {patients.filter(p => (Number(p.unpaidSessionsCount) || 0) > 0 || (Number(p.unpaidAmount) || 0) > 0).map(p => (
                      <div key={p.id} className="p-4 hover:bg-slate-50 flex justify-between items-center transition-colors">
                         <div>
                           <h4 className="font-bold text-slate-800">{p.name}</h4>
                           <p className="text-xs text-slate-500 font-medium mt-0.5">{p.phone}</p>
                         </div>
                         <div className="text-right flex flex-col items-end">
-                            <span className="text-sm font-black text-rose-600">₹{(p.unpaidAmount || 0).toLocaleString()}</span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">{p.unpaidSessionsCount || 0} Sessions Due</span>
+                            <span className="text-sm font-black text-rose-600">₹{(Number(p.unpaidAmount) || 0).toLocaleString()}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">{Number(p.unpaidSessionsCount) || 0} Sessions Due</span>
                         </div>
                      </div>
                   ))}
-                  {patients.filter(p => (p.unpaidSessionsCount || 0) > 0 || (p.unpaidAmount || 0) > 0).length === 0 && (
+                  {patients.filter(p => (Number(p.unpaidSessionsCount) || 0) > 0 || (Number(p.unpaidAmount) || 0) > 0).length === 0 && (
                     <div className="p-6 text-sm font-medium text-slate-500 text-center">No pending payments.</div>
                   )}
               </div>
@@ -1721,6 +1740,16 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [localDocs, setLocalDocs] = useState<LocalDocument[]>([]);
+  const [returnToTab, setReturnToTab] = useState<string | null>(null);
+  
+  const closePatientModals = () => {
+    setShowHistoryModal(false);
+    setShowSessionModal(false);
+    if (returnToTab && setTab) {
+      setTab(returnToTab);
+      setReturnToTab(null);
+    }
+  };
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -1757,7 +1786,14 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
   };
 
   useEffect(() => {
-    if (viewTarget?.type === 'patient' && viewTarget.id) {
+    if (viewTarget?.type === 'add-patient') {
+       setShowModal(true);
+       setEditPatientId(null);
+       if (viewTarget.returnTo) {
+         setReturnToTab(viewTarget.returnTo);
+       }
+       setViewTarget(null);
+    } else if (viewTarget?.type === 'patient' && viewTarget.id) {
        const p = patients.find(p => p.id === viewTarget.id);
        if (p) {
          setSelectedPatient(p);
@@ -1765,6 +1801,9 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
            setShowSessionModal(true);
          } else {
            setShowHistoryModal(true);
+         }
+         if ((viewTarget as any).returnTo) {
+           setReturnToTab((viewTarget as any).returnTo);
          }
          setViewTarget(null);
        }
@@ -1899,7 +1938,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
         amount: Math.max(0, parseFloat(newSession.amount) || 0)
       });
       onNotify(`Session logged for ${selectedPatient.name}`);
-      setShowSessionModal(false);
+      closePatientModals();
       setNewSession({
         date: new Date().toISOString().substring(0, 10),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
@@ -2094,7 +2133,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
         else if (!lastVisit && !nextAppointment) status = 'Active'; 
       }
       
-      const isPending = (p.unpaidSessionsCount || 0) > 0;
+      const isPending = (Number(p.unpaidSessionsCount) || 0) > 0;
       let paymentStatus = isPending ? 'Pending' : 'Paid';
       if (patientAppts.filter(a => a.status === 'completed').length === 0 && (p.totalSessions || 0) === 0) paymentStatus = 'None';
       
@@ -2152,8 +2191,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
     const total = enrichedPatients.length;
     const active = enrichedPatients.filter(p => p.status === 'Active' || p.status === 'In Treatment').length;
     const newThisMonth = enrichedPatients.filter(p => (p.name.length % 3 === 0)).length;
-    const pendingPayments = enrichedPatients.reduce((acc, p) => acc + (p.unpaidSessionsCount || 0), 0);
-    const pendingPaymentsAmount = enrichedPatients.reduce((acc, p) => acc + (p.unpaidAmount || 0), 0);
+    const pendingPayments = enrichedPatients.reduce((acc, p) => acc + (Number(p.unpaidSessionsCount) || 0), 0);
+    const pendingPaymentsAmount = enrichedPatients.reduce((acc, p) => acc + (Number(p.unpaidAmount) || 0), 0);
     return { total, active, newThisMonth, pendingPayments, pendingPaymentsAmount };
   }, [enrichedPatients]);
 
@@ -2385,11 +2424,14 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                       <div className="flex md:flex-row items-center justify-between md:justify-end gap-2 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 transform md:translate-x-4 md:group-hover:translate-x-0 w-full md:w-auto">
                          <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase md:hidden">Actions</span>
                          <div className="flex gap-2">
-                           <button onClick={(e) => { e.stopPropagation(); setSelectedPatient(p); setShowHistoryModal(true); }} className="p-2 border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-xl shadow-sm transition-all bg-white" title="View Full Profile">
-                              <User2 className="w-5 h-5 md:w-4 md:h-4" />
+                           <button onClick={(e) => { e.stopPropagation(); setSelectedPatient(p); setShowSessionModal(true); }} className="p-2 border border-slate-200 hover:border-purple-300 hover:bg-purple-50 text-slate-400 hover:text-purple-600 rounded-xl shadow-sm transition-all bg-white" title="Log Session">
+                              <FileText className="w-5 h-5 md:w-4 md:h-4" />
                            </button>
                            <button onClick={(e) => { e.stopPropagation(); if(setTab && setViewTarget) { setTab('appointments'); setViewTarget({ type: 'book-appointment', id: p.id, returnTo: 'patients' }); } }} className="p-2 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-xl shadow-sm transition-all bg-white" title="Book Appointment">
                               <CalendarCheck className="w-5 h-5 md:w-4 md:h-4" />
+                           </button>
+                           <button onClick={(e) => { e.stopPropagation(); setSelectedPatient(p); setShowHistoryModal(true); }} className="p-2 border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-xl shadow-sm transition-all bg-white" title="View Full Profile">
+                              <User2 className="w-5 h-5 md:w-4 md:h-4" />
                            </button>
                          </div>
                       </div>
@@ -2644,7 +2686,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 animate-in fade-in">
           <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-4xl max-h-[90dvh] sm:max-h-[90vh] pb-safe flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95">
             <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex flex-col sm:flex-row gap-4 sm:gap-0 justify-between items-start sm:items-center bg-white shrink-0 relative">
-               <button title="Close window" onClick={() => setShowHistoryModal(false)} className="absolute top-5 right-5 sm:static sm:top-auto sm:right-auto text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+               <button title="Close window" onClick={closePatientModals} className="absolute top-5 right-5 sm:static sm:top-auto sm:right-auto text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
                <div className="flex items-center gap-5 pr-12 sm:pr-0">
                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600 flex items-center justify-center font-black text-lg sm:text-xl ring-4 ring-slate-50 border border-blue-100 shrink-0">
                    {selectedPatient.name.split(' ').map((n:string)=>n[0]).join('').substring(0,2).toUpperCase()}
@@ -2675,7 +2717,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                    if (setTab && setViewTarget) {
                      setTab('appointments');
                      setViewTarget({ type: 'book-appointment', id: selectedPatient.id, returnTo: 'patients' });
-                     setShowHistoryModal(false);
+                     closePatientModals();
                    }
                  }} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl sm:rounded-xl font-bold transition-all text-sm shadow-md shadow-emerald-200 flex items-center justify-center gap-2 hover:-translate-y-0.5 flex-1 sm:flex-none"><CalendarCheck className="w-4 h-4"/> Book Appt</button>
                  <button onClick={() => { setShowSessionModal(true); }} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl sm:rounded-xl font-bold transition-all text-sm shadow-md shadow-blue-200 flex items-center justify-center gap-2 hover:-translate-y-0.5 flex-1 sm:flex-none"><Plus className="w-4 h-4"/> Log Session</button>
@@ -2850,7 +2892,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                      <p className="text-sm font-bold text-slate-500 mt-1">for {selectedPatient.name}</p>
                   </div>
                </div>
-                <button title="Close Session Modal" onClick={() => setShowSessionModal(false)} className="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors self-start"><X className="w-5 h-5" /></button>
+                <button title="Close Session Modal" onClick={closePatientModals} className="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors self-start"><X className="w-5 h-5" /></button>
              </div>
              <div className="flex-1 overflow-y-auto overscroll-contain bg-slate-50/50 p-5 sm:p-8 custom-scrollbar">
                 <form id="session-form" onSubmit={handleSessionSubmit} className="space-y-8">
@@ -2906,7 +2948,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                 </form>
              </div>
              <div className="px-5 sm:px-8 py-5 border-t border-slate-100 bg-white sm:bg-slate-50 flex sm:hidden md:flex justify-end gap-3 shrink-0 rounded-b-[2rem]">
-                <button type="button" onClick={() => setShowSessionModal(false)} className="px-6 py-2.5 text-slate-600 font-bold hover:bg-slate-200 rounded-xl transition-colors w-full sm:w-auto bg-slate-100 sm:bg-transparent">Cancel</button>
+                <button type="button" onClick={closePatientModals} className="px-6 py-2.5 text-slate-600 font-bold hover:bg-slate-200 rounded-xl transition-colors w-full sm:w-auto bg-slate-100 sm:bg-transparent">Cancel</button>
                 <button type="submit" form="session-form" className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold transition-transform active:scale-95 shadow-lg shadow-purple-200 flex items-center justify-center gap-2 w-full sm:w-auto">Save Log <ChevronDown className="w-4 h-4 -rotate-90 hidden sm:block" /></button>
              </div>
           </div>
@@ -3477,7 +3519,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                       <div className="mt-6">
                         <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Patients with Due Payments</h4>
                         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
-                          {patients.filter(p => (p.unpaidSessionsCount || 0) > 0 || (p.unpaidAmount || 0) > 0).map(p => (
+                          {patients.filter(p => (Number(p.unpaidSessionsCount) || 0) > 0 || (Number(p.unpaidAmount) || 0) > 0).map(p => (
                              <div key={p.id} className="p-4 hover:bg-slate-50 cursor-pointer flex justify-between items-center transition-colors" onClick={() => setSelectedBillingPatient(p)}>
                                 <div>
                                   <h4 className="font-bold text-slate-800">{p.name}</h4>
@@ -3485,14 +3527,14 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                                 </div>
                                 <div className="text-right flex items-center gap-3">
                                   <div className="flex flex-col items-end">
-                                    <span className="text-sm font-black text-rose-600">₹{(p.unpaidAmount || 0).toLocaleString()}</span>
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase">{p.unpaidSessionsCount || 0} Sessions</span>
+                                    <span className="text-sm font-black text-rose-600">₹{(Number(p.unpaidAmount) || 0).toLocaleString()}</span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase">{Number(p.unpaidSessionsCount) || 0} Sessions</span>
                                   </div>
                                   <ChevronRight className="w-4 h-4 text-slate-400" />
                                 </div>
                              </div>
                           ))}
-                          {patients.filter(p => (p.unpaidSessionsCount || 0) > 0 || (p.unpaidAmount || 0) > 0).length === 0 && (
+                          {patients.filter(p => (Number(p.unpaidSessionsCount) || 0) > 0 || (Number(p.unpaidAmount) || 0) > 0).length === 0 && (
                             <div className="p-6 text-sm font-medium text-slate-500 text-center">No pending payments.</div>
                           )}
                         </div>
@@ -4387,13 +4429,17 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
     if (viewTarget?.type === 'appointment' && viewTarget.id) {
        const a = appointments.find(a => a.id === viewTarget.id);
        if (a) {
-         openApptModal(a);
-         setViewTarget(null);
+         setTimeout(() => {
+           openApptModal(a);
+           setViewTarget(null);
+         }, 50);
        }
-    } else if (viewTarget?.type === 'book-appointment' && viewTarget.id) {
-       openApptModal(null, undefined, undefined, viewTarget.id);
-       if (viewTarget.returnTo) setReturnToTab(viewTarget.returnTo);
-       setViewTarget(null);
+    } else if (viewTarget?.type === 'book-appointment') {
+       setTimeout(() => {
+         openApptModal(null, undefined, undefined, viewTarget.id && viewTarget.id !== 'new' ? viewTarget.id : undefined);
+         if (viewTarget.returnTo) setReturnToTab(viewTarget.returnTo);
+         setViewTarget(null);
+       }, 50);
     }
   }, [viewTarget, appointments, setViewTarget]);
 
@@ -7195,7 +7241,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isRoleLoading, setIsRoleLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [viewTarget, setViewTarget] = useState<{type: 'patient' | 'appointment' | 'transaction' | 'book-appointment', id: string, returnTo?: string, action?: 'log-session'} | null>(null);
+  const [viewTarget, setViewTarget] = useState<{type: 'patient' | 'appointment' | 'transaction' | 'book-appointment' | 'add-patient', id?: string, returnTo?: string, action?: 'log-session'} | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [globalDate, setGlobalDate] = useState(getLocalYMD());
@@ -7712,7 +7758,7 @@ export default function App() {
                         <div className="py-2 border-b border-slate-50 dark:border-slate-800/50 last:border-0">
                           <div className="px-4 py-1.5 text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Patients</div>
                           {globalSearchResults.patients.map(p => (
-                            <button key={p.id} onPointerDown={(e) => { e.preventDefault(); setActiveTab('patients'); setViewTarget({type: 'patient', id: p.id}); setGlobalSearch(''); setIsSidebarOpen(false); }} className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors group">
+                            <button key={p.id} onPointerDown={(e) => { e.preventDefault(); setActiveTab('patients'); setViewTarget({type: 'patient', id: p.id, returnTo: activeTab}); setGlobalSearch(''); setIsSidebarOpen(false); }} className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors group">
                                <div className="flex items-center gap-3">
                                  <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-xs shrink-0 group-hover:scale-110 transition-transform">
                                    {p.name.charAt(0)}
