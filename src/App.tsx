@@ -948,7 +948,7 @@ const Dashboard = ({
                    placeholder="Search Patient by Name, Phone or ID..." 
                    value={patientSearch}
                    onChange={e => setPatientSearch(e.target.value)}
-                   className="w-full bg-transparent pl-16 pr-6 py-5 text-lg font-bold text-slate-800 dark:text-slate-200 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                   className="w-full bg-transparent pl-16 pr-6 py-8 text-2xl font-black text-slate-900 dark:text-slate-200 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
                  />
               </div>
             </div>
@@ -2476,8 +2476,6 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
   const [isGeneratingBill, setIsGeneratingBill] = useState(false);
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '6m'>('30d');
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('');
   
   const [editTxId, setEditTxId] = useState<string | null>(null);
@@ -2747,12 +2745,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
   // List filtered
   const listTransactions = useMemo(() => {
     let result = transactions;
-    if (typeFilter !== 'all') {
-      result = result.filter(t => t.type === typeFilter);
-    }
-    if (categoryFilter !== 'all') {
-      result = result.filter(t => t.category === categoryFilter);
-    }
+    
     if (dateFilter) {
       result = result.filter(t => t.date === dateFilter);
     }
@@ -2779,7 +2772,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
       }
       return 0;
     });
-  }, [transactions, typeFilter, categoryFilter, dateFilter, searchTerm, patients]);
+  }, [transactions, dateFilter, searchTerm, patients]);
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -2928,7 +2921,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
       </div>
 
       {/* Ledger Section */}
-      <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+      <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm flex flex-col relative z-20">
         {/* Ledger Header & Filters */}
         <div className="p-5 border-b border-slate-100 flex flex-col lg:flex-row gap-4 justify-between items-center bg-slate-50/50">
           <div className="flex items-center gap-4">
@@ -2952,46 +2945,40 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
             </button>
           </div>
           
-          <div className="flex flex-wrap gap-3 items-center w-full lg:w-auto">
-            <div className="relative flex-1 lg:flex-none">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
-              <input 
-                type="text" 
-                placeholder="Search..." 
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full lg:w-48 pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-              />
+          <div className="flex flex-col lg:flex-row flex-wrap gap-4 items-center w-full lg:w-auto relative">
+            <div className="relative w-full lg:w-[700px]">
+              <div className="relative flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm focus-within:ring-4 focus-within:ring-blue-100/50 dark:focus-within:ring-blue-900/20 focus-within:border-blue-500 transition-all overflow-hidden">
+                <div className="flex items-center flex-1 min-w-0">
+                  <Search className="absolute left-4 w-4 h-4 text-slate-400 dark:text-slate-500" />
+                  <input 
+                    type="text" 
+                    placeholder="Search transactions, patients..." 
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-transparent text-sm sm:text-base font-black text-slate-800 dark:text-slate-200 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2 border-l border-slate-100 dark:border-slate-700 pl-3 pr-3 bg-slate-50/50 dark:bg-slate-900/20 h-[48px]">
+                  <Calendar className="w-4 h-4 text-slate-400" />
+                  <div className="relative flex items-center">
+                    <input
+                      type="date"
+                      value={dateFilter}
+                      onChange={e => setDateFilter(e.target.value)}
+                      className="bg-transparent text-[11px] sm:text-xs font-black text-slate-600 dark:text-slate-300 outline-none cursor-pointer w-[110px] sm:w-[130px] inverted-calendar-icon"
+                    />
+                    {dateFilter && (
+                      <button onClick={() => setDateFilter('')} className="ml-1 text-slate-400 hover:text-red-500 p-1">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <input
-                type="date"
-                value={dateFilter}
-                onChange={e => setDateFilter(e.target.value)}
-                className="bg-white border border-slate-200 rounded-xl text-sm font-bold px-3 py-2 outline-none cursor-pointer"
-              />
-              {dateFilter && (
-                <button title="Clear Date" onClick={() => setDateFilter('')} className="bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl p-2 transition-colors">
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as any)} className="bg-white border border-slate-200 rounded-xl text-sm font-bold px-3 py-2 outline-none cursor-pointer">
-              <option value="all">All Types</option>
-              <option value="income">Income</option>
-              <option value="expense">Expense</option>
-            </select>
-            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="bg-white border border-slate-200 rounded-xl text-sm font-bold px-3 py-2 outline-none cursor-pointer hidden sm:block">
-              <option value="all">All Categories</option>
-              <optgroup label="Income">
-                {categories.income.map(c => <option key={c} value={c}>{c}</option>)}
-              </optgroup>
-              <optgroup label="Expense">
-                {categories.expense.map(c => <option key={c} value={c}>{c}</option>)}
-              </optgroup>
-            </select>
           </div>
-        </div>
+      </div>
 
         {/* Ledger Table */}
         <div className="overflow-x-auto w-full">
@@ -3010,11 +2997,11 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
               {listTransactions.map(t => (
                 <tr key={t.id} className="group hover:bg-slate-50 transition-colors block md:table-row pb-4 md:pb-0 pt-2 md:pt-0 border-b border-slate-100 md:border-none relative">
                   <td className="px-4 md:px-6 py-2 md:py-4 block md:table-cell md:border-none">
-                    <div className="flex md:block justify-between items-center w-full">
-                       <div>
-                         <span className="text-sm font-bold text-slate-600 block md:inline text-left">{new Date(t.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
-                         <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-[10px] font-medium text-slate-400">{new Date(t.date).getFullYear()}</span>
+                      <div className="flex md:block justify-between items-center w-full">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-black text-slate-800 block md:inline text-left">{new Date(t.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                             <span className="text-[10px] font-bold text-slate-400">{new Date(t.date).getFullYear()}</span>
                             {t.time && (
                               <>
                                 <span className="text-slate-300 text-[10px]">•</span>
@@ -3087,7 +3074,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                 <tr>
                   <td colSpan={6} className="text-center py-12 px-6">
                      <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-100">
-                       <Filter className="w-8 h-8 text-slate-300" />
+                       <Search className="w-8 h-8 text-slate-300" />
                      </div>
                      <span className="block text-base font-bold text-slate-600">No transactions found</span>
                      <span className="block text-sm font-medium text-slate-400 mt-1">Try adjusting your filters or search term</span>
