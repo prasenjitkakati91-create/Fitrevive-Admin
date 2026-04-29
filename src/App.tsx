@@ -6712,7 +6712,10 @@ export default function App() {
                   `🌐 www.fitrevive.in`;
 
       let rawPhone = (patient.phone || '').replace(/\D/g, '');
-      if (rawPhone.length === 10) rawPhone = '91' + rawPhone;
+      // Handle Indian numbers
+      if (rawPhone.length === 10) {
+        rawPhone = '91' + rawPhone;
+      }
       
       if (!rawPhone) return '';
       return `https://wa.me/${rawPhone}?text=${encodeURIComponent(msg)}`;
@@ -6726,7 +6729,7 @@ export default function App() {
       if (printTx) {
         const patient = printTx.patientId ? patients.find(p => p.id === printTx.patientId) : null;
         if (!patient?.phone) {
-          showNotification('No phone number found for this patient.', 'error');
+          showNotification('Please add a phone number to this patient first.', 'info');
         } else {
           showNotification('Could not generate WhatsApp link.', 'error');
         }
@@ -6734,11 +6737,13 @@ export default function App() {
       return;
     }
     
-    // Attempt fallback opening if needed, but primary interaction is now via <a> tag
-    const win = window.open(whatsappUrl, '_blank');
-    if (!win) {
-      // If window.open fails, we still have the <a> tag as the primary button in receipt view
-      window.location.assign(whatsappUrl);
+    try {
+      const win = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+      if (!win) {
+        window.location.href = whatsappUrl;
+      }
+    } catch (err) {
+      showNotification('Could not open WhatsApp. Please check browser settings.', 'error');
     }
   };
 
@@ -7270,7 +7275,6 @@ export default function App() {
                 padding: 0 !important;
                 width: 100% !important;
               }
-              /* Remove any filters/shadows for faster printing */
               * { 
                 box-shadow: none !important; 
                 text-shadow: none !important; 
@@ -7279,6 +7283,63 @@ export default function App() {
                 transition: none !important;
               }
             }
+            
+            /* FORCE LIGHT MODE FOR BILLING CONTAINER */
+            #print-bill-container, 
+            #print-bill-container * {
+              color-scheme: light !important;
+            }
+            
+            #print-bill-container {
+              background-color: #ffffff !important;
+              color: #1e293b !important;
+            }
+            
+            /* Target all potential dark mode background classes and force them to light counterparts */
+            .dark #print-bill-container,
+            .dark #print-bill-container .bg-slate-900,
+            .dark #print-bill-container .bg-slate-800,
+            .dark #print-bill-container .dark\\:bg-slate-900,
+            .dark #print-bill-container .dark\\:bg-slate-800 {
+              background-color: #ffffff !important;
+            }
+            
+            .dark #print-bill-container .text-white,
+            .dark #print-bill-container .dark\\:text-white,
+            .dark #print-bill-container .dark\\:text-slate-200 {
+              color: #1e293b !important;
+            }
+            
+            .dark #print-bill-container .bg-white {
+               background-color: #ffffff !important;
+            }
+            
+            .dark #print-bill-container p,
+            .dark #print-bill-container span,
+            .dark #print-bill-container div,
+            .dark #print-bill-container td,
+            .dark #print-bill-container th,
+            .dark #print-bill-container h1,
+            .dark #print-bill-container h2,
+            .dark #print-bill-container h3 {
+               color: #1e293b !important;
+            }
+            
+            .dark #print-bill-container .text-blue-600,
+            .dark #print-bill-container .text-[#2563eb],
+            .dark #print-bill-container .dark\\:text-blue-400 {
+               color: #2563eb !important;
+            }
+
+            .dark #print-bill-container .text-slate-500,
+            .dark #print-bill-container .text-[#64748b],
+            .dark #print-bill-container .dark\\:text-slate-400 {
+               color: #64748b !important;
+            }
+            
+            #print-bill-container .bg-[#f8fafc] { background-color: #f8fafc !important; }
+            #print-bill-container .bg-[#eff6ff] { background-color: #eff6ff !important; }
+            #print-bill-container .bg-[#f0f9ff] { background-color: #f0f9ff !important; }
           `}} />
           <div className="fixed inset-0 bg-[#f1f5f9] z-[100] overflow-y-auto overscroll-contain print:static print:h-auto print:overflow-visible transition-all duration-300 animate-in fade-in">
             <div className="max-w-4xl mx-auto py-4 sm:py-8 px-2 sm:px-4 print:p-0 print-container">
