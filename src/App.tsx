@@ -6607,48 +6607,81 @@ export default function App() {
       const receiptNo = `FR-${dateNo}-${txIdPart}`;
       const dateStr = new Date(printTx.date).toLocaleDateString('en-GB');
       
-      // Using standard characters for better compatibility across all mobile devices
-      const msg = `*FitRevive Physiotherapy Clinic*\n\n` +
-                  `Hi *${patientName}*,\n` +
-                  `Greetings from FitRevive! We have received your payment for the physiotherapy session.\n\n` +
-                  `*RECEIPT SUMMARY*\n` +
-                  `--------------------\n` +
-                  `*Receipt No:* ${receiptNo}\n` +
-                  `*Date:* ${dateStr}\n` +
-                  `*Service:* ${printTx.category}\n` +
-                  `*Therapist:* ${therapistName}\n` +
-                  `*Total Amount:* Rs ${amountStr}\n` +
-                  `*Payment:* ${printTx.paymentMethod || 'Paid'}\n` +
-                  `--------------------\n\n` +
-                  `_Thank you for choosing FitRevive. We wish you a speedy recovery!_\n\n` +
-                  `Location: Bangaon, Nalbari\n` +
-                  `Contact: +91 8473809386\n` +
-                  `Web: www.fitrevive.in`;
-
-      let rawPhone = (patient.phone || '').replace(/\D/g, '');
+      // Precise cleaning for WhatsApp: numbers only, international format (91 for India)
+      let rawPhone = (patient?.phone || '').replace(/\D/g, '');
       
-      // Clean up common Indian formatting errors
-      if (rawPhone.startsWith('0')) {
-        rawPhone = rawPhone.substring(1);
-      }
+      // Handle the case where the phone starts with 0
+      if (rawPhone.startsWith('0')) rawPhone = rawPhone.substring(1);
       
-      // If it's something like 91-0-XXXXXXXXXX
+      // If it starts with 910 (common error in India +91 0...), remove the 0
       if (rawPhone.startsWith('910') && rawPhone.length === 13) {
         rawPhone = '91' + rawPhone.substring(3);
       }
       
-      // Handle Indian numbers: if 10 digits, prepend 91
-      if (rawPhone.length === 10) {
-        rawPhone = '91' + rawPhone;
-      }
+      // If exactly 10 digits, assume India and add 91
+      if (rawPhone.length === 10) rawPhone = '91' + rawPhone;
       
-      if (!rawPhone || rawPhone.length < 10) return '';
-      // Use wa.me with the fully cleaned numeric string
+      if (!rawPhone || rawPhone.length < 11) return ''; // International numbers usually 11+
+      
+      // Compact message to stay within URL length limits
+      const msg = `*FittingRevive Receipt*\n` +
+                  `Hi ${patientName},\n` +
+                  `Recieved Rs ${amountStr} for ${printTx.category}.\n` +
+                  `Date: ${dateStr}\n` +
+                  `ID: ${receiptNo}\n\n` +
+                  `Thank you! - FitRevive Team`;
+
       return `https://wa.me/${rawPhone}?text=${encodeURIComponent(msg)}`;
     } catch (e) {
+      console.error('WhatsApp URL error:', e);
       return '';
     }
   }, [printTx, patients, therapistName]);
+
+  const downloadBillAsImage = async () => {
+    const element = document.getElementById('print-bill-container');
+    if (!element) return;
+    
+    try {
+      showNotification('Generating bill image...', 'info');
+      // Import html2canvas dynamically to keep main bundle smaller
+      const html2canvasModule = await import('html2canvas');
+      const html2canvas = html2canvasModule.default;
+      
+      const canvas = await html2canvas(element, {
+        scale: 2, // 2x scale for clarity without being massive
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        onclone: (clonedDoc) => {
+          const el = clonedDoc.getElementById('print-bill-container');
+          if (el) {
+            el.className = el.className.replace('receipt-theme-fixed', '');
+            el.style.transform = 'none';
+            el.style.margin = '0';
+            el.style.boxShadow = 'none';
+            el.style.borderRadius = '0';
+          }
+        }
+      });
+      
+      const image = canvas.toDataURL('image/png', 1.0);
+      const link = document.createElement('a');
+      const dateNo = printTx?.date.replace(/-/g, '') || '0000';
+      const patient = printTx?.patientId ? patients.find(p => p.id === printTx.patientId) : null;
+      const patientName = (patient?.name || 'Patient').replace(/\s+/g, '_');
+      
+      link.download = `Bill_${patientName}_${dateNo}.png`;
+      link.href = image;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showNotification('Bill saved as image!', 'success');
+    } catch (err) {
+      console.error('Error generating image:', err);
+      showNotification('Failed to save bill. Browser might be blocking the download.', 'error');
+    }
+  };
 
   useEffect(() => {
     if (viewTarget?.type === 'transaction' && viewTarget.id) {
@@ -7270,6 +7303,13 @@ export default function App() {
                   >
                     <Printer className="w-4 h-4" /> Print
                   </button>
+                  <button 
+                    onClick={downloadBillAsImage}
+                    className="px-4 py-2 bg-slate-800 active:scale-95 text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all shadow-md shadow-slate-100"
+                    title="Save as Image"
+                  >
+                    <Download className="w-4 h-4" /> Save
+                  </button>
                   <a 
                     href={whatsappUrl || '#'}
                     target="_blank"
@@ -7283,7 +7323,12 @@ export default function App() {
                         } else {
                           showNotification('Could not generate WhatsApp link.', 'error');
                         }
+                        return;
                       }
+                      
+                      // On some mobile devices, direct href might be blocked in iframes
+                      // We can try a small delay or window.open if it doesn't trigger
+                      console.log('Sharing to WhatsApp:', whatsappUrl);
                     }}
                     className="w-11 h-11 bg-[#25D366] text-white rounded-xl flex items-center justify-center hover:bg-[#20ba59] transition-all active:scale-95 border-none outline-none ring-0 shadow-[0_4px_12px_rgba(37,211,102,0.3)] no-underline"
                     title="Share on WhatsApp"

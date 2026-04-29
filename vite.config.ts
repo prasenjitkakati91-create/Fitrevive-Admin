@@ -9,35 +9,10 @@ export default defineConfig(({mode}) => {
   return {
     plugins: [
       react(), 
-      tailwindcss(),
-      VitePWA({
-        registerType: 'autoUpdate',
-        manifest: {
-          name: 'FitRevive Clinic',
-          short_name: 'FitRevive',
-          theme_color: '#4f46e5',
-          background_color: '#ffffff',
-          display: 'standalone',
-          icons: [
-            {
-              src: '/logo-2.jpg',
-              sizes: '192x192',
-              type: 'image/jpeg',
-            },
-            {
-              src: '/logo-2.jpg',
-              sizes: '512x512',
-              type: 'image/jpeg',
-            }
-          ]
-        },
-        workbox: {
-          maximumFileSizeToCacheInBytes: 5000000 
-        }
-      })
+      tailwindcss()
     ],
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || ""),
     },
     resolve: {
       alias: {
