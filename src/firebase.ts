@@ -65,6 +65,9 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   }
+  if (error instanceof Error && error.message.toLowerCase().includes('permission-denied')) {
+    errInfo.error = `Access Denied: ${error.message}. Please check your access rights.`;
+  }
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }

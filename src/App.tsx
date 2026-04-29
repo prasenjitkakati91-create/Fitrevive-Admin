@@ -6004,7 +6004,7 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
       console.log("Member lookup result:", memberData ? "Found" : "Not Found");
       
       if (!memberData) {
-        throw new Error('Account not found. Please verify your Staff ID or Email.');
+        throw new Error('Account not found. Please check your Staff ID or Email.');
       }
 
       // Check role mismatch early but with better feedback
@@ -6050,7 +6050,7 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
             throw new Error("Login failed (Invalid Credentials). If you forgot your password, please click 'Forgot Password'.");
           }
         } else if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/wrong-password') {
-          throw new Error("Incorrect password. Please verify your password or use 'Forgot Password' to reset it.");
+          throw new Error("Incorrect password. Please check your password or use 'Forgot Password' to reset it.");
         } else {
           throw authErr;
         }
@@ -6077,7 +6077,7 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
       const message = err.message || "";
 
       if (message.includes('Account not found')) {
-        errMsg = "Account not found in our records. Please verify your Staff ID or Email.";
+        errMsg = "Account not found in our records. Please check your Staff ID or Email.";
       } else if (message.includes('Incorrect role')) {
         errMsg = message;
       } else if (code === 'auth/wrong-password' || code === 'auth/invalid-credential' || message.includes('auth/invalid-credential')) {
@@ -7520,35 +7520,41 @@ export default function App() {
                            </div>
                         </div>
 
-                        {/* Bottom Info Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-end">
-                           <div className="space-y-6">
-                              <div className="bg-slate-50 p-5 rounded-2xl border-l-4 border-blue-600">
+                        {/* Payment & Footer Section */}
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-10 items-end border-t border-slate-100 pt-10">
+                           <div className="md:col-span-3 space-y-6">
+                              <div className="bg-slate-50 p-6 rounded-2xl border-l-4 border-blue-600">
                                  <p className="text-[11px] font-bold text-slate-600 italic leading-relaxed">
                                     "Continuous care is critical for recovery. Please adhere to the prescribed clinical home-exercise protocols. Wishing you a healthy recovery."
                                  </p>
                               </div>
-                              <div className="flex items-center gap-5 print:hidden border border-slate-100 p-4 rounded-2xl bg-white shadow-sm">
-                                 <div className="bg-white p-1 rounded-lg border border-slate-100">
-                                    <QRCodeCanvas 
-                                       value={`upi://pay?pa=FITREVIVE@BANK&pn=FitRevive&am=${printTx.amount}&cu=INR`} 
-                                       size={54} 
-                                    />
+                              <div className="flex items-center gap-6 p-1">
+                                 <div className="bg-slate-900 p-4 rounded-[2rem] shadow-xl flex flex-col items-center gap-2 border-4 border-slate-800">
+                                    <div className="bg-white p-2 rounded-2xl overflow-hidden flex items-center justify-center">
+                                       <QRCodeCanvas 
+                                          value={`upi://pay?pa=8473809386-3@ibl&pn=FitRevive&am=${printTx.amount}&cu=INR`} 
+                                          size={100} 
+                                          level="H"
+                                       />
+                                    </div>
                                  </div>
-                                 <div>
-                                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-0.5 flex items-center gap-2">
-                                       <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Secure Digital Bill
+                                 <div className="space-y-3">
+                                    <div className="flex items-center gap-2">
+
+                                       <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Payment QR Code</p>
+                                    </div>
+                                    <p className="text-[9px] font-bold text-slate-400 leading-normal max-w-[200px]">
+                                       Scan using any UPI app to make secure payment.
                                     </p>
-                                    <p className="text-[9px] font-bold text-slate-400 leading-tight">Digital confirmation enabled via UPI network.</p>
                                  </div>
                               </div>
                            </div>
-
-                           <div className="flex flex-col items-center md:items-end space-y-6">
+                           
+                           <div className="md:col-span-2 flex flex-col items-center md:items-end space-y-8">
                               <div className="text-center w-full max-w-[180px]">
-                                 <div className="h-10 border-b-2 border-dashed border-slate-200 mb-2"></div>
+                                 <div className="h-12 border-b-2 border-dashed border-slate-200 mb-3 opacity-50"></div>
                                  <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Authorized Clinic Sign</p>
-                                 <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">FitRevive Clinical Administration</p>
+                                 <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">FitRevive Administration</p>
                               </div>
                            </div>
                         </div>
