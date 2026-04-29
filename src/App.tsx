@@ -547,9 +547,26 @@ const Dashboard = ({
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '6m'>('30d');
   const [patientSearch, setPatientSearch] = useState('');
   const [showDuePatientsModal, setShowDuePatientsModal] = useState(false);
+  const [showQuickBillModal, setShowQuickBillModal] = useState(false);
+  const [quickBill, setQuickBill] = useState({ patientId: '', service: 'consultation', amount: '500' });
+  
+  useEffect(() => {
+    const prices: any = {
+      consultation: '500',
+      manual: '800',
+      dry: '400',
+      cupping: '450',
+      taping: '300',
+      electro: '600',
+      others: '500'
+    };
+    if (prices[quickBill.service]) {
+      setQuickBill(prev => ({ ...prev, amount: prices[quickBill.service] }));
+    }
+  }, [quickBill.service]);
+
   const ledgerDate = globalDate;
   const setLedgerDate = setGlobalDate;
-  const [quickBill, setQuickBill] = useState({ patientId: '', service: 'physio', amount: '500' });
   const [isBilling, setIsBilling] = useState(false);
   
   const todayDate = globalDate;
@@ -653,8 +670,8 @@ const Dashboard = ({
       await logTransaction({
         amount: amount,
         category: serviceNames[quickBill.service] || 'Therapy',
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toTimeString().substring(0, 5),
+        date: getLocalYMD(), // Use local YMD
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         type: 'income',
         description: `Quick Billing: ${serviceNames[quickBill.service] || 'Therapy Session'} for ${patient?.name}`,
         patientId: quickBill.patientId,
@@ -663,6 +680,7 @@ const Dashboard = ({
       
       onNotify(`Bill of ₹${amount} generated for ${patient?.name}`);
       setQuickBill({ ...quickBill, patientId: '', amount: '500' });
+      setShowQuickBillModal(false);
     } catch (err: any) {
       onNotify(err.message || "Billing failed", "error");
     } finally {
@@ -1263,62 +1281,15 @@ const Dashboard = ({
                       </div>
                       <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Add Patient</span>
                    </button>
-                   <button onClick={() => setTab('staff')} className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50 transition-all gap-2 group">
-                      <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                         <ShieldCheck className="w-5 h-5" />
+                   <button onClick={() => setShowQuickBillModal(true)} className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50 transition-all gap-2 group">
+                      <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                         <IndianRupee className="w-5 h-5" />
                       </div>
-                      <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Staff List</span>
+                      <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Quick Bill</span>
                    </button>
                 </div>
              </div>
 
-             <div className="pt-6 border-t border-slate-100 relative">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Walk-in Billing</h4>
-                <div className="space-y-4">
-                  <select 
-                    value={quickBill.patientId}
-                    onChange={e => setQuickBill({...quickBill, patientId: e.target.value})}
-                    className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-700 focus:border-blue-500 outline-none transition-all text-sm"
-                  >
-                    <option value="">-- Select Patient --</option>
-                    {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <select 
-                      value={quickBill.service}
-                      onChange={e => setQuickBill({...quickBill, service: e.target.value})}
-                      className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-700 focus:border-blue-500 outline-none transition-all text-xs"
-                    >
-                      <option value="consultation">Consultation</option>
-                      <option value="manual">Manual Therapy</option>
-                      <option value="dry">Dry Needling</option>
-                      <option value="cupping">Cupping Therapy</option>
-                      <option value="taping">Taping Therapy</option>
-                      <option value="electro">Electro Therapy</option>
-                      <option value="others">Others</option>
-                    </select>
-                    <div className="relative">
-                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input 
-                        type="number" 
-                        placeholder="Amount"
-                        value={quickBill.amount}
-                        onChange={e => setQuickBill({...quickBill, amount: e.target.value})}
-                        className="w-full bg-slate-50 border border-slate-200 p-3.5 pl-10 rounded-xl font-black text-slate-800 outline-none focus:border-emerald-500 transition-all text-sm" 
-                      />
-                    </div>
-                  </div>
-                  
-                  <button 
-                    disabled={isBilling}
-                    onClick={handleQuickBill}
-                    className="w-full bg-slate-900 hover:bg-blue-600 text-white font-black py-4 rounded-xl transition-all shadow-xl shadow-slate-900/10 disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {isBilling ? <Activity className="w-5 h-5 animate-spin" /> : <>Generate & Bill <ArrowUpRight className="w-4 h-4" /></>}
-                  </button>
-                </div>
-             </div>
           </div>
 
           {/* 6. LIVE ACTIVITY FEED */}
@@ -1710,6 +1681,81 @@ const Dashboard = ({
                     <div className="p-6 text-sm font-medium text-slate-500 text-center">No pending payments.</div>
                   )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showQuickBillModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <IndianRupee className="w-5 h-5" />
+                </div>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Walk-in Billing</h3>
+              </div>
+              <button type="button" onClick={() => setShowQuickBillModal(false)} className="text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Select Patient</label>
+                  <select 
+                    value={quickBill.patientId}
+                    onChange={e => setQuickBill({...quickBill, patientId: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl font-bold text-slate-700 focus:border-blue-500 outline-none transition-all"
+                  >
+                    <option value="">-- Choose Patient --</option>
+                    {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Service Type</label>
+                    <select 
+                      value={quickBill.service}
+                      onChange={e => setQuickBill({...quickBill, service: e.target.value})}
+                      className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl font-bold text-slate-700 focus:border-blue-500 outline-none transition-all"
+                    >
+                      <option value="consultation">Consultation</option>
+                      <option value="manual">Manual Therapy</option>
+                      <option value="dry">Dry Needling</option>
+                      <option value="cupping">Cupping Therapy</option>
+                      <option value="taping">Taping Therapy</option>
+                      <option value="electro">Electro Therapy</option>
+                      <option value="others">Others</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Billing Amount (₹)</label>
+                    <div className="relative">
+                      <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input 
+                        type="number" 
+                        placeholder="0.00"
+                        value={quickBill.amount}
+                        onChange={e => setQuickBill({...quickBill, amount: e.target.value})}
+                        className="w-full bg-slate-50 border border-slate-200 p-4 pl-11 rounded-2xl font-black text-slate-900 outline-none focus:border-emerald-500 transition-all text-lg" 
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <button 
+                disabled={isBilling || !quickBill.patientId || !quickBill.amount}
+                onClick={handleQuickBill}
+                className="w-full bg-slate-900 hover:bg-blue-600 text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-slate-900/10 disabled:opacity-50 flex items-center justify-center gap-2 mt-4"
+              >
+                {isBilling ? <Activity className="w-5 h-5 animate-spin" /> : <>Generate & Confirm Bill <ArrowUpRight className="w-4 h-4" /></>}
+              </button>
             </div>
           </div>
         </div>
