@@ -5428,7 +5428,14 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
         absent: dayRecords.filter(r => r.status === 'absent').length
       };
     });
-  }, [rangeAttendance]);
+  }, [rangeAttendance, role, members, currentUserEmail]);
+
+  const filteredHistory = useMemo(() => {
+    if (role === 'admin') return rangeAttendance;
+    const userMember = members.find(m => m.email === currentUserEmail);
+    if (!userMember) return [];
+    return rangeAttendance.filter(a => a.memberId === userMember.id);
+  }, [rangeAttendance, role, members, currentUserEmail]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -5442,8 +5449,8 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
           </h1>
           <p className="text-sm text-slate-500 font-medium mt-1">Real-time presence monitoring and insights</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <div className="bg-white px-3 py-2 rounded-xl border border-slate-100 shadow-sm flex items-center gap-2 group focus-within:ring-2 focus-within:ring-blue-100 transition-all w-full md:w-auto">
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="bg-white px-3 py-2 rounded-xl border border-slate-100 shadow-sm flex items-center gap-2 group focus-within:ring-2 focus-within:ring-blue-100 transition-all flex-1 md:flex-none">
             <Calendar className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" strokeWidth={1.5} />
             <input 
               type="date" 
@@ -5772,7 +5779,7 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
                        </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 block md:table-row-group">
-                       {rangeAttendance.slice().reverse().map((record, idx) => (
+                       {filteredHistory.slice().reverse().map((record, idx) => (
                          <tr key={record.id || idx} className="hover:bg-slate-50/50 transition-colors block md:table-row pb-4 md:pb-0 pt-2 md:pt-0 border-b border-slate-100 md:border-none relative">
                             <td className="px-4 md:px-8 py-2 md:py-5 text-sm font-bold text-slate-700 block md:table-cell md:border-none">
                                <div className="flex md:block items-center justify-between">
@@ -5812,7 +5819,7 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
                             </td>
                          </tr>
                        ))}
-                       {rangeAttendance.length === 0 && (
+                       {filteredHistory.length === 0 && (
                          <tr className="block md:table-row">
                             <td colSpan={5} className="px-8 py-12 text-center text-slate-400 font-bold italic block md:table-cell">No records found for the selected range.</td>
                          </tr>
