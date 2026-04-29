@@ -2946,31 +2946,42 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
           </div>
           
           <div className="flex flex-col lg:flex-row flex-wrap gap-4 items-center w-full lg:w-auto relative">
-            <div className="relative w-full lg:w-[700px]">
-              <div className="relative flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm focus-within:ring-4 focus-within:ring-blue-100/50 dark:focus-within:ring-blue-900/20 focus-within:border-blue-500 transition-all overflow-hidden">
-                <div className="flex items-center flex-1 min-w-0">
-                  <Search className="absolute left-4 w-4 h-4 text-slate-400 dark:text-slate-500" />
+            <div className="relative w-full lg:w-[650px]">
+              <div className="group relative flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm hover:shadow-md focus-within:ring-4 focus-within:ring-blue-500/5 focus-within:border-blue-500/50 transition-all duration-300 overflow-hidden">
+                {/* Search Side */}
+                <div className="flex items-center flex-1 min-w-0 relative">
+                  <Search className="absolute left-4 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                   <input 
                     type="text" 
-                    placeholder="Search transactions, patients..." 
+                    placeholder="Search ledger..." 
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-transparent text-sm sm:text-base font-black text-slate-800 dark:text-slate-200 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    className="w-full pl-11 pr-4 py-3 bg-transparent text-[13px] sm:text-sm font-medium text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400 placeholder:font-normal"
                   />
                 </div>
                 
-                <div className="flex items-center gap-2 border-l border-slate-100 dark:border-slate-700 pl-3 pr-3 bg-slate-50/50 dark:bg-slate-900/20 h-[48px]">
-                  <Calendar className="w-4 h-4 text-slate-400" />
+                {/* Divider Line */}
+                <div className="h-6 w-px bg-slate-100 dark:bg-slate-800" />
+
+                {/* Calendar Side */}
+                <div className="flex items-center gap-2 pl-3 pr-2 bg-slate-50/30 dark:bg-slate-800/20 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer relative group/date h-[48px]">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400 group-hover/date:text-blue-500 transition-colors" />
                   <div className="relative flex items-center">
                     <input
                       type="date"
                       value={dateFilter}
                       onChange={e => setDateFilter(e.target.value)}
-                      className="bg-transparent text-[11px] sm:text-xs font-black text-slate-600 dark:text-slate-300 outline-none cursor-pointer w-[110px] sm:w-[130px] inverted-calendar-icon"
+                      className="bg-transparent text-[11px] font-bold text-slate-500 dark:text-slate-400 outline-none cursor-pointer w-[105px] sm:w-[115px] uppercase tracking-wider"
                     />
                     {dateFilter && (
-                      <button onClick={() => setDateFilter('')} className="ml-1 text-slate-400 hover:text-red-500 p-1">
-                        <X className="w-3.5 h-3.5" />
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDateFilter('');
+                        }} 
+                        className="ml-1 p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-red-500 transition-all"
+                      >
+                        <X className="w-3 h-3" />
                       </button>
                     )}
                   </div>
@@ -6672,14 +6683,11 @@ export default function App() {
   const [printTx, setPrintTx] = useState<Transaction | null>(null);
   const [therapistName, setTherapistName] = useState('Dr. Rahul Das');
 
-  const shareToWhatsApp = () => {
-    if (!printTx) return;
+  const whatsappUrl = useMemo(() => {
+    if (!printTx) return '';
     try {
       const patient = printTx.patientId ? patients.find(p => p.id === printTx.patientId) : null;
-      if (!patient?.phone) {
-        showNotification('No phone number found for this patient.', 'error');
-        return;
-      }
+      if (!patient?.phone) return '';
       
       const patientName = patient?.name || 'Valued Patient';
       const amountStr = printTx.amount.toLocaleString('en-IN');
@@ -6704,26 +6712,33 @@ export default function App() {
                   `🌐 www.fitrevive.in`;
 
       let rawPhone = (patient.phone || '').replace(/\D/g, '');
-      // If it's a 10-digit number, assume it's Indian and prefix 91
-      if (rawPhone.length === 10) {
-        rawPhone = '91' + rawPhone;
-      }
+      if (rawPhone.length === 10) rawPhone = '91' + rawPhone;
       
-      if (!rawPhone) {
-        showNotification('Invalid phone number.', 'error');
-        return;
-      }
-
-      const whatsappUrl = `https://wa.me/${rawPhone}?text=${encodeURIComponent(msg)}`;
-      
-      // Direct window.open is more reliable in modern browsers
-      const win = window.open(whatsappUrl, '_blank');
-      if (!win) {
-        showNotification('Popup blocked! Please allow popups to open WhatsApp.', 'error');
-      }
+      if (!rawPhone) return '';
+      return `https://wa.me/${rawPhone}?text=${encodeURIComponent(msg)}`;
     } catch (e) {
-      console.error(e);
-      showNotification('Could not open WhatsApp. Please check your browser settings.', 'error');
+      return '';
+    }
+  }, [printTx, patients, therapistName]);
+
+  const shareToWhatsApp = () => {
+    if (!whatsappUrl) {
+      if (printTx) {
+        const patient = printTx.patientId ? patients.find(p => p.id === printTx.patientId) : null;
+        if (!patient?.phone) {
+          showNotification('No phone number found for this patient.', 'error');
+        } else {
+          showNotification('Could not generate WhatsApp link.', 'error');
+        }
+      }
+      return;
+    }
+    
+    // Attempt fallback opening if needed, but primary interaction is now via <a> tag
+    const win = window.open(whatsappUrl, '_blank');
+    if (!win) {
+      // If window.open fails, we still have the <a> tag as the primary button in receipt view
+      window.location.assign(whatsappUrl);
     }
   };
 
@@ -7198,7 +7213,7 @@ export default function App() {
       </div>
 
       {/* Global Notifications */}
-      <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-[100] flex flex-col items-end gap-3 pointer-events-none">
+      <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-[100] flex flex-col items-end gap-3 pointer-events-none print:hidden">
         <AnimatePresence>
           {notifications.map(n => (
             <motion.div
@@ -7228,49 +7243,93 @@ export default function App() {
       </div>
 
       {printTx && (
-        <div className="fixed inset-0 bg-[#f1f5f9] z-[100] overflow-y-auto overscroll-contain print:static print:h-auto print:overflow-visible transition-all duration-300 animate-in fade-in">
-          <div className="max-w-4xl mx-auto py-4 sm:py-8 px-2 sm:px-4 print:p-0">
-            {/* Action Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-8 bg-[#ffffff] p-4 rounded-2xl shadow-sm border border-[#e2e8f0] print:hidden">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white text-[#ffffff] flex items-center justify-center border border-[#e2e8f0] overflow-hidden">
-                  <img src={LogoImage} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+        <>
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              html, body { 
+                background: white !important; 
+                margin: 0 !important; 
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              .print-container { 
+                background: white !important;
+                box-shadow: none !important;
+                border: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                min-width: 100% !important;
+              }
+              #print-bill-container {
+                box-shadow: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+              }
+              /* Remove any filters/shadows for faster printing */
+              * { 
+                box-shadow: none !important; 
+                text-shadow: none !important; 
+                filter: none !important; 
+                backdrop-filter: none !important;
+                transition: none !important;
+              }
+            }
+          `}} />
+          <div className="fixed inset-0 bg-[#f1f5f9] z-[100] overflow-y-auto overscroll-contain print:static print:h-auto print:overflow-visible transition-all duration-300 animate-in fade-in">
+            <div className="max-w-4xl mx-auto py-4 sm:py-8 px-2 sm:px-4 print:p-0 print-container">
+              {/* Action Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-8 bg-[#ffffff] p-4 rounded-2xl shadow-sm border border-[#e2e8f0] print:hidden">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-white text-[#ffffff] flex items-center justify-center border border-[#e2e8f0] overflow-hidden">
+                    <img src={LogoImage} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                  </div>
+                  <div>
+                    <h2 className="font-black text-[#1e293b] tracking-tight text-sm sm:text-base">Receipt View</h2>
+                    <p className="text-[10px] sm:text-xs font-bold text-[#64748b]">FitRevive Clinic Management</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="font-black text-[#1e293b] tracking-tight text-sm sm:text-base">Receipt View</h2>
-                  <p className="text-[10px] sm:text-xs font-bold text-[#64748b]">FitRevive Clinic Management</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => {
-                    // Slight delay to allow for any pending UI renderings and ensure button click state is visible
-                    setTimeout(() => {
-                      try {
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      // Slight delay to ensure UI is ready
+                      setTimeout(() => {
                         window.print();
-                      } catch (e) {
-                        showNotification("Print command failed. Try 'Open in New Tab' from the browser menu.", "error");
-                      }
-                    }, 50);
-                  }} 
-                  className="px-4 py-2 bg-[#2563eb] active:scale-95 text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-[#1d4ed8] transition-all shadow-md shadow-blue-100"
-                >
-                  <Printer className="w-4 h-4" /> Print
-                </button>
-                <button 
-                  onClick={shareToWhatsApp}
-                  className="px-4 py-2 bg-[#16a34a] text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-[#15803d] transition-all shadow-md shadow-green-100"
-                >
-                  <MessageSquare className="w-4 h-4" /> WhatsApp
-                </button>
-                <button 
-                  onClick={() => setPrintTx(null)} 
-                  className="p-2 bg-[#f8fafc] text-[#64748b] border border-[#e2e8f0] rounded-xl hover:bg-[#f1f5f9] transition-all"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                      }, 100);
+                    }} 
+                    className="px-4 py-2 bg-[#2563eb] active:scale-95 text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-[#1d4ed8] transition-all shadow-md shadow-blue-100"
+                  >
+                    <Printer className="w-4 h-4" /> Print
+                  </button>
+                  {whatsappUrl ? (
+                    <a 
+                      href={whatsappUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-[#16a34a] text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-[#15803d] transition-all shadow-md shadow-green-100"
+                    >
+                      <MessageSquare className="w-4 h-4" /> WhatsApp
+                    </a>
+                  ) : (
+                    <button 
+                      onClick={shareToWhatsApp}
+                      className="px-4 py-2 bg-[#16a34a] text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-[#15803d] transition-all shadow-md shadow-green-100"
+                    >
+                      <MessageSquare className="w-4 h-4" /> WhatsApp
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => setPrintTx(null)} 
+                    className="p-2 bg-[#f8fafc] text-[#64748b] border border-[#e2e8f0] rounded-xl hover:bg-[#f1f5f9] transition-all"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
-            </div>
 
             {/* Receipt Container - FORCED LIGHT THEME */}
             <div id="print-bill-container" className="light bg-[#ffffff] text-[#1e293b] shadow-2xl rounded-2xl sm:rounded-3xl border border-[#e2e8f0] overflow-hidden print:shadow-none print:border-none print:m-0 print:rounded-none">
@@ -7439,7 +7498,8 @@ export default function App() {
             </div>
           </div>
         </div>
-      )}
+      </>
+    )}
     </div>
   );
 }
