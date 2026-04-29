@@ -6720,7 +6720,7 @@ export default function App() {
       }
       
       if (!rawPhone) return '';
-      return `https://wa.me/${rawPhone}?text=${encodeURIComponent(msg)}`;
+      return `https://api.whatsapp.com/send?phone=${rawPhone}&text=${encodeURIComponent(msg)}`;
     } catch (e) {
       return '';
     }
@@ -6740,15 +6740,10 @@ export default function App() {
     }
     
     try {
-      const link = document.createElement('a');
-      link.href = whatsappUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
     } catch (err) {
-      // Fallback
+      console.error("WhatsApp share failed:", err);
+      // Fallback to location.href if window.open fails
       window.location.href = whatsappUrl;
     }
   };
