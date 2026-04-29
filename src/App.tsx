@@ -177,6 +177,7 @@ interface Transaction {
   description?: string;
   patientId?: string;
   paymentMethod?: string;
+  paymentStatus?: 'paid' | 'unpaid';
   createdAt?: any;
 }
 
@@ -2392,8 +2393,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
 
       {/* SESSION MODAL */}
       {showSessionModal && selectedPatient && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-[60] animate-in fade-in">
-          <div className="bg-white rounded-t-[2rem] sm:rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] pb-safe animate-in slide-in-from-bottom sm:zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in">
+          <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] pb-safe animate-in zoom-in-95">
              <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                 <div>
                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Log Session</h3>
@@ -2431,13 +2432,15 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Amount (₹)</label>
                         <input type="number" min="0" required value={newSession.amount} onChange={e => setNewSession({...newSession, amount: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm" />
                      </div>
-                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Method</label>
-                        <select className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm appearance-none cursor-pointer" value={newSession.paymentMethod} onChange={e => setNewSession({...newSession, paymentMethod: e.target.value as any})}>
-                           <option value="cash">Cash</option>
-                           <option value="upi">UPI / Online</option>
-                        </select>
-                     </div>
+                     {newSession.paymentStatus === 'paid' && (
+                        <div>
+                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Method</label>
+                           <select className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm appearance-none cursor-pointer" value={newSession.paymentMethod} onChange={e => setNewSession({...newSession, paymentMethod: e.target.value as any})}>
+                              <option value="cash">Cash</option>
+                              <option value="upi">UPI / Online</option>
+                           </select>
+                        </div>
+                     )}
                   </div>
                   <div>
                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Treatment Notes</label>
@@ -2489,7 +2492,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
     description: '',
     patientId: '',
     discount: '0',
-    paymentMethod: 'Cash'
+    paymentMethod: 'Cash',
+    paymentStatus: 'paid' as 'paid' | 'unpaid'
   });
 
   const [netTotal, setNetTotal] = useState(0);
@@ -2522,7 +2526,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
       description: '',
       patientId: '',
       discount: '0',
-      paymentMethod: 'Cash'
+      paymentMethod: 'Cash',
+      paymentStatus: 'paid'
     });
     setShowModal(true);
   };
@@ -3116,8 +3121,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
 
       {/* New Transaction Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-[100] p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-t-[2rem] sm:rounded-[24px] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] pb-safe animate-in slide-in-from-bottom sm:zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] pb-safe animate-in zoom-in-95">
              <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex justify-between items-center bg-white">
                 <div>
                   <h3 className="text-xl font-black text-slate-800 tracking-tight">New Transaction</h3>
@@ -3176,25 +3181,34 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                         </select>
                      </div>
                      <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Payment Method</label>
-                        <select value={newTx.paymentMethod} onChange={e => setNewTx({...newTx, paymentMethod: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer">
-                           <option>Cash</option>
-                           <option>UPI / Online</option>
-                           <option>Card</option>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Payment Status</label>
+                        <select value={newTx.paymentStatus} onChange={e => setNewTx({...newTx, paymentStatus: e.target.value as any})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer">
+                           <option value="paid">Paid</option>
+                           <option value="unpaid">Unpaid / Due</option>
                         </select>
                      </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Date</label>
-                        <input type="date" value={newTx.date} onChange={e => setNewTx({...newTx, date: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100" />
+                     {newTx.paymentStatus === 'paid' && (
+                        <div>
+                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Payment Method</label>
+                           <select value={newTx.paymentMethod} onChange={e => setNewTx({...newTx, paymentMethod: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer">
+                              <option>Cash</option>
+                              <option>UPI / Online</option>
+                              <option>Card</option>
+                           </select>
+                        </div>
+                     )}
+                     <div className={newTx.paymentStatus !== 'paid' ? "sm:col-span-2" : ""}>
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Date</label>
+                         <input type="date" value={newTx.date} onChange={e => setNewTx({...newTx, date: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100" />
                      </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Time</label>
                         <input type="time" value={newTx.time} onChange={e => setNewTx({...newTx, time: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100" />
                      </div>
-                  </div>
-                  <div className="grid grid-cols-1 gap-6">
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Notes / Description</label>
                         <input type="text" placeholder="Remarks..." value={newTx.description} onChange={e => setNewTx({...newTx, description: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100" />
@@ -6624,14 +6638,14 @@ export default function App() {
       if (!rawPhone || rawPhone.length < 11) return ''; // International numbers usually 11+
       
       // Compact message to stay within URL length limits
-      const msg = `*FittingRevive Receipt*\n` +
+      const msg = `*FitRevive Physiotherapy Receipt*\n` +
                   `Hi ${patientName},\n` +
-                  `Recieved Rs ${amountStr} for ${printTx.category}.\n` +
+                  `Received Rs ${amountStr} for ${printTx.category}.\n` +
                   `Date: ${dateStr}\n` +
-                  `ID: ${receiptNo}\n\n` +
+                  `Receipt ID: ${receiptNo}\n\n` +
                   `Thank you! - FitRevive Team`;
 
-      return `https://wa.me/${rawPhone}?text=${encodeURIComponent(msg)}`;
+      return `https://api.whatsapp.com/send?phone=${rawPhone}&text=${encodeURIComponent(msg)}`;
     } catch (e) {
       console.error('WhatsApp URL error:', e);
       return '';
@@ -6666,6 +6680,12 @@ export default function App() {
       });
       
       const image = canvas.toDataURL('image/png', 1.0);
+      
+      // Secondary check for empty image or failure
+      if (image.length < 100) {
+        throw new Error('Image data generation failed.');
+      }
+
       const link = document.createElement('a');
       const dateNo = printTx?.date.replace(/-/g, '') || '0000';
       const patient = printTx?.patientId ? patients.find(p => p.id === printTx.patientId) : null;
@@ -7310,13 +7330,9 @@ export default function App() {
                   >
                     <Download className="w-4 h-4" /> Save
                   </button>
-                  <a 
-                    href={whatsappUrl || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => {
+                  <button 
+                    onClick={() => {
                       if (!whatsappUrl) {
-                        e.preventDefault();
                         const patient = printTx.patientId ? patients.find(p => p.id === printTx.patientId) : null;
                         if (!patient?.phone) {
                           showNotification('Please add a phone number to this patient first.', 'info');
@@ -7326,17 +7342,23 @@ export default function App() {
                         return;
                       }
                       
-                      // On some mobile devices, direct href might be blocked in iframes
-                      // We can try a small delay or window.open if it doesn't trigger
-                      console.log('Sharing to WhatsApp:', whatsappUrl);
+                      // Use window.open for better iframe compatibility
+                      try {
+                        const win = window.open(whatsappUrl, '_blank');
+                        if (!win) {
+                          showNotification('Popup blocked. Please allow popups for WhatsApp.', 'info');
+                        }
+                      } catch (err) {
+                        window.location.href = whatsappUrl;
+                      }
                     }}
-                    className="w-11 h-11 bg-[#25D366] text-white rounded-xl flex items-center justify-center hover:bg-[#20ba59] transition-all active:scale-95 border-none outline-none ring-0 shadow-[0_4px_12px_rgba(37,211,102,0.3)] no-underline"
+                    className="w-11 h-11 bg-[#25D366] text-white rounded-xl flex items-center justify-center hover:bg-[#20ba59] transition-all active:scale-95 border-none outline-none ring-0 shadow-[0_4px_12px_rgba(37,211,102,0.3)]"
                     title="Share on WhatsApp"
                   >
                     <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current" xmlns="http://www.w3.org/2000/svg">
                       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.431 5.63 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                     </svg>
-                  </a>
+                  </button>
                 <button 
                   onClick={() => setPrintTx(null)} 
                   className="p-2 bg-[#f8fafc] text-[#64748b] border border-[#e2e8f0] rounded-xl hover:bg-[#f1f5f9] transition-all"
