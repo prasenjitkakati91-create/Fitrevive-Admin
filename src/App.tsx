@@ -528,7 +528,8 @@ const Dashboard = ({
   onStatusUpdate,
   setViewTarget,
   globalDate,
-  setGlobalDate
+  setGlobalDate,
+  setPrintTx
 }: { 
   stats: DashboardStats, 
   transactions: Transaction[], 
@@ -542,12 +543,15 @@ const Dashboard = ({
   onStatusUpdate?: (apptId: string, status: any) => Promise<void>,
   setViewTarget?: any,
   globalDate: string,
-  setGlobalDate: (d: string) => void
+  setGlobalDate: (d: string) => void,
+  setPrintTx: (tx: Transaction | null) => void
 }) => {
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '6m'>('30d');
   const [patientSearch, setPatientSearch] = useState('');
   const [showDuePatientsModal, setShowDuePatientsModal] = useState(false);
   const [showQuickBillModal, setShowQuickBillModal] = useState(false);
+  const [activityFilter, setActivityFilter] = useState<'all' | 'patient' | 'billing' | 'booking'>('all');
+  const [showLogsModal, setShowLogsModal] = useState(false);
   const [quickBill, setQuickBill] = useState({ patientId: '', service: 'consultation', amount: '500' });
   
   useEffect(() => {
@@ -588,51 +592,62 @@ const Dashboard = ({
     // Helper to get time or fallback
     const getTime = (item: any) => {
       if (item.createdAt?.seconds) return item.createdAt.seconds * 1000;
+      if (item.createdAt instanceof Date) return item.createdAt.getTime();
       if (typeof item.createdAt === 'string') return new Date(item.createdAt).getTime();
+      if (item.date && item.time) return new Date(`${item.date} ${item.time}`).getTime();
       return Date.now() - (Math.random() * 10000000); // Random fallback for ordering
     };
 
-    patients.slice(-3).forEach(p => {
-      activities.push({
-        id: `p-${p.id}`,
-        title: 'Patient Joined',
-        subtitle: p.name,
-        time: 'Recently',
-        icon: UserCheck,
-        color: 'text-blue-600',
-        bg: 'bg-blue-50',
-        sortTime: getTime(p)
+    if (activityFilter === 'all' || activityFilter === 'patient') {
+      patients.slice(-10).forEach(p => {
+        activities.push({
+          id: `p-${p.id}`,
+          type: 'patient',
+          title: 'Patient Joined',
+          subtitle: p.name,
+          time: 'Recently',
+          icon: UserCheck,
+          color: 'text-blue-600',
+          bg: 'bg-blue-50',
+          sortTime: getTime(p)
+        });
       });
-    });
+    }
 
-    appointments.slice(-3).forEach(a => {
-      activities.push({
-        id: `a-${a.id}`,
-        title: 'New Booking',
-        subtitle: `${a.patientName} at ${a.time}`,
-        time: 'Just now',
-        icon: CalendarCheck,
-        color: 'text-indigo-600',
-        bg: 'bg-indigo-50',
-        sortTime: getTime(a)
+    if (activityFilter === 'all' || activityFilter === 'booking') {
+      appointments.slice(-10).forEach(a => {
+        activities.push({
+          id: `a-${a.id}`,
+          type: 'booking',
+          title: a.status === 'completed' ? 'Session Completed' : 'New Booking',
+          subtitle: `${a.patientName} at ${a.time}`,
+          time: a.status === 'completed' ? 'Finished' : 'Just now',
+          icon: a.status === 'completed' ? CheckCircle2 : CalendarCheck,
+          color: a.status === 'completed' ? 'text-indigo-600' : 'text-indigo-600',
+          bg: a.status === 'completed' ? 'bg-indigo-50' : 'bg-indigo-50',
+          sortTime: getTime(a)
+        });
       });
-    });
+    }
 
-    transactions.filter(t => t.type === 'income').slice(-3).forEach(t => {
-      activities.push({
-        id: `t-${t.id}`,
-        title: 'Payment Received',
-        subtitle: `₹${t.amount} for session`,
-        time: 'Completed',
-        icon: IndianRupee,
-        color: 'text-emerald-600',
-        bg: 'bg-emerald-50',
-        sortTime: getTime(t)
+    if (activityFilter === 'all' || activityFilter === 'billing') {
+      transactions.filter(t => t.type === 'income').slice(-10).forEach(t => {
+        activities.push({
+          id: `t-${t.id}`,
+          type: 'billing',
+          title: 'Payment Received',
+          subtitle: `₹${t.amount} for session`,
+          time: t.time || 'Completed',
+          icon: IndianRupee,
+          color: 'text-emerald-600',
+          bg: 'bg-emerald-50',
+          sortTime: getTime(t)
+        });
       });
-    });
+    }
 
-    return activities.sort((a, b) => b.sortTime - a.sortTime).slice(0, 6);
-  }, [patients, appointments, transactions]);
+    return activities.sort((a, b) => b.sortTime - a.sortTime);
+  }, [patients, appointments, transactions, activityFilter]);
 
   const todayIncome = transactions.filter(t => t.date === todayDate && t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
   const todayExpense = transactions.filter(t => t.date === todayDate && t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
@@ -667,16 +682,23 @@ const Dashboard = ({
         others: 'Other Services'
       };
       
-      await logTransaction({
+      const transactionData = {
         amount: amount,
         category: serviceNames[quickBill.service] || 'Therapy',
-        date: getLocalYMD(), // Use local YMD
+        date: getLocalYMD(), 
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        type: 'income',
+        type: 'income' as const,
         description: `Quick Billing: ${serviceNames[quickBill.service] || 'Therapy Session'} for ${patient?.name}`,
         patientId: quickBill.patientId,
         paymentMethod: 'Cash' // Default
-      });
+      };
+
+      const docRef = await logTransaction(transactionData);
+      
+      setPrintTx({
+        id: docRef.id,
+        ...transactionData
+      } as any);
       
       onNotify(`Bill of ₹${amount} generated for ${patient?.name}`);
       setQuickBill({ ...quickBill, patientId: '', amount: '500' });
@@ -1079,7 +1101,7 @@ const Dashboard = ({
                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Search Results</span>
                    </div>
                    {searchedPatients.length > 0 ? searchedPatients.map(p => (
-                     <div key={p.id} className="flex justify-between items-center px-6 py-4 hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0">
+                     <div key={p.id} className="flex justify-between items-center px-6 py-4 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0">
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-black">
                             {p.name.charAt(0)}
@@ -1105,7 +1127,7 @@ const Dashboard = ({
                      </div>
                    )}
                    <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 text-center">
-                      <button onClick={() => { setPatientSearch(''); setTab('patients'); }} className="text-blue-600 font-bold hover:underline text-sm">Register as New Patient</button>
+                      <button onClick={() => { setPatientSearch(''); setViewTarget({ type: 'add-patient', returnTo: 'dashboard' }); setTab('patients'); }} className="text-blue-600 dark:text-blue-400 font-bold hover:underline text-sm">Register as New Patient</button>
                    </div>
                 </motion.div>
               </AnimatePresence>
@@ -1142,7 +1164,7 @@ const Dashboard = ({
                  </thead>
                  <tbody className="divide-y divide-slate-50 block md:table-row-group">
                    {todayAppts.length > 0 ? todayAppts.map(appt => (
-                     <tr key={appt.id} className="group hover:bg-blue-50/20 transition-all block md:table-row pb-4 md:pb-0 pt-2 md:pt-0 border-b border-slate-100 md:border-none relative">
+                     <tr key={appt.id} className="group hover:bg-blue-50/20 dark:hover:bg-blue-900/10 transition-all block md:table-row pb-4 md:pb-0 pt-2 md:pt-0 border-b border-slate-100 dark:border-slate-800 md:border-none relative">
                        <td className="px-4 md:px-8 py-2 md:py-5 block md:table-cell md:border-none">
                          <div className="flex items-center justify-between md:justify-start gap-2">
                            <div className="flex items-center gap-2">
@@ -1251,7 +1273,7 @@ const Dashboard = ({
                      </tr>
                    )) : (
                      <tr>
-                        <td colSpan={5} className="py-20 text-center">
+                        <td colSpan={5} className="py-20 flex flex-col items-center justify-center">
                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
                               <Calendar className="w-8 h-8 text-slate-300" />
                            </div>
@@ -1269,59 +1291,79 @@ const Dashboard = ({
         {/* RIGHT COLUMN (1/3) */}
         <div className="space-y-8">
           {/* 5. QUICK ACTIONS PANEL */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 space-y-6 relative overflow-hidden">
-             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-8 space-y-6 relative overflow-hidden">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 dark:bg-blue-900/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
              
              <div className="relative">
-                <h3 className="text-xl font-black text-slate-900 mb-6">Quick Actions</h3>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6">Quick Actions</h3>
                 <div className="grid grid-cols-2 gap-4">
-                   <button onClick={() => { setViewTarget({ type: 'add-patient', returnTo: 'dashboard' }); setTab('patients'); }} className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-all gap-2 group">
-                      <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                   <button onClick={() => { setViewTarget({ type: 'add-patient', returnTo: 'dashboard' }); setTab('patients'); }} className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-all gap-2 group">
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                          <UserPlus className="w-5 h-5" />
                       </div>
-                      <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Add Patient</span>
+                      <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider text-center">Add Patient</span>
                    </button>
-                   <button onClick={() => setShowQuickBillModal(true)} className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50 transition-all gap-2 group">
-                      <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                   <button onClick={() => setShowQuickBillModal(true)} className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 dark:border-slate-600 dark:bg-slate-800 hover:border-emerald-200 dark:hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 transition-all gap-2 group">
+                      <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-300 flex items-center justify-center group-hover:scale-110 transition-transform">
                          <IndianRupee className="w-5 h-5" />
                       </div>
-                      <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Quick Bill</span>
+                      <span className="text-[11px] font-black text-slate-700 dark:text-slate-100 uppercase tracking-wider text-center">Quick Bill</span>
                    </button>
                 </div>
              </div>
-
           </div>
 
           {/* 6. LIVE ACTIVITY FEED */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
              <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/30 flex justify-between items-center">
-                <h3 className="font-black text-slate-800 text-sm tracking-tight">Recent Activity</h3>
-                <div className="flex gap-1">
-                   <div className="w-1 h-1 rounded-full bg-blue-600 animate-bounce"></div>
-                   <div className="w-1 h-1 rounded-full bg-blue-600 animate-bounce [animation-delay:0.1s]"></div>
-                   <div className="w-1 h-1 rounded-full bg-blue-600 animate-bounce [animation-delay:0.2s]"></div>
+                <div className="flex items-center gap-3">
+                  <h3 className="font-black text-slate-800 text-sm tracking-tight">Recent Activity</h3>
+                  <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[9px] font-black rounded-lg uppercase tracking-wider">Live</span>
+                </div>
+                <div className="flex items-center gap-2">
+                   <div className="relative group">
+                     <select 
+                       value={activityFilter}
+                       onChange={(e) => setActivityFilter(e.target.value as any)}
+                       className="bg-white border border-slate-200 pl-8 pr-3 py-1.5 rounded-lg text-[10px] font-black text-slate-600 outline-none hover:border-blue-400 transition-colors cursor-pointer appearance-none"
+                     >
+                       <option value="all">Every Action</option>
+                       <option value="patient">Patients</option>
+                       <option value="billing">Billing</option>
+                       <option value="booking">Booking</option>
+                     </select>
+                     <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+                   </div>
                 </div>
              </div>
              <div className="p-6">
                 <div className="space-y-6">
-                   {liveActivity.length > 0 ? liveActivity.map((act) => (
+                   {liveActivity.length > 0 ? liveActivity.slice(0, 6).map((act) => (
                      <div key={act.id} className="flex gap-4 group">
-                        <div className={cn("w-10 h-10 rounded-xl shrink-0 flex items-center justify-center transition-transform group-hover:scale-110", act.bg, act.color)}>
+                        <div className={cn("w-10 h-10 rounded-xl shrink-0 flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm", act.bg, act.color)}>
                            <act.icon className="w-5 h-5" />
                         </div>
                         <div className="flex-1 min-w-0">
                            <div className="flex justify-between items-start">
                               <p className="text-sm font-black text-slate-800 leading-tight truncate">{act.title}</p>
-                              <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{act.time}</span>
+                              <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap ml-2">{act.time}</span>
                            </div>
                            <p className="text-xs text-slate-500 mt-1 truncate font-medium">{act.subtitle}</p>
                         </div>
                      </div>
                    )) : (
-                     <p className="text-center text-slate-400 italic text-sm py-10">No recent activity logged.</p>
+                     <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                          <Activity className="w-8 h-8 text-slate-200" />
+                         </div>
+                        <p className="text-slate-400 font-bold text-sm">No activities matching your filter.</p>
+                     </div>
                    )}
                 </div>
-                <button className="w-full mt-8 py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-black text-slate-500 transition-all border border-slate-100 border-dashed">
+                <button 
+                 onClick={() => setShowLogsModal(true)}
+                 className="w-full mt-8 py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-black text-slate-500 transition-all border border-slate-100 border-dashed hover:text-blue-600 hover:border-blue-200 shadow-sm"
+                >
                    View Operational Logs
                 </button>
              </div>
@@ -1341,20 +1383,20 @@ const Dashboard = ({
     return (
       <div className="space-y-6 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
         {/* 1. Profile & Status Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="relative group">
               <img 
                 src={avatarUrl} 
                 alt="Therapist" 
-                className="w-16 h-16 rounded-2xl border-4 border-slate-50 object-cover shadow-sm group-hover:scale-105 transition-transform"
+                className="w-16 h-16 rounded-2xl border-4 border-slate-50 dark:border-slate-800 object-cover shadow-sm group-hover:scale-105 transition-transform"
               />
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-4 border-white rounded-full"></div>
+              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-4 border-white dark:border-slate-900 rounded-full"></div>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-0.5">
-                <h1 className="text-xl font-black text-slate-800">{matchedName}</h1>
-                <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded-lg uppercase tracking-tight">Therapist</span>
+                <h1 className="text-xl font-black text-slate-800 dark:text-white">{matchedName}</h1>
+                <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 text-[10px] font-black rounded-lg uppercase tracking-tight">Therapist</span>
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
@@ -1372,7 +1414,7 @@ const Dashboard = ({
             </button>
             <button 
               onClick={() => setTab('attendance')}
-              className="px-5 py-3 rounded-2xl bg-slate-900 text-white text-sm font-bold shadow-lg shadow-slate-900/10 hover:shadow-slate-900/20 active:scale-95 transition-all flex items-center gap-2"
+              className="px-5 py-3 rounded-2xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm font-bold shadow-lg shadow-slate-900/10 dark:shadow-white/5 hover:shadow-slate-900/20 active:scale-95 transition-all flex items-center gap-2"
             >
               <Clock className="w-4 h-4" /> Check-out
             </button>
@@ -1687,62 +1729,73 @@ const Dashboard = ({
       )}
 
       {showQuickBillModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                  <IndianRupee className="w-5 h-5" />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300 border dark:border-slate-800">
+            <div className="px-10 py-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900 relative">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-inner">
+                  <IndianRupee className="w-6 h-6" />
                 </div>
-                <h3 className="text-xl font-black text-slate-800 tracking-tight">Walk-in Billing</h3>
+                <div>
+                  <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Walk-in Bill</h3>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Instant Transaction</p>
+                </div>
               </div>
-              <button type="button" onClick={() => setShowQuickBillModal(false)} className="text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition-colors">
-                <X className="w-5 h-5" />
+              <button type="button" onClick={() => setShowQuickBillModal(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 p-2.5 rounded-full transition-all hover:rotate-90">
+                <X className="w-6 h-6" />
               </button>
             </div>
             
-            <div className="p-8 space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Select Patient</label>
-                  <select 
-                    value={quickBill.patientId}
-                    onChange={e => setQuickBill({...quickBill, patientId: e.target.value})}
-                    className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl font-bold text-slate-700 focus:border-blue-500 outline-none transition-all"
-                  >
-                    <option value="">-- Choose Patient --</option>
-                    {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+            <div className="p-10 space-y-8">
+              <div className="space-y-6">
+                <div className="relative">
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2.5 block ml-1">Patient Details</label>
+                  <div className="relative group">
+                    <User2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-500 transition-colors" />
+                    <select 
+                      value={quickBill.patientId}
+                      onChange={e => setQuickBill({...quickBill, patientId: e.target.value})}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 pl-12 rounded-2xl font-bold text-slate-700 dark:text-slate-200 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="">-- Choose Patient --</option>
+                      {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-600 pointer-events-none" />
+                  </div>
                 </div>
                 
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 gap-6">
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Service Type</label>
-                    <select 
-                      value={quickBill.service}
-                      onChange={e => setQuickBill({...quickBill, service: e.target.value})}
-                      className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl font-bold text-slate-700 focus:border-blue-500 outline-none transition-all"
-                    >
-                      <option value="consultation">Consultation</option>
-                      <option value="manual">Manual Therapy</option>
-                      <option value="dry">Dry Needling</option>
-                      <option value="cupping">Cupping Therapy</option>
-                      <option value="taping">Taping Therapy</option>
-                      <option value="electro">Electro Therapy</option>
-                      <option value="others">Others</option>
-                    </select>
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2.5 block ml-1">Medical Service</label>
+                    <div className="relative group">
+                      <Activity className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-500 transition-colors" />
+                      <select 
+                        value={quickBill.service}
+                        onChange={e => setQuickBill({...quickBill, service: e.target.value})}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 pl-12 rounded-2xl font-bold text-slate-700 dark:text-slate-200 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="consultation">Consultation</option>
+                        <option value="manual">Manual Therapy</option>
+                        <option value="dry">Dry Needling</option>
+                        <option value="cupping">Cupping Therapy</option>
+                        <option value="taping">Taping Therapy</option>
+                        <option value="electro">Electro Therapy</option>
+                        <option value="others">Others</option>
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-600 pointer-events-none" />
+                    </div>
                   </div>
                   
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Billing Amount (₹)</label>
-                    <div className="relative">
-                      <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2.5 block ml-1">Billing Amount (₹)</label>
+                    <div className="relative group">
+                      <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 dark:text-slate-600 group-focus-within:text-emerald-500 transition-colors" />
                       <input 
                         type="number" 
                         placeholder="0.00"
                         value={quickBill.amount}
                         onChange={e => setQuickBill({...quickBill, amount: e.target.value})}
-                        className="w-full bg-slate-50 border border-slate-200 p-4 pl-11 rounded-2xl font-black text-slate-900 outline-none focus:border-emerald-500 transition-all text-lg" 
+                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 p-4 pl-12 rounded-2xl font-black text-slate-900 dark:text-white outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-800 transition-all text-2xl placeholder:text-slate-200 dark:placeholder:text-slate-700" 
                       />
                     </div>
                   </div>
@@ -1752,10 +1805,76 @@ const Dashboard = ({
               <button 
                 disabled={isBilling || !quickBill.patientId || !quickBill.amount}
                 onClick={handleQuickBill}
-                className="w-full bg-slate-900 hover:bg-blue-600 text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-slate-900/10 disabled:opacity-50 flex items-center justify-center gap-2 mt-4"
+                className="w-full bg-slate-900 dark:bg-emerald-500 hover:bg-slate-800 dark:hover:bg-emerald-400 active:scale-95 text-white font-black py-5 rounded-2xl transition-all shadow-xl shadow-slate-900/10 dark:shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-3 mt-4 group"
               >
-                {isBilling ? <Activity className="w-5 h-5 animate-spin" /> : <>Generate & Confirm Bill <ArrowUpRight className="w-4 h-4" /></>}
+                  {isBilling ? <Activity className="w-6 h-6 animate-spin" /> : (
+                    <>
+                      <Printer className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+                      <span className="text-lg font-black">Generate & Print Bill</span>
+                      <ArrowUpRight className="w-5 h-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    </>
+                  )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLogsModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300 flex flex-col max-h-[85vh]">
+            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 text-slate-600 flex items-center justify-center">
+                  <ClipboardList className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 tracking-tight">Operational Logs</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Full Activity History</p>
+                </div>
+              </div>
+              <button onClick={() => setShowLogsModal(false)} className="text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-all">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-8 overflow-y-auto bg-slate-50/30">
+              <div className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
+                {['all', 'patient', 'billing', 'booking'].map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setActivityFilter(f as any)}
+                    className={cn(
+                      "px-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center",
+                      activityFilter === f ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20" : "bg-white text-slate-500 border border-slate-100 hover:border-slate-200"
+                    )}
+                  >
+                    {f === 'all' ? 'Everything' : f + 's'}
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-4">
+                {liveActivity.length > 0 ? liveActivity.map((act) => (
+                  <div key={act.id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex gap-4 hover:shadow-md transition-all group">
+                     <div className={cn("w-12 h-12 rounded-2xl shrink-0 flex items-center justify-center shadow-inner", act.bg, act.color)}>
+                        <act.icon className="w-6 h-6" />
+                     </div>
+                     <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start mb-1">
+                           <p className="text-base font-black text-slate-800 leading-tight">{act.title}</p>
+                           <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-lg">{act.time}</span>
+                        </div>
+                        <p className="text-sm text-slate-500 font-medium">{act.subtitle}</p>
+                     </div>
+                  </div>
+                )) : (
+                  <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 border-dashed">
+                    <Activity className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                    <p className="text-slate-400 font-bold">No history available for this filter.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1770,7 +1889,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
   transactions: Transaction[], 
   onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void,
   role?: string,
-  viewTarget?: {type: string, id: string, action?: string} | null,
+  viewTarget?: {type: string, id: string, action?: string, returnTo?: any} | null,
   setViewTarget?: any,
   setTab?: any
 }) => {
@@ -1789,8 +1908,10 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
   const [returnToTab, setReturnToTab] = useState<string | null>(null);
   
   const closePatientModals = () => {
+    setShowModal(false);
     setShowHistoryModal(false);
     setShowSessionModal(false);
+    setEditPatientId(null);
     if (returnToTab && setTab) {
       setTab(returnToTab);
       setReturnToTab(null);
@@ -2615,7 +2736,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                     <p className="text-sm font-medium text-slate-500 mt-1">{editPatientId ? 'Update existing patient details.' : 'Enter patient details to create profile.'}</p>
                   </div>
                </div>
-              <button title="Close Modal" type="button" onClick={() => { setShowModal(false); setEditPatientId(null); }} className="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors self-start"><X className="w-5 h-5" /></button>
+              <button title="Close Modal" type="button" onClick={closePatientModals} className="text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 p-2.5 rounded-full transition-colors self-start"><X className="w-5 h-5" /></button>
             </div>
             
             <div className="flex-1 overflow-y-auto overscroll-contain bg-slate-50/50 p-5 sm:p-8 custom-scrollbar">
@@ -2691,8 +2812,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                 </div>
               </form>
             </div>
-            <div className="px-5 sm:px-8 py-5 border-t border-slate-100 bg-white sm:bg-slate-50 flex sm:hidden md:flex justify-end gap-3 shrink-0 rounded-b-[2rem]">
-              <button type="button" onClick={() => { setShowModal(false); setEditPatientId(null); }} className="px-6 py-2.5 text-slate-600 font-bold hover:bg-slate-200 rounded-xl transition-colors w-full sm:w-auto bg-slate-100 sm:bg-transparent">Cancel</button>
+            <div className="px-5 sm:px-8 py-5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 sm:bg-slate-50 dark:sm:bg-slate-800/50 flex sm:hidden md:flex justify-end gap-3 shrink-0 rounded-b-[2rem]">
+              <button type="button" onClick={closePatientModals} className="px-6 py-2.5 text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors w-full sm:w-auto bg-slate-100 dark:bg-slate-800 sm:bg-transparent">Cancel</button>
               <button type="submit" form="new-patient-form" className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-transform active:scale-95 shadow-md shadow-blue-200 flex items-center justify-center gap-2 w-full sm:w-auto">{editPatientId ? 'Update Patient' : 'Save Patient'} <ChevronDown className="w-4 h-4 -rotate-90 hidden sm:block" /></button>
             </div>
           </div>
@@ -3008,7 +3129,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
   patients: Patient[], 
   onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void,
   role?: string,
-  viewTarget?: {type: string, id: string, action?: string} | null,
+  viewTarget?: {type: string, id: string, action?: string, returnTo?: any} | null,
   setViewTarget?: any,
   printTx: Transaction | null,
   setPrintTx: (t: Transaction | null) => void,
@@ -3447,10 +3568,10 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
             <tbody className="divide-y divide-slate-100 bg-white block md:table-row-group">
               {listTransactions.map(t => (
                 <tr key={t.id} className="group hover:bg-slate-50 transition-colors block md:table-row pb-4 md:pb-0 pt-2 md:pt-0 border-b border-slate-100 md:border-none relative">
-                  <td className="px-4 md:px-6 py-2 md:py-4 block md:table-cell md:border-none">
-                      <div className="flex md:block justify-between items-center w-full">
+                  <td className="px-4 md:px-6 py-2 md:py-4 block md:table-cell md:border-none text-center">
+                      <div className="flex md:block justify-center items-center w-full">
                         <div className="flex flex-col">
-                          <span className="text-sm font-black text-slate-800 block md:inline text-left">{new Date(t.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
+                          <span className="text-sm font-black text-slate-800 block md:inline text-center">{new Date(t.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
                           <div className="flex items-center gap-1.5 mt-0.5">
                              <span className="text-[10px] font-bold text-slate-400">{new Date(t.date).getFullYear()}</span>
                             {t.time && (
@@ -3681,7 +3802,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                               <option value="cash">Cash</option>
                               <option value="upi">UPI</option>
                             </select>
-                            <button onClick={handleGenerateBill} disabled={isGeneratingBill} className="flex-1 sm:flex-none px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-xl font-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button onClick={handleGenerateBill} disabled={isGeneratingBill} className="flex-1 sm:flex-none px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-950 rounded-xl font-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/10">
                                {isGeneratingBill ? 'Processing...' : 'Clear Dues & Generate Bill'}
                             </button>
                          </div>
@@ -3708,7 +3829,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                     <p className="text-sm font-medium text-slate-500 mt-1">Log income or operational expense.</p>
                   </div>
                </div>
-                <button type="button" onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors self-start"><X className="w-5 h-5" /></button>
+                <button type="button" onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 p-2.5 rounded-full transition-colors self-start"><X className="w-5 h-5" /></button>
              </div>
              
              <div className="flex-1 overflow-y-auto overscroll-contain bg-slate-50/50 p-5 sm:p-8 custom-scrollbar">
@@ -3814,7 +3935,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
              </div>
              
              <div className="px-5 sm:px-8 py-5 border-t border-slate-100 bg-white sm:bg-slate-50 flex sm:hidden md:flex justify-end gap-3 shrink-0 rounded-b-[2rem]">
-               <button type="button" onClick={() => setShowModal(false)} className="px-6 py-2.5 text-slate-600 font-bold hover:bg-slate-200 rounded-xl transition-colors w-full sm:w-auto bg-slate-100 sm:bg-transparent">Cancel</button>
+               <button type="button" onClick={() => setShowModal(false)} className="px-6 py-2.5 text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors w-full sm:w-auto bg-slate-100 dark:bg-slate-800 sm:bg-transparent">Cancel</button>
                <button type="submit" form="tx-form" className={cn("px-6 sm:px-8 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 text-white shadow-md transition-transform active:scale-95 w-full sm:w-auto", newTx.type === 'income' ? "bg-[#059669] hover:bg-[#047857] shadow-emerald-600/20" : "bg-[#e11d48] hover:bg-[#be123c] shadow-rose-600/20")}>
                   Save {newTx.type === 'income' ? 'Revenue' : 'Expense'}
                </button>
@@ -7906,14 +8027,14 @@ export default function App() {
           </div>
 
           {/* Mobile Bottom Nav */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 px-2 py-2 flex justify-around items-center pb-safe print:hidden shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-             <button onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'dashboard' && !isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
-                {activeTab === 'dashboard' && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 rounded-xl z-0" />}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 z-50 px-2 py-2 flex justify-around items-center pb-safe print:hidden shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+             <button onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'dashboard' && !isSidebarOpen ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500")}>
+                {activeTab === 'dashboard' && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/40 rounded-xl z-0" />}
                 <LayoutDashboard className="w-5 h-5 mb-1 z-10 relative" />
                 <span className="text-[9px] font-bold z-10 relative">Home</span>
              </button>
-             <button onClick={() => { setActiveTab('patients'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'patients' && !isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
-                {activeTab === 'patients' && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 rounded-xl z-0" />}
+             <button onClick={() => { setActiveTab('patients'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'patients' && !isSidebarOpen ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500")}>
+                {activeTab === 'patients' && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/40 rounded-xl z-0" />}
                 <div className="relative">
                   <Users className="w-5 h-5 mb-1 z-10 relative" />
                   {newPatientsTodayCount > 0 && (
@@ -7964,7 +8085,7 @@ export default function App() {
           </div>
 
           <div className="p-4 md:p-8 max-w-7xl mx-auto">
-            {(activeTab === 'dashboard' || activeTab === 'more') && <Dashboard stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} role={role} setTab={setActiveTab} onNotify={showNotification} user={user!} onStatusUpdate={async (id, status) => { await updateAppointmentStatus(id, status); if (status === 'completed') { const appt = appointments.find(a => a.id === id); if (appt && appt.patientId) { setActiveTab('patients'); setViewTarget({ type: 'patient', id: appt.patientId, action: 'log-session' }); } } }} setViewTarget={setViewTarget} globalDate={globalDate} setGlobalDate={setGlobalDate} />}
+            {(activeTab === 'dashboard' || activeTab === 'more') && <Dashboard stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} role={role} setTab={setActiveTab} onNotify={showNotification} user={user!} onStatusUpdate={async (id, status) => { await updateAppointmentStatus(id, status); if (status === 'completed') { const appt = appointments.find(a => a.id === id); if (appt && appt.patientId) { setActiveTab('patients'); setViewTarget({ type: 'patient', id: appt.patientId, action: 'log-session' }); } } }} setViewTarget={setViewTarget} globalDate={globalDate} setGlobalDate={setGlobalDate} setPrintTx={setPrintTx} />}
             {activeTab === 'appointments' && role !== 'therapist' && <AppointmentManager appointments={appointments} patients={patients} members={members} onNotify={showNotification} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} selectedDate={globalDate} setSelectedDate={setGlobalDate} />}
             {activeTab === 'patients' && <PatientManager patients={patients} appointments={appointments} transactions={transactions} onNotify={showNotification} role={role} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} />}
             {activeTab === 'finances' && role !== 'therapist' && (
