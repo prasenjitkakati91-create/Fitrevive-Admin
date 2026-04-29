@@ -292,28 +292,68 @@ html.dark {
 }
 
 @media print {
-  body * {
-    visibility: hidden;
+  /* Hide the rest of the application using pure CSS */
+  #root > div > *:not(.print-wrapper) {
+    display: none !important;
   }
-  #print-bill-container, #print-bill-container * {
-    visibility: visible;
+
+  /* Basic page structure */
+  body, html {
+    background: white !important;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
-  #print-bill-container {
+
+  /* Make sure the container holding the receipt is perfectly rendered */
+  .print-wrapper {
     display: block !important;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 20px;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
   }
-  /* Hide scrollbars and reset backgrounds for printing */
-  html, body {
-    height: auto;
-    overflow: visible;
-    background-color: white !important;
+
+  /* Reset receipt-section so it prints naturally */
+  #receipt-section {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Hide print-specific buttons and bars */
+  .print-hidden, 
+  .print-hidden *,
+  button,
+  .sticky {
+    display: none !important;
+  }
+
+  /* Allow elements to overflow */
+  * {
+    overflow: visible !important;
+  }
+
+  /* Disable animations for instant, lag-free printing */
+  *, *::before, *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  @page {
+    size: auto;
+    margin: 10mm;
   }
 }
+
 
 /* Force standard colors for bill container to avoid html2canvas oklch parsing errors */
 #receipt-section, 
@@ -331,30 +371,6 @@ html.dark {
 #receipt-section .bg-slate-50 { background-color: #f9fafb !important; }
 #receipt-section .border-slate-200 { border-color: #e5e7eb !important; }
 #receipt-section .border-blue-200 { border-color: #bfdbfe !important; }
-
-@media print {
-  body * {
-    visibility: hidden !important;
-  }
-  #receipt-section, #receipt-section * {
-    visibility: visible !important;
-  }
-  #receipt-section {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 20px !important;
-    box-shadow: none !important;
-    border: none !important;
-    background: white !important;
-  }
-  @page {
-    size: auto;
-    margin: 0mm;
-  }
-}
 
 /* Custom Classes Overrides */
 .dark .card {
