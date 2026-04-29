@@ -6689,6 +6689,11 @@ export default function App() {
     if (!printTx) return;
     try {
       const patient = printTx.patientId ? patients.find(p => p.id === printTx.patientId) : null;
+      if (!patient?.phone) {
+        showNotification('No phone number found for this patient.', 'error');
+        return;
+      }
+      
       const patientName = patient?.name || 'Valued Patient';
       const amountStr = printTx.amount.toLocaleString('en-IN');
       const receiptNo = `FR-${printTx.date.replace(/-/g, '')}-${printTx.id.slice(0, 4).toUpperCase()}`;
@@ -6711,21 +6716,27 @@ export default function App() {
                   `📞 +91 84738-09386\n` +
                   `🌐 www.fitrevive.in`;
 
-      const whatsappUrl = `https://wa.me/${(patient?.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`;
+      let rawPhone = (patient.phone || '').replace(/\D/g, '');
+      // If it's a 10-digit number, assume it's Indian and prefix 91
+      if (rawPhone.length === 10) {
+        rawPhone = '91' + rawPhone;
+      }
       
-      // Use hidden link for better reliability across mobile browsers
-      const link = document.createElement('a');
-      link.href = whatsappUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        if (document.body.contains(link)) document.body.removeChild(link);
-      }, 100);
+      if (!rawPhone) {
+        showNotification('Invalid phone number.', 'error');
+        return;
+      }
+
+      const whatsappUrl = `https://wa.me/${rawPhone}?text=${encodeURIComponent(msg)}`;
+      
+      // Direct window.open is more reliable in modern browsers
+      const win = window.open(whatsappUrl, '_blank');
+      if (!win) {
+        showNotification('Popup blocked! Please allow popups to open WhatsApp.', 'error');
+      }
     } catch (e) {
       console.error(e);
-      showNotification('Could not open WhatsApp automatically.', 'error');
+      showNotification('Could not open WhatsApp. Please check your browser settings.', 'error');
     }
   };
 
@@ -7246,13 +7257,16 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <button 
                   onClick={() => {
-                    try {
-                      window.print();
-                    } catch (e) {
-                      showNotification("Print command failed. Try 'Open in New Tab' from the browser menu.", "error");
-                    }
+                    // Slight delay to allow for any pending UI renderings and ensure button click state is visible
+                    setTimeout(() => {
+                      try {
+                        window.print();
+                      } catch (e) {
+                        showNotification("Print command failed. Try 'Open in New Tab' from the browser menu.", "error");
+                      }
+                    }, 50);
                   }} 
-                  className="px-4 py-2 bg-[#2563eb] text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-[#1d4ed8] transition-all shadow-md shadow-blue-100"
+                  className="px-4 py-2 bg-[#2563eb] active:scale-95 text-[#ffffff] rounded-xl font-bold flex items-center gap-2 hover:bg-[#1d4ed8] transition-all shadow-md shadow-blue-100"
                 >
                   <Printer className="w-4 h-4" /> Print
                 </button>
