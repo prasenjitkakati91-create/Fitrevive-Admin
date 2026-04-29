@@ -1578,7 +1578,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
   transactions: Transaction[], 
   onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void,
   role?: string,
-  viewTarget?: {type: string, id: string} | null,
+  viewTarget?: {type: string, id: string, action?: string} | null,
   setViewTarget?: any,
   setTab?: any
 }) => {
@@ -1599,7 +1599,11 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
        const p = patients.find(p => p.id === viewTarget.id);
        if (p) {
          setSelectedPatient(p);
-         setShowHistoryModal(true);
+         if ((viewTarget as any).action === 'log-session') {
+           setShowSessionModal(true);
+         } else {
+           setShowHistoryModal(true);
+         }
          setViewTarget(null);
        }
     }
@@ -2463,7 +2467,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
   patients: Patient[], 
   onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void,
   role?: string,
-  viewTarget?: {type: string, id: string} | null,
+  viewTarget?: {type: string, id: string, action?: string} | null,
   setViewTarget?: any,
   printTx: Transaction | null,
   setPrintTx: (t: Transaction | null) => void,
@@ -3841,7 +3845,7 @@ const KPICard = ({ title, value, trend, icon, color, highlighted = false, hideCu
   );
 };
 
-const AppointmentManager = ({ patients, appointments, members, onNotify, viewTarget, setViewTarget, setTab, selectedDate, setSelectedDate }: { patients: Patient[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, viewTarget?: {type: string, id: string, returnTo?: string} | null, setViewTarget?: any, setTab?: (tab: string) => void, selectedDate: string, setSelectedDate: (d: string) => void }) => {
+const AppointmentManager = ({ patients, appointments, members, onNotify, viewTarget, setViewTarget, setTab, selectedDate, setSelectedDate }: { patients: Patient[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, viewTarget?: {type: string, id: string, returnTo?: string, action?: string} | null, setViewTarget?: any, setTab?: (tab: string) => void, selectedDate: string, setSelectedDate: (d: string) => void }) => {
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editApptId, setEditApptId] = useState<string | null>(null);
@@ -4494,7 +4498,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
   );
 };
 
-const SessionManager = ({ appointments, onNotify, selectedDate, setSelectedDate }: { appointments: Appointment[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, selectedDate: string, setSelectedDate: (d: string) => void }) => {
+const SessionManager = ({ appointments, onNotify, selectedDate, setSelectedDate, setTab, setViewTarget }: { appointments: Appointment[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, selectedDate: string, setSelectedDate: (d: string) => void, setTab: (t: string) => void, setViewTarget: (v: any) => void }) => {
   const todayDate = selectedDate;
   const sessions = appointments.filter(a => a.date === todayDate && a.status === 'scheduled');
   const [selectedSession, setSelectedSession] = useState<Appointment | null>(null);
@@ -4511,6 +4515,10 @@ const SessionManager = ({ appointments, onNotify, selectedDate, setSelectedDate 
     try {
       await updateAppointmentStatus(appt.id, 'completed');
       onNotify(`Session with ${appt.patientName} marked as completed!`);
+      if (setTab && setViewTarget) {
+        setTab('patients');
+        setViewTarget({ type: 'patient', id: appt.patientId, action: 'log-session' });
+      }
     } catch (err: any) {
       onNotify(err.message || "Failed to finalize session.", "error");
     }
@@ -6611,7 +6619,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isRoleLoading, setIsRoleLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [viewTarget, setViewTarget] = useState<{type: 'patient' | 'appointment' | 'transaction' | 'book-appointment', id: string, returnTo?: string} | null>(null);
+  const [viewTarget, setViewTarget] = useState<{type: 'patient' | 'appointment' | 'transaction' | 'book-appointment', id: string, returnTo?: string, action?: 'log-session'} | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [globalDate, setGlobalDate] = useState(getLocalYMD());
@@ -7307,7 +7315,7 @@ export default function App() {
             )}
             {activeTab === 'team' && role === 'admin' && <TeamManager role={role} members={members} onNotify={showNotification} />}
             {activeTab === 'attendance' && <AttendanceManager role={role} members={members} currentUserEmail={user?.email || null} onNotify={showNotification} selectedDate={globalDate} setSelectedDate={setGlobalDate} />}
-            {activeTab === 'sessions' && role !== 'manager' && <SessionManager appointments={appointments} onNotify={showNotification} selectedDate={globalDate} setSelectedDate={setGlobalDate} />}
+            {activeTab === 'sessions' && role !== 'manager' && <SessionManager appointments={appointments} onNotify={showNotification} selectedDate={globalDate} setSelectedDate={setGlobalDate} setTab={setActiveTab} setViewTarget={setViewTarget} />}
             {activeTab === 'reports' && role === 'admin' && <Reports stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} onNotify={showNotification} />}
             {activeTab === 'settings' && <SettingsView user={user!} role={role} patients={patients} transactions={transactions} appointments={appointments} members={members} onNotify={showNotification} onLogout={logOut} />}
           </div>
