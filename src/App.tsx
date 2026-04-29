@@ -2791,8 +2791,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
     <div className="space-y-8 pb-12">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center pb-2 gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Financial Overview</h1>
-          <p className="text-sm text-slate-500 font-medium mt-1">Track clinic revenue, expenses, and net profit.</p>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Transaction Ledger</h1>
+          <p className="text-sm text-slate-500 font-medium mt-1">Manage and track all clinic financial records.</p>
         </div>
         <div className="flex gap-3">
            <button onClick={() => setShowBillingModal(true)} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_14px_0_rgba(79,70,229,0.39)] rounded-xl font-bold transition-all flex items-center gap-2 text-sm hover:-translate-y-0.5 active:scale-95">
@@ -2805,122 +2805,6 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
            </button>
         </div>
       </header>
-
-      {/* Stats row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3 text-slate-500 mb-2 font-bold text-xs uppercase tracking-widest">
-            <div className="p-2 bg-emerald-50 rounded-xl"><ArrowUpRight className="w-4 h-4 text-emerald-600" /></div>
-            Revenue
-          </div>
-          <div className="text-3xl font-black text-slate-800">₹{stats.totalRevenue.toLocaleString()}</div>
-        </div>
-        {role === 'admin' && (
-          <>
-            <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3 text-slate-500 mb-2 font-bold text-xs uppercase tracking-widest">
-                <div className="p-2 bg-rose-50 rounded-xl"><ArrowDownRight className="w-4 h-4 text-rose-600" /></div>
-                Expenses
-              </div>
-              <div className="text-3xl font-black text-slate-800">₹{stats.totalExpenses.toLocaleString()}</div>
-            </div>
-            <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3 text-slate-500 mb-2 font-bold text-xs uppercase tracking-widest">
-                <div className="p-2 bg-blue-50 rounded-xl"><Wallet className="w-4 h-4 text-blue-600" /></div>
-                Net Profit
-              </div>
-              <div className={cn("text-3xl font-black", stats.netProfit >= 0 ? "text-emerald-600" : "text-rose-600")}>
-                {stats.netProfit < 0 ? "-" : ""}₹{Math.abs(stats.netProfit).toLocaleString()}
-              </div>
-            </div>
-          </>
-        )}
-        <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3 text-slate-500 mb-2 font-bold text-xs uppercase tracking-widest">
-            <div className="p-2 bg-purple-50 rounded-xl"><History className="w-4 h-4 text-purple-600" /></div>
-            Transactions
-          </div>
-          <div className="text-3xl font-black text-slate-800">{stats.totalTransactions}</div>
-        </div>
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className={cn("bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm", role === 'admin' ? "col-span-1 lg:col-span-2" : "col-span-3")}>
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-base font-black text-slate-800">Revenue {role === 'admin' && 'vs Expenses'}</h3>
-            <select value={timeframe} onChange={e => setTimeframe(e.target.value as any)} className="bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold px-3 py-1.5 outline-none cursor-pointer">
-              <option value="7d">Last 7 Days</option>
-              <option value="30d">Last 30 Days</option>
-              <option value="6m">Last 6 Months</option>
-            </select>
-          </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={lineChartData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                  </linearGradient>
-                  {role === 'admin' && (
-                    <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
-                    </linearGradient>
-                  )}
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={(v) => `₹${v}`} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)' }}
-                  labelStyle={{ fontWeight: 'bold', color: '#1e293b', marginBottom: '4px' }}
-                  itemStyle={{ fontWeight: '600' }}
-                />
-                <Area type="monotone" dataKey="income" name="Income" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorIncome)" />
-                {role === 'admin' && <Area type="monotone" dataKey="expense" name="Expense" stroke="#f43f5e" strokeWidth={3} fillOpacity={1} fill="url(#colorExpense)" />}
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {role === 'admin' && (
-          <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm flex flex-col">
-            <h3 className="text-base font-black text-slate-800 mb-6">Expense Breakdown</h3>
-            {pieChartData.length > 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center">
-                <div className="h-48 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={pieChartData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
-                        {pieChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        formatter={(value: number) => `₹${value.toLocaleString()}`}
-                        contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        itemStyle={{ fontWeight: 'bold' }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="w-full mt-4 flex flex-wrap justify-center gap-3 text-[11px] font-bold">
-                  {pieChartData.slice(0, 4).map((d, i) => (
-                    <div key={d.name} className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
-                      <span className="text-slate-600">{d.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-sm font-medium text-slate-400">No expenses in this period.</div>
-            )}
-          </div>
-        )}
-      </div>
 
       {/* Ledger Section */}
       <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm flex flex-col relative z-20">
@@ -3353,6 +3237,7 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedService, setSelectedService] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [breakdownType, setBreakdownType] = useState<'earnings' | 'expenses'>('earnings');
   const itemsPerPage = 8;
 
   const now = useMemo(() => new Date(), []);
@@ -3444,6 +3329,16 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
     });
     return Object.entries(categories).map(([name, value]) => ({ name, value }));
   }, [filteredTransactions]);
+
+  const expPieData = useMemo(() => {
+    const categories: Record<string, number> = {};
+    filteredTransactions.filter(t => t.type === 'expense').forEach(t => {
+      categories[t.category] = (categories[t.category] || 0) + t.amount;
+    });
+    return Object.entries(categories).map(([name, value]) => ({ name, value }));
+  }, [filteredTransactions]);
+
+  const currentPieData = breakdownType === 'earnings' ? pieData : expPieData;
 
   const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
@@ -3599,16 +3494,32 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
         </div>
 
         <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col min-h-[600px]">
-           <div className="w-full text-left mb-4">
-              <h3 className="text-xl font-black text-slate-800">Earnings Breakdown</h3>
-              <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">By Service Category</p>
+           <div className="w-full flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-xl font-black text-slate-800">{breakdownType === 'earnings' ? 'Earnings' : 'Expense'} Breakdown</h3>
+                <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">By Category</p>
+              </div>
+              <div className="bg-slate-100 p-1 rounded-xl flex items-center">
+                <button 
+                  onClick={() => setBreakdownType('earnings')}
+                  className={cn("px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all", breakdownType === 'earnings' ? "bg-white text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600")}
+                >
+                  Earnings
+                </button>
+                <button 
+                  onClick={() => setBreakdownType('expenses')}
+                  className={cn("px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all", breakdownType === 'expenses' ? "bg-white text-rose-600 shadow-sm" : "text-slate-400 hover:text-slate-600")}
+                >
+                  Expenses
+                </button>
+              </div>
            </div>
            
            <div className="h-[320px] w-full flex-none">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                   <Pie
-                    data={pieData}
+                    data={currentPieData}
                     cx="50%"
                     cy="45%"
                     innerRadius={60}
@@ -3617,8 +3528,8 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
                     dataKey="value"
                     label={false}
                   >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {currentPieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={breakdownType === 'expenses' ? ['#fb7185', '#f43f5e', '#e11d48', '#be123c', '#9f1239'][index % 5] : COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip 
@@ -5523,37 +5434,29 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
     <div className="space-y-8 animate-in fade-in duration-500">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
-              <Clock className="w-6 h-6 text-white" />
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-3">
+            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
+              <Clock className="w-5 h-5 text-white" strokeWidth={2.5} />
             </div>
             Attendance Dashboard
           </h1>
-          <p className="text-slate-500 font-medium mt-1">Real-time presence monitoring and insights</p>
+          <p className="text-sm text-slate-500 font-medium mt-1">Real-time presence monitoring and insights</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <div className="bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3 w-full md:w-auto">
-            <Calendar className="w-5 h-5 text-slate-400" />
+          <div className="bg-white px-3 py-2 rounded-xl border border-slate-100 shadow-sm flex items-center gap-2 group focus-within:ring-2 focus-within:ring-blue-100 transition-all w-full md:w-auto">
+            <Calendar className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" strokeWidth={1.5} />
             <input 
               type="date" 
               value={selectedDate}
               onChange={e => setSelectedDate(e.target.value)}
-              className="bg-transparent text-sm font-bold text-slate-700 outline-none w-full cursor-pointer"
+              className="bg-transparent text-xs font-bold text-slate-600 outline-none w-full cursor-pointer uppercase tracking-wider"
             />
           </div>
-          {role === 'admin' && (
-            <button 
-              onClick={markAllPresent}
-              className="flex-1 md:flex-none px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-200 flex items-center justify-center gap-2"
-            >
-              <CheckCircle2 className="w-5 h-5" /> Mark All Present
-            </button>
-          )}
           <button 
             onClick={exportAttendanceCSV}
-            className="flex-1 md:flex-none px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-2"
+            className="flex-1 md:flex-none px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-600 border border-slate-100 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-2 hover:-translate-y-0.5 active:scale-95"
           >
-            <Download className="w-5 h-5" /> Export
+            <Download className="w-4 h-4" strokeWidth={2.5} /> Export
           </button>
         </div>
       </header>
@@ -6693,33 +6596,43 @@ export default function App() {
       
       const patientName = patient?.name || 'Valued Patient';
       const amountStr = printTx.amount.toLocaleString('en-IN');
-      const receiptNo = `FR-${printTx.date.replace(/-/g, '')}-${printTx.id.slice(0, 4).toUpperCase()}`;
+      const dateNo = printTx.date.replace(/-/g, '');
+      const txIdPart = printTx.id.slice(0, 4).toUpperCase();
+      const receiptNo = `FR-${dateNo}-${txIdPart}`;
       const dateStr = new Date(printTx.date).toLocaleDateString('en-GB');
       
+      // Using standard characters for better compatibility across all mobile devices
       const msg = `*FitRevive Physiotherapy Clinic*\n\n` +
                   `Hi *${patientName}*,\n` +
-                  `Greetings from FitRevive! We have successfully received your payment for the physiotherapy session.\n\n` +
+                  `Greetings from FitRevive! We have received your payment for the physiotherapy session.\n\n` +
                   `*RECEIPT SUMMARY*\n` +
-                  `━━━━━━━━━━━━━━━━━━━━\n` +
-                  `📄 *Receipt No:* ${receiptNo}\n` +
-                  `📅 *Date:* ${dateStr}\n` +
-                  `💉 *Service:* ${printTx.category}\n` +
-                  `👨‍⚕️ *Therapist:* ${therapistName}\n` +
-                  `💰 *Total Amount:* ₹${amountStr}\n` +
-                  `💳 *Payment:* ${printTx.paymentMethod || 'Paid'}\n` +
-                  `━━━━━━━━━━━━━━━━━━━━\n\n` +
-                  `_Thank you for choosing FitRevive. We wish you a very speedy recovery!_\n\n` +
-                  `📍 Bangaon, Nalbari\n` +
-                  `📞 +91 84738-09386\n` +
-                  `🌐 www.fitrevive.in`;
+                  `--------------------\n` +
+                  `*Receipt No:* ${receiptNo}\n` +
+                  `*Date:* ${dateStr}\n` +
+                  `*Service:* ${printTx.category}\n` +
+                  `*Therapist:* ${therapistName}\n` +
+                  `*Total Amount:* Rs ${amountStr}\n` +
+                  `*Payment:* ${printTx.paymentMethod || 'Paid'}\n` +
+                  `--------------------\n\n` +
+                  `_Thank you for choosing FitRevive. We wish you a speedy recovery!_\n\n` +
+                  `Location: Bangaon, Nalbari\n` +
+                  `Contact: +91 8473809386\n` +
+                  `Web: www.fitrevive.in`;
 
       let rawPhone = (patient.phone || '').replace(/\D/g, '');
+      
+      // Remove leading zero
+      if (rawPhone.length === 11 && rawPhone.startsWith('0')) {
+        rawPhone = rawPhone.substring(1);
+      }
+      
       // Handle Indian numbers
       if (rawPhone.length === 10) {
         rawPhone = '91' + rawPhone;
       }
       
-      if (!rawPhone) return '';
+      if (!rawPhone || rawPhone.length < 10) return '';
+      // api.whatsapp.com is sometimes more reliable for redirects in mobile iframes
       return `https://api.whatsapp.com/send?phone=${rawPhone}&text=${encodeURIComponent(msg)}`;
     } catch (e) {
       return '';
@@ -6739,11 +6652,18 @@ export default function App() {
       return;
     }
     
+    // Using a hidden anchor tag with target="_blank" is often the most reliable way 
+    // to trigger deep links on mobile devices from within an iframe.
     try {
-      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-    } catch (err) {
-      console.error("WhatsApp share failed:", err);
-      // Fallback to location.href if window.open fails
+      const link = document.createElement('a');
+      link.href = whatsappUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      // Fallback to window.location.href if anchor fails
       window.location.href = whatsappUrl;
     }
   };
@@ -7369,29 +7289,15 @@ export default function App() {
                   >
                     <Printer className="w-4 h-4" /> Print
                   </button>
-                  {whatsappUrl ? (
-                    <a 
-                      href={whatsappUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-11 h-11 bg-[#25D366] text-white rounded-xl flex items-center justify-center hover:bg-[#20ba59] transition-all active:scale-95 border-none outline-none ring-0 no-underline shadow-[0_4px_12px_rgba(37,211,102,0.3)]"
-                      title="Share on WhatsApp"
-                    >
-                      <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.431 5.63 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                      </svg>
-                    </a>
-                  ) : (
-                    <button 
-                      onClick={shareToWhatsApp}
-                      className="w-11 h-11 bg-[#25D366] text-white rounded-xl flex items-center justify-center hover:bg-[#20ba59] transition-all active:scale-95 border-none outline-none ring-0 shadow-[0_4px_12px_rgba(37,211,102,0.3)]"
-                      title="Share on WhatsApp"
-                    >
-                      <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.431 5.63 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                      </svg>
-                    </button>
-                  )}
+                  <button 
+                    onClick={shareToWhatsApp}
+                    className="w-11 h-11 bg-[#25D366] text-white rounded-xl flex items-center justify-center hover:bg-[#20ba59] transition-all active:scale-95 border-none outline-none ring-0 shadow-[0_4px_12px_rgba(37,211,102,0.3)]"
+                    title="Share on WhatsApp"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.431 5.63 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                    </svg>
+                  </button>
                 <button 
                   onClick={() => setPrintTx(null)} 
                   className="p-2 bg-[#f8fafc] text-[#64748b] border border-[#e2e8f0] rounded-xl hover:bg-[#f1f5f9] transition-all"
@@ -7527,7 +7433,7 @@ export default function App() {
                                  <div className="bg-slate-900 p-4 rounded-[2rem] shadow-xl flex flex-col items-center gap-2 border-4 border-slate-800">
                                     <div className="bg-white p-2 rounded-2xl overflow-hidden flex items-center justify-center">
                                        <QRCodeCanvas 
-                                          value={`upi://pay?pa=8473809386-3@ibl&pn=FitRevive&am=${printTx.amount}&cu=INR`} 
+                                          value={`upi://pay?pa=8473809386-3@ibl&pn=FitRevive&am=${printTx.amount.toFixed(2)}&cu=INR`} 
                                           size={100} 
                                           level="H"
                                        />
