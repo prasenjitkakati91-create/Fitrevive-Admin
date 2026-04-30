@@ -4,6 +4,7 @@ import {
   Users, 
   UserPlus,
   LayoutDashboard, 
+  Home,
   CircleDollarSign, 
   FileText, 
   LogOut, 
@@ -8473,60 +8474,52 @@ export default function App() {
           </div>
 
           {/* Mobile Bottom Nav */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 z-50 px-2 py-2 flex justify-around items-center pb-safe print:hidden shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-             <button onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'dashboard' && !isSidebarOpen ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500")}>
-                {activeTab === 'dashboard' && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/40 rounded-xl z-0" />}
-                <LayoutDashboard className="w-5 h-5 mb-1 z-10 relative" />
-                <span className="text-[9px] font-bold z-10 relative">Home</span>
-             </button>
-             <button onClick={() => { setActiveTab('patients'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'patients' && !isSidebarOpen ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500")}>
-                {activeTab === 'patients' && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/40 rounded-xl z-0" />}
-                <div className="relative">
-                  <Users className="w-5 h-5 mb-1 z-10 relative" />
-                  {newPatientsTodayCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-bold px-1 min-w-[15px] h-[15px] rounded-full flex items-center justify-center ring-2 ring-white shadow-sm z-20">
-                      {newPatientsTodayCount}
-                    </span>
-                  )}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-slate-200/50 dark:border-slate-800/50 z-50 px-2 py-2 flex justify-around items-center pb-safe print:hidden shadow-[0_-8px_30px_rgba(0,0,0,0.04)] rounded-t-[2rem]">
+             <button onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center flex-1 h-14 rounded-2xl transition-all duration-300 relative group", activeTab === 'dashboard' && !isSidebarOpen ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500 hover:text-slate-600")}>
+                {activeTab === 'dashboard' && !isSidebarOpen && (
+                  <motion.div layoutId="mobile-nav-indicator" className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/40 dark:to-indigo-900/40 rounded-2xl z-0 shadow-sm" transition={{ type: "spring", stiffness: 300, damping: 25 }} />
+                )}
+                <div className="relative z-10 flex flex-col items-center justify-center">
+                  <Home className={cn("w-5 h-5 mb-1 transition-transform duration-300", activeTab === 'dashboard' && !isSidebarOpen ? "scale-110 drop-shadow-sm" : "group-hover:scale-105")} />
+                  <span className="text-[10px] font-bold">Home</span>
                 </div>
-                <span className="text-[9px] font-bold z-10 relative">Patients</span>
              </button>
-             <button onClick={() => { setActiveTab('appointments'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'appointments' && !isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
-                {activeTab === 'appointments' && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/50 rounded-xl z-0" />}
-                <div className="relative">
-                  <Calendar className="w-5 h-5 mb-1 z-10 relative" />
-                  {scheduledApptsCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-bold px-1 min-w-[15px] h-[15px] rounded-full flex items-center justify-center ring-2 ring-white shadow-sm z-20">
-                      {scheduledApptsCount}
-                    </span>
-                  )}
-                </div>
-                <span className="text-[9px] font-bold z-10 relative">Sessions</span>
-             </button>
-             {role !== 'physiotherapist' && (
-               <button onClick={() => { setActiveTab('finances'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'finances' && !isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
-                  {activeTab === 'finances' && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/50 rounded-xl z-0" />}
+
+             <button onClick={() => { setActiveTab('patients'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center flex-1 h-14 rounded-2xl transition-all duration-300 relative group", activeTab === 'patients' && !isSidebarOpen ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500 hover:text-slate-600")}>
+                {activeTab === 'patients' && !isSidebarOpen && (
+                  <motion.div layoutId="mobile-nav-indicator" className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/40 dark:to-indigo-900/40 rounded-2xl z-0 shadow-sm" transition={{ type: "spring", stiffness: 300, damping: 25 }} />
+                )}
+                <div className="relative z-10 flex flex-col items-center justify-center">
                   <div className="relative">
-                    <CircleDollarSign className="w-5 h-5 mb-1 z-10 relative" />
-                    {dailyFinEntriesCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-bold px-1 min-w-[15px] h-[15px] rounded-full flex items-center justify-center ring-2 ring-white shadow-sm z-20">
-                        {dailyFinEntriesCount}
+                    <Users className={cn("w-5 h-5 mb-1 transition-transform duration-300", activeTab === 'patients' && !isSidebarOpen ? "scale-110 drop-shadow-sm" : "group-hover:scale-105")} />
+                    {newPatientsTodayCount > 0 && (
+                      <span className="absolute -top-1 -right-1.5 bg-rose-500 text-white text-[8px] font-bold px-1 min-w-[14px] h-[14px] rounded-full flex items-center justify-center ring-2 ring-white dark:ring-slate-900 shadow-sm">
+                        {newPatientsTodayCount}
                       </span>
                     )}
                   </div>
-                  <span className="text-[9px] font-bold z-10 relative">Billing</span>
-               </button>
-             )}
-             <button onClick={() => { 
-                if (isSidebarOpen) {
-                  setIsSidebarOpen(false);
-                } else {
-                  setIsSidebarOpen(true);
-                }
-             }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", !['dashboard', 'patients', 'appointments', 'finances'].includes(activeTab) || isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
-                {(!['dashboard', 'patients', 'appointments', 'finances'].includes(activeTab) || isSidebarOpen) && <div className="absolute inset-0 bg-blue-50 rounded-xl z-0" />}
-                <Menu className="w-5 h-5 mb-1 z-10 relative" />
-                <span className="text-[9px] font-bold z-10 relative">More</span>
+                  <span className="text-[10px] font-bold">Patients</span>
+                </div>
+             </button>
+
+             <button onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center flex-1 h-14 rounded-2xl transition-all duration-300 relative group", activeTab === 'attendance' && !isSidebarOpen ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500 hover:text-slate-600")}>
+                {activeTab === 'attendance' && !isSidebarOpen && (
+                  <motion.div layoutId="mobile-nav-indicator" className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/40 dark:to-indigo-900/40 rounded-2xl z-0 shadow-sm" transition={{ type: "spring", stiffness: 300, damping: 25 }} />
+                )}
+                <div className="relative z-10 flex flex-col items-center justify-center">
+                  <Clock className={cn("w-5 h-5 mb-1 transition-transform duration-300", activeTab === 'attendance' && !isSidebarOpen ? "scale-110 drop-shadow-sm" : "group-hover:scale-105")} />
+                  <span className="text-[10px] font-bold">Attendance</span>
+                </div>
+             </button>
+
+             <button onClick={() => { setIsSidebarOpen(prev => !prev); }} className={cn("flex flex-col items-center justify-center flex-1 h-14 rounded-2xl transition-all duration-300 relative group", isSidebarOpen ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500 hover:text-slate-600")}>
+                {(!['dashboard', 'patients', 'attendance'].includes(activeTab) || isSidebarOpen) && (
+                  <motion.div layoutId="mobile-nav-indicator" className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/40 dark:to-indigo-900/40 rounded-2xl z-0 shadow-sm" transition={{ type: "spring", stiffness: 300, damping: 25 }} />
+                )}
+                <div className="relative z-10 flex flex-col items-center justify-center">
+                  <Menu className={cn("w-5 h-5 mb-1 transition-transform duration-300", (!['dashboard', 'patients', 'attendance'].includes(activeTab) || isSidebarOpen) ? "scale-110 drop-shadow-sm" : "group-hover:scale-105")} />
+                  <span className="text-[10px] font-bold">More</span>
+                </div>
              </button>
           </div>
 
