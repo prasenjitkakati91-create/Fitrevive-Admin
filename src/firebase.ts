@@ -228,6 +228,27 @@ export const logSession = async (
   return batch.commit();
 };
 
+export const addPatientDocumentMetadata = async (patientId: string, docData: any) => {
+  const docsRef = collection(db, 'patients', patientId, 'documents');
+  return addDoc(docsRef, {
+    ...docData,
+    createdAt: Timestamp.now()
+  });
+};
+
+export const getPatientDocumentsMetadata = (patientId: string, callback: (docs: any[]) => void) => {
+  const q = query(collection(db, 'patients', patientId, 'documents'), orderBy('uploadDate', 'desc'));
+  return onSnapshot(q, (snapshot) => {
+    const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    callback(docs);
+  });
+};
+
+export const deletePatientDocumentMetadata = async (patientId: string, docId: string) => {
+  const docRef = doc(db, 'patients', patientId, 'documents', docId);
+  return deleteDoc(docRef);
+};
+
 export const getSessions = (patientId: string, callback: (sessions: any[]) => void) => {
   const q = query(collection(db, 'patients', patientId, 'sessions'), orderBy('date', 'desc'), limit(50));
   return onSnapshot(q, (snapshot) => {

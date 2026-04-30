@@ -132,6 +132,9 @@ import {
   clearDatabase,
   uploadPatientDocument,
   deletePatientDocument,
+  addPatientDocumentMetadata,
+  getPatientDocumentsMetadata,
+  deletePatientDocumentMetadata,
   db
 } from './firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -172,51 +175,15 @@ export const useAvatar = (user: User | null, defaultName?: string) => {
 };
 
 // --- Types ---
-export interface LocalDocument {
+export interface PatientDocument {
   id: string;
   patientId: string;
   fileName: string;
   fileType: string;
-  fileData: string;
+  fileData: string; // The download URL
+  fullPath?: string; // the path for deletion
   uploadDate: string;
 }
-
-const getLocalDocuments = (patientId: string): LocalDocument[] => {
-  try {
-    const data = localStorage.getItem('fitrevive_patient_docs');
-    if (!data) return [];
-    const allDocs: LocalDocument[] = JSON.parse(data);
-    return allDocs.filter(d => d.patientId === patientId);
-  } catch (e) {
-    console.error("Failed to parse local documents", e);
-    return [];
-  }
-};
-
-const saveLocalDocument = (doc: LocalDocument) => {
-  try {
-    const data = localStorage.getItem('fitrevive_patient_docs');
-    const allDocs: LocalDocument[] = data ? JSON.parse(data) : [];
-    allDocs.push(doc);
-    localStorage.setItem('fitrevive_patient_docs', JSON.stringify(allDocs));
-    return true;
-  } catch (e) {
-    console.error("Failed to save local document. Storage might be full.", e);
-    return false;
-  }
-};
-
-const deleteLocalDocumentFromStorage = (docId: string) => {
-  try {
-    const data = localStorage.getItem('fitrevive_patient_docs');
-    if (!data) return;
-    let allDocs: LocalDocument[] = JSON.parse(data);
-    allDocs = allDocs.filter(d => d.id !== docId);
-    localStorage.setItem('fitrevive_patient_docs', JSON.stringify(allDocs));
-  } catch (e) {
-    console.error("Failed to delete local document", e);
-  }
-};
 
 interface Patient {
   id: string;
@@ -549,6 +516,8 @@ const Dashboard = ({
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '6m'>('30d');
   const [patientSearch, setPatientSearch] = useState('');
   const [showDuePatientsModal, setShowDuePatientsModal] = useState(false);
+  const [showCompletedSessionsModal, setShowCompletedSessionsModal] = useState(false);
+  const [showAppointmentsModal, setShowAppointmentsModal] = useState(false);
   const [showQuickBillModal, setShowQuickBillModal] = useState(false);
   const [activityFilter, setActivityFilter] = useState<'all' | 'patient' | 'billing' | 'booking'>('all');
   const [showLogsModal, setShowLogsModal] = useState(false);
@@ -575,7 +544,8 @@ const Dashboard = ({
   
   const todayDate = globalDate;
   const todayAppts = appointments.filter(a => a.date === todayDate && a.status !== 'cancelled').sort((a, b) => a.time.localeCompare(b.time));
-  const todayCompleted = useMemo(() => appointments.filter(a => a.date === todayDate && a.status === 'completed').length, [appointments, todayDate]);
+  const todayCompletedAppts = useMemo(() => appointments.filter(a => a.date === todayDate && a.status === 'completed'), [appointments, todayDate]);
+  const todayCompleted = todayCompletedAppts.length;
   
   // Pending payments: Sum of all unpaid sessions and amounts across all patients
   const { pendingPaymentsCount, pendingPaymentsAmount } = useMemo(() => {
@@ -1029,7 +999,7 @@ const Dashboard = ({
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 group hover:shadow-md transition-all">
+        <div onClick={() => setShowAppointmentsModal(true)} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 group hover:shadow-md cursor-pointer transition-all">
           <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
              <Calendar className="w-6 h-6" />
           </div>
@@ -1057,7 +1027,7 @@ const Dashboard = ({
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 group hover:shadow-md transition-all">
+        <div onClick={() => setShowCompletedSessionsModal(true)} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 group hover:shadow-md cursor-pointer transition-all">
           <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
              <CheckCircle2 className="w-6 h-6" />
           </div>
@@ -1152,7 +1122,7 @@ const Dashboard = ({
                 </button>
              </div>
              <div className="overflow-x-auto w-full">
-               <table className="w-full border-collapse min-w-full md:min-w-[800px]">
+               <table className="w-full border-collapse min-w-full">
                  <thead className="hidden md:table-header-group">
                    <tr className="bg-slate-50/30 text-left">
                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Time</th>
@@ -1272,13 +1242,15 @@ const Dashboard = ({
                        </td>
                      </tr>
                    )) : (
-                     <tr>
-                        <td colSpan={5} className="py-20 flex flex-col items-center justify-center">
-                           <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                              <Calendar className="w-8 h-8 text-slate-300" />
+                     <tr className="block md:table-row w-full">
+                        <td colSpan={5} className="py-20 block md:table-cell w-full md:w-auto">
+                           <div className="flex flex-col items-center justify-center text-center">
+                              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                                 <Calendar className="w-8 h-8 text-slate-300" />
+                              </div>
+                              <p className="text-slate-400 font-bold italic">Zero appointments found for today</p>
+                              <button onClick={() => setTab('appointments')} className="mt-4 text-blue-600 font-black text-sm hover:underline tracking-tight">+ Book First Appointment</button>
                            </div>
-                           <p className="text-slate-400 font-bold italic">Zero appointments found for today</p>
-                           <button onClick={() => setTab('appointments')} className="mt-4 text-blue-600 font-black text-sm hover:underline tracking-tight">+ Book First Appointment</button>
                         </td>
                      </tr>
                    )}
@@ -1728,6 +1700,78 @@ const Dashboard = ({
         </div>
       )}
 
+      {showCompletedSessionsModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-5 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10 shrink-0">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Completed Sessions</h3>
+                <p className="text-sm font-medium text-slate-500 mt-1">Patients whose sessions finished today</p>
+              </div>
+              <button type="button" onClick={() => setShowCompletedSessionsModal(false)} className="text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors shrink-0">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-5 sm:p-8 overflow-y-auto max-h-[60vh] bg-slate-50/50">
+               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+                  {todayCompletedAppts.map(appt => (
+                     <div key={appt.id} className="p-4 hover:bg-slate-50 flex justify-between items-center transition-colors">
+                        <div>
+                          <h4 className="font-bold text-slate-800">{appt.patientName}</h4>
+                          <p className="text-xs text-slate-500 font-medium mt-0.5">{appt.sessionType || 'Session'}</p>
+                        </div>
+                        <div className="text-right flex flex-col items-end">
+                            <span className="text-sm font-black text-emerald-600 px-2 py-1 bg-emerald-50 rounded-lg">{appt.time}</span>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase">{appt.therapistName || 'Unassigned'}</span>
+                        </div>
+                     </div>
+                  ))}
+                  {todayCompletedAppts.length === 0 && (
+                    <div className="p-6 text-sm font-medium text-slate-500 text-center">No completed sessions yet.</div>
+                  )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAppointmentsModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-5 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10 shrink-0">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Today's Appointments</h3>
+                <p className="text-sm font-medium text-slate-500 mt-1">Scheduled sessions for today</p>
+              </div>
+              <button type="button" onClick={() => setShowAppointmentsModal(false)} className="text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors shrink-0">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-5 sm:p-8 overflow-y-auto max-h-[60vh] bg-slate-50/50">
+               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+                  {todayAppts.map(appt => (
+                     <div key={appt.id} className="p-4 hover:bg-slate-50 flex justify-between items-center transition-colors">
+                        <div>
+                          <h4 className="font-bold text-slate-800">{appt.patientName}</h4>
+                          <p className="text-xs text-slate-500 font-medium mt-0.5">{appt.sessionType || 'Session'}</p>
+                        </div>
+                        <div className="text-right flex flex-col items-end">
+                            <span className="text-sm font-black text-blue-600 px-2 py-1 bg-blue-50 rounded-lg">{appt.time}</span>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase">{appt.therapistName || 'Unassigned'}</span>
+                        </div>
+                     </div>
+                  ))}
+                  {todayAppts.length === 0 && (
+                    <div className="p-6 text-sm font-medium text-slate-500 text-center">No appointments booked today.</div>
+                  )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showQuickBillModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300 border dark:border-slate-800">
@@ -1805,7 +1849,7 @@ const Dashboard = ({
               <button 
                 disabled={isBilling || !quickBill.patientId || !quickBill.amount}
                 onClick={handleQuickBill}
-                className="w-full bg-slate-900 dark:bg-emerald-500 hover:bg-slate-800 dark:hover:bg-emerald-400 active:scale-95 text-white font-black py-5 rounded-2xl transition-all shadow-xl shadow-slate-900/10 dark:shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-3 mt-4 group"
+                className="w-full bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-500 active:scale-95 text-white font-black py-5 rounded-2xl transition-all shadow-xl shadow-slate-900/10 dark:shadow-emerald-600/20 disabled:opacity-50 flex items-center justify-center gap-3 mt-4 group"
               >
                   {isBilling ? <Activity className="w-6 h-6 animate-spin" /> : (
                     <>
@@ -1904,7 +1948,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [localDocs, setLocalDocs] = useState<LocalDocument[]>([]);
+  const [localDocs, setLocalDocs] = useState<PatientDocument[]>([]);
   const [returnToTab, setReturnToTab] = useState<string | null>(null);
   
   const closePatientModals = () => {
@@ -1925,11 +1969,12 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
 
   useEffect(() => {
     if (selectedPatient) {
-       setLocalDocs(getLocalDocuments(selectedPatient.id));
+       const unsub = getPatientDocumentsMetadata(selectedPatient.id, setLocalDocs);
+       return () => unsub();
     }
   }, [selectedPatient?.id]);
 
-  const handleDocumentDelete = async (docId: string, e: React.MouseEvent) => {
+  const handleDocumentDelete = async (docId: string, fullPath: string | undefined, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!selectedPatient) return;
@@ -1942,8 +1987,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
     }
     
     try {
-      deleteLocalDocumentFromStorage(docId);
-      setLocalDocs(getLocalDocuments(selectedPatient.id));
+      if (fullPath) await deletePatientDocument(fullPath);
+      await deletePatientDocumentMetadata(selectedPatient.id, docId);
       setDeleteConfirmId(null);
       onNotify("Document deleted successfully", "success");
     } catch (err: any) {
@@ -2129,15 +2174,27 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
     setIsDragging(false);
   };
 
-  const compressImage = async (file: File): Promise<File> => {
-    if (!file.type.startsWith('image/')) return file;
+  const compressImage = async (file: File): Promise<string> => {
+    if (!file.type.startsWith('image/')) {
+       return new Promise((resolve, reject) => {
+          if (file.size > 800 * 1024) {
+             reject(new Error("PDFs and other files must be under 800KB to fit in database."));
+             return;
+          }
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.onerror = () => reject(new Error("Failed to read file"));
+          reader.readAsDataURL(file);
+       });
+    }
+
     return new Promise((resolve) => {
        const reader = new FileReader();
        reader.onload = (e) => {
           const img = new Image();
           img.onload = () => {
              const canvas = document.createElement('canvas');
-             const maxDim = 1600;
+             const maxDim = 800; // Compress more to fit in 1MB Firestore limit
              let { width, height } = img;
              
              if (width > maxDim || height > maxDim) {
@@ -2155,14 +2212,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
              const ctx = canvas.getContext('2d');
              ctx?.drawImage(img, 0, 0, width, height);
              
-             canvas.toBlob((blob) => {
-                if (blob) {
-                   const compressedFile = new File([blob], file.name, { type: 'image/jpeg' });
-                   resolve(compressedFile);
-                } else {
-                   resolve(file);
-                }
-             }, 'image/jpeg', 0.7);
+             // Directly resolve to Base64 String with low quality
+             resolve(canvas.toDataURL('image/jpeg', 0.6));
           };
           img.src = e.target?.result as string;
        };
@@ -2181,6 +2232,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
        return;
     }
 
+    // Increased strictness on size due to Firestore 1MB limits
     if (file.size > 5 * 1024 * 1024) {
        onNotify("File size must be less than 5MB", "error");
        if (fileInputRef.current) fileInputRef.current.value = '';
@@ -2192,35 +2244,30 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
     onNotify('Processing document...', 'info');
     
     try {
-        const fileToUpload = await compressImage(file);
-        setUploadProgress(60);
+        setUploadProgress(40);
+        // Returns base64 representation of the file/image
+        const base64Data = await compressImage(file);
         
-        // Convert to Base64
-        const base64Data = await new Promise<string>((resolve, reject) => {
-           const reader = new FileReader();
-           reader.onload = (e) => resolve(e.target?.result as string);
-           reader.onerror = (e) => reject(new Error("Failed to read file"));
-           reader.readAsDataURL(fileToUpload);
-        });
+        // Firestore limit is ~1,048,487 bytes. Base64 encoding inflates by 33%.
+        if (base64Data.length > 900000) {
+           throw new Error("File too large after compression. Max allowed size reached.");
+        }
         
-        setUploadProgress(90);
+        setUploadProgress(80);
 
-        const newDoc: LocalDocument = {
-           id: Date.now().toString() + '_' + Math.random().toString(36).substr(2, 5),
-           patientId: selectedPatient.id,
+        const newDoc = {
            fileName: file.name,
            fileType: file.type.startsWith('image/') ? 'image' : file.type === 'application/pdf' ? 'pdf' : 'other',
-           fileData: base64Data,
+           fileData: base64Data, // Save directly to Firestore as base64
+           fullPath: null, // No storage path needed
            uploadDate: new Date().toISOString()
         };
 
-        const isSaved = saveLocalDocument(newDoc);
-        if (isSaved) {
-           setLocalDocs(getLocalDocuments(selectedPatient.id));
-           onNotify("Document uploaded successfully!", "success");
-        } else {
-           onNotify("Failed to save. Device storage might be full.", "error");
-        }
+        // Note: we don't need to specify patientId inside docData because it is in the path
+        await addPatientDocumentMetadata(selectedPatient.id, newDoc);
+        
+        setUploadProgress(100);
+        onNotify("Document uploaded successfully!", "success");
     } catch (err: any) {
         console.error("Upload error:", err);
         onNotify(err.message || "Failed to upload document", "error");
@@ -2400,7 +2447,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
       </header>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group flex items-center gap-4">
            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
              <Users className="w-6 h-6" />
@@ -2428,15 +2475,6 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
              <div className="text-2xl font-black text-slate-800">{dashboardStats.newThisMonth}</div>
            </div>
         </div>
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group flex items-center gap-4">
-           <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-100 transition-colors">
-             <Clock3 className="w-6 h-6" />
-           </div>
-           <div>
-             <span className="text-[10px] uppercase tracking-widest font-black text-slate-400">Pending Payments ({dashboardStats.pendingPayments})</span>
-             <div className="text-2xl font-black text-slate-800">₹{dashboardStats.pendingPaymentsAmount.toLocaleString()}</div>
-           </div>
-        </div>
       </div>
 
       {/* Controls & Filters */}
@@ -2452,24 +2490,13 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
             />
          </div>
          <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
-            <label className="flex-1 sm:flex-none flex items-center justify-center gap-2 cursor-pointer bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800 px-3 py-2.5 rounded-xl shadow-sm transition-all group">
-               <input type="checkbox" checked={activeOnly} onChange={e => {setActiveOnly(e.target.checked); setCurrentPage(1);}} className="rounded text-blue-600 w-4 h-4 cursor-pointer" />
-               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap group-hover:text-slate-900 dark:group-hover:text-white transition-colors">Active Only</span>
-            </label>
             <select value={statusFilter} onChange={e => {setStatusFilter(e.target.value); setCurrentPage(1);}} className="flex-1 sm:flex-none text-xs font-bold bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200 px-3 py-3 rounded-xl outline-none focus:border-blue-400 dark:focus:border-blue-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                <option value="All">All Status</option>
                <option value="Active">Active</option>
                <option value="In Treatment">In Treatment</option>
                <option value="Completed">Completed</option>
             </select>
-            <select value={ageFilter} onChange={e => {setAgeFilter(e.target.value); setCurrentPage(1);}} className="flex-1 sm:flex-none text-xs font-bold bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200 px-3 py-3 rounded-xl outline-none focus:border-blue-400 dark:focus:border-blue-500 hidden sm:block cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-               <option value="All">All Ages</option>
-               <option value="0-18">0-18 yrs</option>
-               <option value="19-35">19-35 yrs</option>
-               <option value="36-50">36-50 yrs</option>
-               <option value="51+">51+ yrs</option>
-            </select>
-            <select value={sortOrder} onChange={e => {setSortOrder(e.target.value); setCurrentPage(1);}} className="flex-1 sm:flex-none text-xs font-bold bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200 px-3 py-3 rounded-xl outline-none focus:border-blue-400 dark:focus:border-blue-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors hidden sm:block">
+            <select value={sortOrder} onChange={e => {setSortOrder(e.target.value); setCurrentPage(1);}} className="flex-1 sm:flex-none text-xs font-bold bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200 px-3 py-3 rounded-xl outline-none focus:border-blue-400 dark:focus:border-blue-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                <option value="Recent">Recent First</option>
                <option value="Name A-Z">Name A-Z</option>
             </select>
@@ -2947,11 +2974,14 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                   )}
 
                   {(localDocs.length === 0) ? (
-                     <div className="text-center py-12 px-6 relative z-10 text-slate-400 font-bold border-2 border-dashed border-slate-200 rounded-2xl w-full mx-auto bg-slate-50/50 flex flex-col items-center justify-center gap-3 group">
-                        <div className="w-16 h-16 bg-white border border-slate-100 rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                     <div 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-center py-12 px-6 relative z-10 text-slate-400 font-bold border-2 border-dashed border-slate-200 rounded-2xl w-full mx-auto bg-slate-50/50 flex flex-col items-center justify-center gap-3 group cursor-pointer hover:bg-slate-50 hover:border-indigo-300 transition-colors"
+                     >
+                        <div className="w-16 h-16 bg-white border border-slate-100 rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 group-hover:text-indigo-500 transition-all">
                            <UploadCloud className="w-6 h-6 text-indigo-400" />
                         </div>
-                        <p className="text-sm">Drag & drop files or click Upload above.</p>
+                        <p className="text-sm">Drag & drop files or click here to upload.</p>
                      </div>
                   ) : (
                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-4">
@@ -2961,10 +2991,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                                 className="h-28 sm:h-32 bg-slate-50 w-full relative overflow-hidden flex flex-col items-center justify-center cursor-pointer"
                                 onClick={() => {
                                   if (doc.fileType === 'pdf') {
-                                    const pdfWindow = window.open("");
-                                    if(pdfWindow) {
-                                      pdfWindow.document.write(`<iframe width='100%' height='100%' src='${doc.fileData}' style='border:none'></iframe>`);
-                                    }
+                                    window.open(doc.fileData, '_blank', 'noopener,noreferrer');
                                   } else {
                                     setPreviewDoc(doc);
                                   }
@@ -2997,7 +3024,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                                       <Download className="w-3.5 h-3.5" />
                                    </a>
                                    <button 
-                                     onClick={(e) => handleDocumentDelete(doc.id, e)}
+                                     onClick={(e) => handleDocumentDelete(doc.id, doc.fullPath, e)}
                                      className={cn(
                                        "h-6 flex items-center justify-center rounded-md transition-colors",
                                        deleteConfirmId === doc.id

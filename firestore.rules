@@ -77,6 +77,24 @@ service cloud.firestore {
       allow delete: if isSignedIn();
     }
 
+    // 2.5 Patient Documents
+    match /patients/{patientId}/documents/{documentId} {
+      function isValidDocument(data) {
+        return data.fileName is string && data.fileName.size() > 0 && data.fileName.size() <= 250
+            && data.fileType in ['image', 'pdf', 'other']
+            && data.fileData is string && data.fileData.size() > 0
+            && (!('fullPath' in data) || data.fullPath == null || data.fullPath is string)
+            && (!('uploadDate' in data) || data.uploadDate == null || data.uploadDate is string)
+            && (!('createdAt' in data) || data.createdAt == null || data.createdAt is timestamp);
+      }
+      
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(documentId) && isValidId(patientId) && isValidDocument(incoming());
+      allow update: if isSignedIn() && isValidDocument(incoming())
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['fileName', 'fileType', 'fileData', 'fullPath', 'uploadDate']);
+      allow delete: if isSignedIn();
+    }
+
     // 3. Financial Transactions
     match /transactions/{transactionId} {
       function isValidTransaction(data) {
