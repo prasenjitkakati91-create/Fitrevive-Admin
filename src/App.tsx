@@ -129,11 +129,13 @@ import {
   getAttendance,
   getAttendanceRange,
   logAttendance,
+  updateAttendance,
   clearDatabase,
   uploadPatientDocument,
   deletePatientDocument,
   addPatientDocumentMetadata,
   getPatientDocumentsMetadata,
+  getRecentDocumentsMetadata,
   deletePatientDocumentMetadata,
   db
 } from './firebase';
@@ -148,8 +150,8 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const useAvatar = (user: User | null, defaultName?: string) => {
-   const [avatar, setAvatar] = useState((user?.photoURL && user.photoURL.trim() !== '') ? user.photoURL : `https://ui-avatars.com/api/?name=${encodeURIComponent(defaultName || user?.displayName || 'User')}&background=3b82f6&color=ffffff`);
+export const useAvatar = (user: User | null, defaultName?: string, memberPhotoURL?: string) => {
+   const [avatar, setAvatar] = useState((user?.photoURL && user.photoURL.trim() !== '') ? user.photoURL : (memberPhotoURL && memberPhotoURL.trim() !== '' ? memberPhotoURL : `https://ui-avatars.com/api/?name=${encodeURIComponent(defaultName || user?.displayName || 'User')}&background=3b82f6&color=ffffff`));
    
    useEffect(() => {
       if (!user) return;
@@ -157,6 +159,8 @@ export const useAvatar = (user: User | null, defaultName?: string) => {
          const localAvatar = localStorage.getItem(`avatar_${user.uid}`);
          if (localAvatar && localAvatar.trim() !== '') {
             setAvatar(localAvatar);
+         } else if (memberPhotoURL && memberPhotoURL.trim() !== '') {
+            setAvatar(memberPhotoURL);
          } else if (user.photoURL && user.photoURL.trim() !== '') {
             setAvatar(user.photoURL);
          } else {
@@ -169,7 +173,7 @@ export const useAvatar = (user: User | null, defaultName?: string) => {
       const listener = () => loadAvatar();
       window.addEventListener('avatar-updated', listener);
       return () => window.removeEventListener('avatar-updated', listener);
-   }, [user, defaultName]);
+   }, [user, defaultName, memberPhotoURL]);
    
    return avatar;
 };
@@ -237,8 +241,8 @@ interface Appointment {
   patientId: string;
   patientName: string;
   patientPhone: string;
-  therapistId?: string;
-  therapistName?: string;
+  physiotherapistId?: string;
+  physiotherapistName?: string;
   sessionType?: string;
   date: string;
   time: string;
@@ -251,7 +255,7 @@ const getLocalYMD = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth(
 
 // --- Components ---
 
-const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, setIsCollapsed, role, setRole, badges = {} }: { 
+const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, setIsCollapsed, role, setRole, badges = {}, memberPhotoURL }: { 
   activeTab: string, 
   setActiveTab: (tab: string) => void, 
   user: User, 
@@ -259,28 +263,29 @@ const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, 
   onClose: () => void,
   isCollapsed: boolean,
   setIsCollapsed: (val: boolean) => void,
-  role: 'admin' | 'manager' | 'therapist' | null,
+  role: 'admin' | 'manager' | 'physiotherapist' | null,
   setRole: (role: any) => void,
-  badges?: { [key: string]: number }
+  badges?: { [key: string]: number },
+  memberPhotoURL?: string
 }) => {
-  const avatarUrl = useAvatar(user, user.displayName || 'Staff');
+  const avatarUrl = useAvatar(user, user.displayName || 'Staff', memberPhotoURL);
   const sections = [
     { 
       title: 'Main Menu', 
-      roles: ['admin', 'manager', 'therapist'],
+      roles: ['admin', 'manager', 'physiotherapist'],
       items: [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'therapist'] },
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'physiotherapist'] },
         { id: 'appointments', label: 'Appointments', icon: Calendar, roles: ['admin', 'manager'], badge: badges.appointments },
-        { id: 'sessions', label: 'Sessions', icon: Activity, roles: ['admin', 'therapist'] },
+        { id: 'sessions', label: 'Sessions', icon: Activity, roles: ['admin', 'physiotherapist'] },
       ]
     },
     { 
       title: 'Operations', 
-      roles: ['admin', 'manager', 'therapist'],
+      roles: ['admin', 'manager', 'physiotherapist'],
       items: [
-        { id: 'patients', label: 'Patients', icon: Users, roles: ['admin', 'manager', 'therapist'], badge: badges.patients },
+        { id: 'patients', label: 'Patients', icon: Users, roles: ['admin', 'manager', 'physiotherapist'], badge: badges.patients },
         { id: 'finances', label: 'Billing & Ledger', icon: CircleDollarSign, roles: ['admin', 'manager'], badge: badges.finances },
-        { id: 'attendance', label: 'Attendance', icon: Clock, roles: ['admin', 'manager', 'therapist'] },
+        { id: 'attendance', label: 'Attendance', icon: Clock, roles: ['admin', 'manager', 'physiotherapist'] },
       ]
     },
     { 
@@ -293,9 +298,9 @@ const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, 
     },
     {
       title: 'Preferences',
-      roles: ['admin', 'manager', 'therapist'],
+      roles: ['admin', 'manager', 'physiotherapist'],
       items: [
-        { id: 'settings', label: 'Settings', icon: Settings, roles: ['admin', 'manager', 'therapist'] },
+        { id: 'settings', label: 'Settings', icon: Settings, roles: ['admin', 'manager', 'physiotherapist'] },
       ]
     }
   ];
@@ -503,7 +508,7 @@ const Dashboard = ({
   appointments: Appointment[], 
   patients: Patient[],
   members: any[],
-  role: 'admin' | 'manager' | 'therapist' | null,
+  role: 'admin' | 'manager' | 'physiotherapist' | null,
   setTab: (tab: string) => void,
   onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void,
   user: User,
@@ -516,12 +521,21 @@ const Dashboard = ({
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '6m'>('30d');
   const [patientSearch, setPatientSearch] = useState('');
   const [showDuePatientsModal, setShowDuePatientsModal] = useState(false);
+  const [showFollowUpsModal, setShowFollowUpsModal] = useState(false);
   const [showCompletedSessionsModal, setShowCompletedSessionsModal] = useState(false);
   const [showAppointmentsModal, setShowAppointmentsModal] = useState(false);
+  const [showRevenueModal, setShowRevenueModal] = useState(false);
   const [showQuickBillModal, setShowQuickBillModal] = useState(false);
+  const [showDashboardUploadModal, setShowDashboardUploadModal] = useState(false);
   const [activityFilter, setActivityFilter] = useState<'all' | 'patient' | 'billing' | 'booking'>('all');
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [quickBill, setQuickBill] = useState({ patientId: '', service: 'consultation', amount: '500' });
+  const [recentDocs, setRecentDocs] = useState<any[]>([]);
+
+  useEffect(() => {
+     const unsub = getRecentDocumentsMetadata(setRecentDocs);
+     return () => unsub();
+  }, []);
   
   useEffect(() => {
     const prices: any = {
@@ -542,10 +556,18 @@ const Dashboard = ({
   const setLedgerDate = setGlobalDate;
   const [isBilling, setIsBilling] = useState(false);
   
+  const parseTimeForSort = (t: string) => {
+    const [time, modifier] = t.split(' ');
+    let [hours, minutes] = time.split(':');
+    if (hours === '12') hours = '00';
+    if (modifier === 'PM') hours = String(parseInt(hours, 10) + 12);
+    return parseInt(hours, 10) * 60 + parseInt(minutes, 10);
+  };
   const todayDate = globalDate;
-  const todayAppts = appointments.filter(a => a.date === todayDate && a.status !== 'cancelled').sort((a, b) => a.time.localeCompare(b.time));
+  const todayAppts = appointments.filter(a => a.date === todayDate && a.status !== 'cancelled').sort((a, b) => parseTimeForSort(a.time) - parseTimeForSort(b.time));
   const todayCompletedAppts = useMemo(() => appointments.filter(a => a.date === todayDate && a.status === 'completed'), [appointments, todayDate]);
   const todayCompleted = todayCompletedAppts.length;
+  const dashboardRevenueToday = transactions.filter(t => t.date === globalDate && t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
   
   // Pending payments: Sum of all unpaid sessions and amounts across all patients
   const { pendingPaymentsCount, pendingPaymentsAmount } = useMemo(() => {
@@ -1121,13 +1143,13 @@ const Dashboard = ({
                   <Plus className="w-4 h-4" /> Book Appointment
                 </button>
              </div>
-             <div className="overflow-x-auto w-full">
+             <div className="overflow-x-hidden md:overflow-x-auto w-full">
                <table className="w-full border-collapse min-w-full">
                  <thead className="hidden md:table-header-group">
                    <tr className="bg-slate-50/30 text-left">
                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Time</th>
                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient</th>
-                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Therapist</th>
+                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Physiotherapist</th>
                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
                      <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Actions</th>
                    </tr>
@@ -1159,8 +1181,8 @@ const Dashboard = ({
                        </td>
                        <td className="px-4 py-2 md:px-8 md:py-5 text-sm font-bold text-slate-500 block md:table-cell border-none md:ml-16">
                          <div className="flex items-center gap-2">
-                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest md:hidden">Therapist:</span>
-                           {appt.therapistName || <span className="text-rose-400 italic">Not assigned</span>}
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest md:hidden">Physiotherapist:</span>
+                           {appt.physiotherapistName || <span className="text-rose-400 italic">Not assigned</span>}
                          </div>
                        </td>
                        <td className="hidden md:table-cell px-8 py-5">
@@ -1345,299 +1367,263 @@ const Dashboard = ({
     </div>
   );
 
-  const TherapistDashboard = () => {
+  const PhysiotherapistDashboard = () => {
     const nextAppt = todayAppts.find(a => a.status === 'scheduled');
-    const followUpsCount = patients.length > 5 ? 3 : 0; // Simulated follow-ups
+    const followUpsCount = patients.length > 5 ? 3 : 0; 
     const currentMember = members.find(m => m.email?.toLowerCase() === user.email?.toLowerCase());
-    const matchedName = currentMember?.name || user.displayName?.replace(/demo therapist/i, 'Sarah Jenkins') || 'Sarah Jenkins';
-    const avatarUrl = useAvatar(user, matchedName);
+    const matchedName = currentMember?.name || user.displayName?.replace(/demo physiotherapist/i, 'Sarah Jenkins') || 'Sarah Jenkins';
+    const avatarUrl = useAvatar(user, matchedName, currentMember?.photoURL);
     
+    const [isAvailable, setIsAvailable] = useState(true);
+    // Extract revenueToday for Dashboard (same logic as in PhysiotherapistDashboard)
+  const dashboardRevenueToday = transactions
+    .filter(t => t.date === globalDate && t.type === 'income')
+    .reduce((sum, t) => sum + Number(t.amount), 0);
+
+  const [localPatientSearch, setLocalPatientSearch] = useState('');
+    
+    // Computed Metrics
+    const uniquePatientsCount = new Set(todayAppts.map(a => a.patientId)).size;
+    const pendingApptsCount = todayAppts.filter(a => a.status === 'scheduled').length;
+    
+    const revenueToday = transactions
+      .filter(t => t.date === todayDate && t.type === 'income')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const filteredRecentPatients = patients
+      .filter(p => !localPatientSearch || p.name.toLowerCase().includes(localPatientSearch.toLowerCase()))
+      .slice(0, 5);
+
     return (
-      <div className="space-y-6 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        {/* 1. Profile & Status Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="relative group">
-              <img 
-                src={avatarUrl} 
-                alt="Therapist" 
-                className="w-16 h-16 rounded-2xl border-4 border-slate-50 dark:border-slate-800 object-cover shadow-sm group-hover:scale-105 transition-transform"
-              />
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-4 border-white dark:border-slate-900 rounded-full"></div>
+      <div className="space-y-6 pb-12 animate-in fade-in duration-500">
+        {/* Top Header */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            <div className="relative">
+              <img src={avatarUrl} alt="Doctor" className="w-16 h-16 rounded-full border-2 border-slate-100 object-cover" />
+              <div className={cn("absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white", isAvailable ? "bg-emerald-500" : "bg-rose-500")}></div>
             </div>
             <div>
-              <div className="flex items-center gap-2 mb-0.5">
-                <h1 className="text-xl font-black text-slate-800 dark:text-white">{matchedName}</h1>
-                <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 text-[10px] font-black rounded-lg uppercase tracking-tight">Therapist</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
-                  <Clock className="w-3.5 h-3.5" /> Shift ends in 4h
-                </div>
-                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Available for walk-ins
-                </div>
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-0.5">Welcome back,</p>
+              <h1 className="text-2xl font-black text-slate-800 dark:text-white leading-tight">{matchedName}</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
+                  <Calendar className="w-3.5 h-3.5" /> 
+                  {new Date(globalDate).toLocaleDateString(undefined, { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
+                </span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="p-3 rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all">
-              <MessageSquare className="w-5 h-5" />
-            </button>
-            <button 
-              onClick={() => setTab('attendance')}
-              className="px-5 py-3 rounded-2xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm font-bold shadow-lg shadow-slate-900/10 dark:shadow-white/5 hover:shadow-slate-900/20 active:scale-95 transition-all flex items-center gap-2"
-            >
-              <Clock className="w-4 h-4" /> Check-out
-            </button>
+          
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-3 bg-slate-50 rounded-2xl p-2 px-4 border border-slate-100">
+               <span className="text-xs font-bold text-slate-600">Availability:</span>
+               <button 
+                 onClick={() => setIsAvailable(!isAvailable)}
+                 className={cn("w-12 h-6 rounded-full p-1 transition-colors relative", isAvailable ? "bg-emerald-500" : "bg-slate-300")}
+               >
+                 <div className={cn("w-4 h-4 bg-white rounded-full transition-transform", isAvailable ? "translate-x-6" : "translate-x-0")}></div>
+               </button>
+            </div>
           </div>
         </div>
 
-        {/* 2. Key Metrics Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Dashboard Cards Grid */}
+        <div className="grid grid-cols-2 gap-4 sm:gap-6">
           {[
-            { label: "Today's Queue", value: todayAppts.length, icon: Calendar, color: "blue" },
-            { label: "Completed", value: todayCompleted, icon: CheckCircle2, color: "emerald" },
-            { label: "Unpaid Sessions", value: pendingPaymentsCount, icon: AlertCircle, color: "amber" },
-            { label: "Follow-ups Due", value: followUpsCount, icon: History, color: "indigo" },
+            { label: "Today's Patients", value: uniquePatientsCount, icon: Users, color: "blue", prefix: "", onClick: () => setShowAppointmentsModal(true) },
+            { label: "Revenue Today", value: revenueToday.toLocaleString('en-IN'), icon: IndianRupee, color: "emerald", prefix: "₹", onClick: () => setShowRevenueModal(true) },
           ].map((card, i) => (
-            <div 
-              key={i} 
-              onClick={() => {
-                if (card.label === "Unpaid Sessions") {
-                  setShowDuePatientsModal(true);
-                }
-              }}
-              className={`bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group ${card.label === "Unpaid Sessions" ? "cursor-pointer" : ""}`}>
-              <div className={`w-10 h-10 rounded-xl bg-${card.color}-50 text-${card.color}-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                <card.icon className="w-5 h-5" />
-              </div>
-              <div className="text-2xl font-black text-slate-900 mb-0.5">{card.value}</div>
-              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{card.label}</div>
-            </div>
+            <button key={i} onClick={card.onClick} className="text-left bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow group active:scale-95 focus:outline-none">
+               <div className="flex justify-between items-start mb-4">
+                  <div className={`w-12 h-12 rounded-2xl bg-${card.color}-50 text-${card.color}-600 flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                    <card.icon className="w-6 h-6" />
+                  </div>
+               </div>
+               <div>
+                 <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">{card.label}</p>
+                 <h3 className="text-3xl font-black text-slate-800 tracking-tight">{card.prefix}{card.value}</h3>
+               </div>
+            </button>
           ))}
         </div>
 
+        {/* Main Split Section */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* 3. Left Section: Queue & Next Action */}
-          <div className="lg:col-span-8 space-y-6">
-            {/* Next Patient Panel */}
-            {nextAppt ? (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-indigo-600 p-6 rounded-[2.5rem] text-white shadow-xl shadow-indigo-600/20 relative overflow-hidden group"
-              >
-                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-                  <Zap className="w-32 h-32" />
-                </div>
-                
-                <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="px-3 py-1 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">Next Patient Up</div>
-                      <div className="flex items-center gap-1.5 text-indigo-100 text-xs font-bold">
-                        <Clock3 className="w-4 h-4" /> Starting at {nextAppt.time}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-3xl font-black mb-1">{nextAppt.patientName}</h3>
-                      <p className="text-indigo-100 font-bold opacity-90">{nextAppt.sessionType || 'Physiotherapy Consultation'}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 w-full md:w-auto">
-                    <button 
-                      onClick={() => setTab('sessions')}
-                      className="flex-1 md:flex-none px-6 py-4 bg-white text-indigo-600 rounded-2xl font-bold text-sm shadow-xl hover:bg-indigo-50 active:scale-95 transition-all"
-                    >
-                      Start Session
-                    </button>
-                    <button 
-                      onClick={() => setTab('patients')}
-                      className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all border border-white/10"
-                    >
-                      <UserCheck className="w-6 h-6" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              <div className="bg-slate-50 border-2 border-dashed border-slate-200 p-8 rounded-[2.5rem] text-center">
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-                  <Calendar className="w-8 h-8 text-slate-300" />
-                </div>
-                <p className="text-slate-400 font-bold mb-4">You're all clear for now! No upcoming appointments.</p>
-                <button 
-                  onClick={() => setTab('patients')}
-                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-100 transition-all"
-                >
-                  View Patient Directory
-                </button>
-              </div>
-            )}
+           
+           {/* LEFT: Appointment Timeline */}
+           <div className="lg:col-span-7 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 sm:p-8">
+             <div className="flex justify-between items-end mb-8">
+               <div>
+                 <h2 className="text-xl font-black text-slate-800 tracking-tight">Today's Timeline</h2>
+                 <p className="text-sm font-bold text-slate-400 mt-1">{pendingApptsCount} upcoming sessions</p>
+               </div>
+               <button onClick={() => setTab('sessions')} className="text-indigo-600 hover:text-indigo-700 text-sm font-bold flex items-center gap-1">
+                 View All <ChevronRight className="w-4 h-4" />
+               </button>
+             </div>
 
-            {/* Main Queue */}
-            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-              <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center">
-                <h2 className="text-lg font-black text-slate-800">Operational Queue <span className="text-slate-300 ml-1">({todayAppts.length})</span></h2>
-                <div className="flex items-center gap-2">
-                  <button className="p-2 text-slate-400 hover:text-slate-600"><Filter className="w-4 h-4" /></button>
-                  <button className="p-2 text-slate-400 hover:text-slate-600"><MoreVertical className="w-4 h-4" /></button>
-                </div>
-              </div>
-              <div className="divide-y divide-slate-50">
-                {todayAppts.length > 0 ? (
-                  todayAppts.map((appt, idx) => (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      key={appt.id} 
-                      className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-all group"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={cn(
-                          "w-12 h-12 rounded-xl flex items-center justify-center font-black transition-all group-hover:scale-105 shadow-sm border",
-                          appt.status === 'completed' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                          appt.status === 'scheduled' ? "bg-blue-50 text-blue-600 border-blue-100" :
-                          "bg-slate-50 text-slate-400 border-slate-100"
-                        )}>
-                          {appt.time.substring(0, 5)}
-                        </div>
-                        <div>
-                          <div className="text-sm font-black text-slate-800">{appt.patientName}</div>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                            {appt.sessionType || 'Physio Session'}
-                            <span className={cn(
-                              "w-1.5 h-1.5 rounded-full",
-                              appt.status === 'completed' ? "bg-emerald-500" : "bg-blue-500"
-                            )}></span>
+             <div className="space-y-4 relative before:absolute before:inset-0 before:ml-6 before:-translate-x-px md:before:ml-8 md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-slate-100 before:via-slate-200 before:to-transparent">
+                {todayAppts.length > 0 ? todayAppts.map((appt, idx) => (
+                  <div key={appt.id} className="relative flex items-start justify-between group">
+                    <div className="flex items-start gap-4 sm:gap-6 w-full">
+                       <div className="relative mt-1">
+                          <div className={cn("w-12 h-12 md:w-16 md:h-16 rounded-2xl flex flex-col items-center justify-center bg-white shadow-sm border border-slate-100 relative z-10", 
+                            appt.status === 'completed' ? 'border-emerald-200 shadow-emerald-100' : 'border-indigo-100 shadow-indigo-100'
+                          )}>
+                             <span className="text-xs font-black text-slate-800">{appt.time.split(' ')[0]}</span>
+                             <span className="text-[9px] font-bold text-slate-400 uppercase">{appt.time.split(' ')[1] || 'AM'}</span>
                           </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 transition-all">
-                        {appt.status !== 'completed' && (
-                          <button 
-                            onClick={() => onStatusUpdate?.(appt.id, 'completed')}
-                            className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
-                            title="Mark as Complete"
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                        )}
-                        {appt.status !== 'completed' && appt.status !== 'cancelled' && (
-                          <button 
-                            onClick={() => onStatusUpdate?.(appt.id, 'cancelled')}
-                            className="p-2 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-600 hover:text-white transition-all shadow-sm"
-                            title="Patient Not Present"
-                          >
-                            <UserX className="w-4 h-4" />
-                          </button>
-                        )}
-                        {appt.status === 'completed' && (
-                          <button 
-                            onClick={() => onStatusUpdate?.(appt.id, 'scheduled')}
-                            className="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-600 hover:text-white transition-all shadow-sm"
-                            title="Mark as Not Complete"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => setTab('sessions')}
-                          className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-all shadow-sm"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))
-                ) : (
-                  <div className="p-12 text-center text-slate-400 font-bold italic">No patients assigned for today.</div>
-                )}
-              </div>
-            </div>
-          </div>
+                          {idx !== todayAppts.length - 1 && <div className="absolute top-12 bottom-[-1rem] left-1/2 -mt-0.5 w-0.5 -ml-px bg-slate-100 group-hover:bg-slate-200 transition-colors"></div>}
+                       </div>
 
-          {/* 4. Right Section: Quick Actions & Mini Analytics */}
-          <div className="lg:col-span-4 space-y-6">
-            {/* Quick Actions */}
-            <div className="bg-slate-900 rounded-[2.5rem] p-6 shadow-xl shadow-slate-900/10">
-              <h3 className="text-white font-black mb-4 flex items-center gap-2">
-                <Zap className="w-4 h-4 text-amber-400" /> Fast Actions
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: 'View Sessions', icon: UserPlus, color: 'bg-white/10', target: 'sessions' },
-                  { label: 'Patient List', icon: Users, color: 'bg-white/10', target: 'patients' },
-                  { label: 'Clinical Notes', icon: ClipboardList, color: 'bg-white/10', target: 'sessions' },
-                  { label: 'My Attendance', icon: Clock, color: 'bg-white/10', target: 'attendance' },
-                ].map((action, i) => (
-                  <button 
-                    key={i}
-                    onClick={() => setTab(action.target)}
-                    className={cn(
-                      "flex flex-col items-center gap-3 p-4 rounded-2xl text-white transition-all hover:bg-white/20 group border border-white/5",
-                      action.color
-                    )}
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <action.icon className="w-5 h-5" />
+                       <div className={cn("flex-1 p-4 sm:p-5 rounded-2xl sm:rounded-[2rem] border transition-all", 
+                          appt.status === 'completed' ? "bg-slate-50 border-slate-100" : 
+                          appt.status === 'cancelled' ? "bg-rose-50/50 border-rose-100" :
+                          "bg-white border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-200")}>
+                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                              <div>
+                                <h4 className="text-lg font-black text-slate-800">{appt.patientName}</h4>
+                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1 mb-3">{appt.sessionType || 'Consultation'}</p>
+                                <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider", 
+                                  appt.status === 'completed' ? "bg-emerald-100 text-emerald-700" :
+                                  appt.status === 'cancelled' ? "bg-rose-100 text-rose-700" :
+                                  "bg-indigo-50 text-indigo-700"
+                                )}>
+                                   {appt.status === 'completed' ? <CheckCircle2 className="w-3.5 h-3.5" /> : 
+                                    appt.status === 'cancelled' ? <XCircle className="w-3.5 h-3.5" /> : <Clock3 className="w-3.5 h-3.5" />}
+                                   {appt.status}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {appt.status !== 'completed' && appt.status !== 'cancelled' && (
+                                  <>
+                                    <button 
+                                      onClick={() => onStatusUpdate?.(appt.id, 'completed')}
+                                      className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-colors"
+                                      title="Mark Complete"
+                                    >
+                                      <Check className="w-5 h-5" />
+                                    </button>
+                                  </>
+                                )}
+                                <button 
+                                  onClick={() => {
+                                      setViewTarget({ type: 'patient', id: appt.patientId, returnTo: 'dashboard' });
+                                      setTab('patients');
+                                  }}
+                                  className="w-10 h-10 rounded-xl bg-slate-50 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-center transition-colors"
+                                  title="View Patient"
+                                >
+                                  <Eye className="w-5 h-5" />
+                                </button>
+                              </div>
+                           </div>
+                       </div>
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-tighter text-center leading-tight opacity-70 group-hover:opacity-100">{action.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+                  </div>
+                )) : (
+                  <div className="p-10 text-center relative z-10 bg-white rounded-2xl border border-dashed border-slate-200">
+                    <Calendar className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-500 font-bold">No appointments on the timeline today.</p>
+                  </div>
+                )}
+             </div>
 
-            {/* Mini Analytics */}
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-emerald-500" /> Weekly Session Flow
-                </h3>
-              </div>
-              <div className="h-40 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData.slice(-7)}>
-                    <Bar 
-                      dataKey="income" 
-                      fill="#3b82f6" 
-                      radius={[4, 4, 0, 0]} 
-                      barSize={12} 
-                    />
-                    <Tooltip cursor={{ fill: '#f9fafb' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="mt-4 pt-4 border-t border-slate-50 grid grid-cols-2 gap-4">
+             {/* Analytics Chart */}
+             <div className="mt-8 pt-8 border-t border-slate-100">
+               <div className="flex justify-between items-center mb-6">
                  <div>
-                   <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Growth Trend</div>
-                   <div className="text-emerald-500 font-black flex items-center gap-1">+12.4% <TrendingUp className="w-3 h-3"/></div>
+                   <h3 className="text-xl font-black text-slate-800 tracking-tight">Revenue Analytics</h3>
+                   <p className="text-sm font-bold text-slate-400 mt-1">Past 7 days performance</p>
                  </div>
-                 <div>
-                   <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Avg sessions/day</div>
-                   <div className="text-slate-800 font-black">{Math.round(todayAppts.length * 1.2)} Sessions</div>
+                 <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+                       <TrendingUp className="w-3.5 h-3.5 text-emerald-500" /> +12.4% vs last week
+                    </span>
                  </div>
-              </div>
-            </div>
+               </div>
+               <div className="h-56 w-full">
+                 <ResponsiveContainer width="100%" height="100%">
+                   <BarChart data={transactions.reduce((acc: any[], curr) => {
+                       if (curr.type === 'income') {
+                         const existing = acc.find(a => a.date === curr.date);
+                         if (existing) {
+                           existing.amount += Number(curr.amount);
+                         } else {
+                           acc.push({ date: curr.date.substring(5), amount: Number(curr.amount) });
+                         }
+                       }
+                       return acc;
+                   }, []).slice(-7)}>
+                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                     <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} dy={10} />
+                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} tickFormatter={(value) => `₹${value}`} dx={-10} />
+                     <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', fontWeight: 800 }} />
+                     <Bar 
+                       dataKey="amount" 
+                       fill="#4f46e5" 
+                       radius={[6, 6, 0, 0]} 
+                       barSize={24} 
+                     />
+                   </BarChart>
+                 </ResponsiveContainer>
+               </div>
+             </div>
+           </div>
 
-            {/* Follow-ups Highlight */}
-            <div 
-               onClick={() => setTab('patients')}
-               className="bg-emerald-50 p-6 rounded-[2.5rem] border border-emerald-100 flex items-center gap-4 group cursor-pointer hover:bg-emerald-100 transition-all"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
-                <History className="w-6 h-6" />
-              </div>
-              <div>
-                <h4 className="text-emerald-900 font-black text-sm">Follow-up List</h4>
-                <p className="text-emerald-700 text-xs font-bold leading-tight mt-0.5">{followUpsCount} patients need a call back today.</p>
-              </div>
-            </div>
-          </div>
+           {/* RIGHT: Quick Search & Recent Patients */}
+           <div className="lg:col-span-5 space-y-6">
+             {/* Recent Files Section */}
+             <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 sm:p-8">
+               <div className="flex justify-between items-end mb-6">
+                 <div>
+                   <h2 className="text-xl font-black text-slate-800 tracking-tight">Recent Files</h2>
+                   <p className="text-sm font-bold text-slate-400 mt-1">Uploaded reports & imaging</p>
+                 </div>
+                 <button onClick={() => setShowDashboardUploadModal(true)} className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white flex items-center justify-center transition-colors">
+                   <UploadCloud className="w-5 h-5" />
+                 </button>
+               </div>
+               
+               <div className="space-y-3">
+                 {recentDocs.length > 0 ? recentDocs.map((file, i) => {
+                   const filePatient = patients.find(p => p.id === file.patientId);
+                   return (
+                     <div key={i} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-50 transition-colors cursor-pointer border border-transparent hover:border-slate-100 group">
+                       <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border border-slate-100", 
+                         file.fileType === 'pdf' ? "bg-rose-50 text-rose-500" :
+                         "bg-indigo-50 text-indigo-500"
+                       )}>
+                         <FileText className="w-6 h-6" />
+                       </div>
+                       <div className="flex-1 truncate">
+                         <p className="text-sm font-bold text-slate-800 truncate">{file.fileName || file.name}</p>
+                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
+                            {filePatient ? filePatient.name : 'Unknown Patient'} • {Math.round((file.fileData?.length * 0.75 / 1024) || (file.size / 1024) || 0)} KB
+                         </p>
+                       </div>
+                       <button onClick={() => {
+                          setViewTarget({ type: 'patient', id: file.patientId, returnTo: 'dashboard' });
+                          setTab('patients');
+                       }} className="p-2 text-slate-400 hover:text-indigo-600 bg-white rounded-xl shadow-sm opacity-0 group-hover:opacity-100 transition-all">
+                         <ChevronRight className="w-4 h-4" />
+                       </button>
+                     </div>
+                   );
+                 }) : (
+                   <div className="bg-slate-50/50 rounded-2xl border border-slate-100 border-dashed p-8 text-center flex flex-col items-center justify-center">
+                     <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center mb-3">
+                       <FileText className="w-5 h-5 text-slate-300" />
+                     </div>
+                     <p className="text-sm font-bold text-slate-700">No recent files here</p>
+                     <p className="text-xs font-medium text-slate-400 mt-1">Use the upload button or view patient profiles</p>
+                   </div>
+                 )}
+               </div>
+             </div>
+
+           </div>
         </div>
       </div>
     );
@@ -1645,6 +1631,7 @@ const Dashboard = ({
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      {role !== 'physiotherapist' && (
       <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
         <div className="flex items-center gap-5">
            <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200 shrink-0">
@@ -1659,10 +1646,11 @@ const Dashboard = ({
            </div>
         </div>
       </header>
+      )}
 
       {role === 'admin' && <FinancialDashboard />}
       {role === 'manager' && <ManagerDashboard />}
-      {role === 'therapist' && <TherapistDashboard />}
+      {role === 'physiotherapist' && <PhysiotherapistDashboard />}
 
       {showDuePatientsModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -1723,7 +1711,7 @@ const Dashboard = ({
                         </div>
                         <div className="text-right flex flex-col items-end">
                             <span className="text-sm font-black text-emerald-600 px-2 py-1 bg-emerald-50 rounded-lg">{appt.time}</span>
-                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase">{appt.therapistName || 'Unassigned'}</span>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase">{appt.physiotherapistName || 'Unassigned'}</span>
                         </div>
                      </div>
                   ))}
@@ -1759,12 +1747,48 @@ const Dashboard = ({
                         </div>
                         <div className="text-right flex flex-col items-end">
                             <span className="text-sm font-black text-blue-600 px-2 py-1 bg-blue-50 rounded-lg">{appt.time}</span>
-                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase">{appt.therapistName || 'Unassigned'}</span>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase">{appt.physiotherapistName || 'Unassigned'}</span>
                         </div>
                      </div>
                   ))}
                   {todayAppts.length === 0 && (
                     <div className="p-6 text-sm font-medium text-slate-500 text-center">No appointments booked today.</div>
+                  )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFollowUpsModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-5 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10 shrink-0">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Follow-ups Due</h3>
+                <p className="text-sm font-medium text-slate-500 mt-1">Patients needing a follow-up call</p>
+              </div>
+              <button type="button" onClick={() => setShowFollowUpsModal(false)} className="text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors shrink-0">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-5 sm:p-8 overflow-y-auto max-h-[60vh] bg-slate-50/50">
+               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+                  {patients.length > 5 ? patients.slice(0, 3).map(patient => (
+                     <div key={patient.id} className="p-4 hover:bg-slate-50 flex justify-between items-center transition-colors">
+                        <div>
+                          <h4 className="font-bold text-slate-800">{patient.name}</h4>
+                          <p className="text-xs text-slate-500 font-medium mt-0.5">{patient.phone}</p>
+                        </div>
+                        <div className="text-right flex flex-col items-end">
+                             <a href={`tel:${patient.phone}`} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                             </a>
+                        </div>
+                     </div>
+                  )) : (
+                    <div className="p-6 text-sm font-medium text-slate-500 text-center">No follow-ups due at this time.</div>
                   )}
               </div>
             </div>
@@ -1923,6 +1947,187 @@ const Dashboard = ({
           </div>
         </div>
       )}
+
+      {showRevenueModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 min-h-[50vh] max-h-[85vh]">
+            <div className="px-5 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10 shrink-0">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Today's Revenue</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">₹{dashboardRevenueToday.toLocaleString('en-IN')} Total Collected</p>
+              </div>
+              <button type="button" onClick={() => setShowRevenueModal(false)} className="text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors shrink-0">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 sm:p-8 overflow-y-auto flex-1 bg-slate-50/50">
+              <div className="space-y-3">
+                {transactions.filter(t => t.date === globalDate && t.type === 'income').length > 0 ? (
+                  transactions.filter(t => t.date === globalDate && t.type === 'income').map(tx => {
+                    const txPatient = patients.find(p => p.id === tx.patientId);
+                    return (
+                      <div key={tx.id} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex items-center justify-between group hover:shadow-md transition-shadow">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                          <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center border shrink-0", 
+                            "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm"
+                          )}>
+                             <IndianRupee className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <p className="font-black text-slate-800 mb-1 leading-none">{txPatient?.name || 'Walk-in Patient'}</p>
+                            <span className={cn("text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md", 
+                              "bg-emerald-50 text-emerald-700"
+                            )}>
+                              {tx.category || 'Consultation'}
+                            </span>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
+                                <Clock3 className="w-3.5 h-3.5" />
+                                {new Date(tx.createdAt || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-black text-slate-800">
+                            +₹{parseFloat(String(tx.amount)).toLocaleString('en-IN')}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                   <div className="bg-white rounded-3xl p-12 lg:p-16 text-center border border-slate-100 border-dashed">
+                      <div className="w-16 h-16 rounded-3xl bg-slate-50 flex items-center justify-center mx-auto mb-4 border border-slate-100">
+                        <Banknote className="w-8 h-8 text-slate-300" />
+                      </div>
+                      <p className="text-lg font-black text-slate-800 mb-1">No collections yet</p>
+                      <p className="text-sm font-bold text-slate-500">Payments recorded today will appear here.</p>
+                   </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDashboardUploadModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col pt-6 animate-in fade-in zoom-in-95 duration-200">
+             <div className="px-8 pb-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10 shrink-0">
+               <div>
+                 <h3 className="text-xl font-black text-slate-800 tracking-tight">Upload Document</h3>
+                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Select patient first</p>
+               </div>
+               <button 
+                 type="button" 
+                 onClick={() => setShowDashboardUploadModal(false)} 
+                 className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors shrink-0"
+               >
+                 <X className="w-5 h-5" />
+               </button>
+             </div>
+             <div className="p-5 sm:p-8 overflow-y-auto max-h-[60vh] bg-slate-50/50">
+               <div className="space-y-3">
+                  {patients.length > 0 ? patients.map(p => (
+                    <label 
+                      key={p.id}
+                      className="w-full text-left p-4 rounded-2xl border border-slate-100 bg-white hover:border-indigo-200 hover:shadow-md hover:bg-indigo-50/30 transition-all flex justify-between items-center group cursor-pointer block"
+                    >
+                      <input 
+                         type="file" 
+                         className="hidden" 
+                         accept="image/jpeg,image/png,image/jpg,application/pdf" 
+                         onChange={async (e) => {
+                           const file = e.target.files?.[0];
+                           if (!file) return;
+                           
+                           onNotify('Processing document...', 'info');
+                           setShowDashboardUploadModal(false);
+                           
+                           setTimeout(async () => {
+                             try {
+                               // Inline processFile logic
+                               const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+                               if (!validTypes.includes(file.type)) {
+                                  onNotify("Invalid file type. Please upload a PDF, JPG, or PNG.", "error");
+                                  return;
+                               }
+                               if (file.size > 800 * 1024) {
+                                  onNotify("File size must be less than 800KB due to database limits.", "error");
+                                  return;
+                               }
+                               
+                               let base64Data: string;
+                               if (file.type === 'application/pdf') {
+                                 base64Data = await new Promise((resolve, reject) => {
+                                   const reader = new FileReader();
+                                   reader.readAsDataURL(file);
+                                   reader.onload = () => resolve(reader.result as string);
+                                   reader.onerror = error => reject(error);
+                                 });
+                               } else {
+                                 base64Data = await new Promise((resolve, reject) => {
+                                    const reader = new FileReader();
+                                    reader.onload = (e) => {
+                                       const img = new Image();
+                                       img.onload = () => {
+                                          const canvas = document.createElement('canvas');
+                                          let { width, height } = img;
+                                          const maxDim = 800;
+                                          if (width > maxDim || height > maxDim) {
+                                             if (width > height) {
+                                                height = Math.round(maxDim * height / width);
+                                                width = maxDim;
+                                             } else {
+                                                width = Math.round(maxDim * width / height);
+                                                height = maxDim;
+                                             }
+                                          }
+                                          canvas.width = width;
+                                          canvas.height = height;
+                                          const ctx = canvas.getContext('2d');
+                                          ctx?.drawImage(img, 0, 0, width, height);
+                                          resolve(canvas.toDataURL('image/jpeg', 0.6));
+                                       };
+                                       img.src = e.target?.result as string;
+                                    };
+                                    reader.readAsDataURL(file);
+                                 });
+                               }
+                               
+                               const newDoc = {
+                                  fileName: file.name,
+                                  fileType: file.type.startsWith('image/') ? 'image' : file.type === 'application/pdf' ? 'pdf' : 'other',
+                                  fileData: base64Data,
+                                  fullPath: null,
+                                  uploadDate: new Date().toISOString()
+                               };
+
+                               await addPatientDocumentMetadata(p.id, newDoc);
+                               onNotify("Document uploaded successfully!", "success");
+                             } catch (err: any) {
+                               onNotify(err.message || "Failed to upload document", "error");
+                             }
+                           }, 600); // give time for tab transition
+                         }}
+                      />
+                      <div>
+                        <p className="font-bold text-slate-800">{p.name}</p>
+                        <p className="text-[10px] font-black text-slate-400 mt-1 uppercase tracking-widest">{p.phone}</p>
+                      </div>
+                      <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                         <UploadCloud className="w-4 h-4" />
+                      </div>
+                    </label>
+                  )) : (
+                    <div className="p-8 text-center text-sm font-bold text-slate-400">No patients available.</div>
+                  )}
+               </div>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -2013,6 +2218,11 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
            setShowSessionModal(true);
          } else {
            setShowHistoryModal(true);
+           if ((viewTarget as any).action === 'upload') {
+             setTimeout(() => {
+                fileInputRef.current?.click();
+             }, 500);
+           }
          }
          if ((viewTarget as any).returnTo) {
            setReturnToTab((viewTarget as any).returnTo);
@@ -2291,16 +2501,16 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) processFile(file);
+    if (file) await processFile(file);
   };
 
   const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) processFile(file);
+    if (file) await processFile(file);
   };
 
   // Load history immediately when row expands
@@ -2517,7 +2727,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
 
       {/* Table / Cards for Mobile */}
       <div className="bg-white border border-slate-100 shadow-sm rounded-3xl overflow-hidden relative">
-        <div className="overflow-x-auto w-full">
+        <div className="overflow-x-hidden md:overflow-x-auto w-full">
           <table className="w-full border-collapse min-w-full md:min-w-[1000px]">
             <thead className="hidden md:table-header-group bg-slate-50 border-b border-slate-100 sticky top-0 z-10">
               <tr>
@@ -2843,7 +3053,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                         <textarea placeholder="Past surgeries, diabetic history, BP..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-sm min-h-[100px]" value={newPatient.medicalHistory} onChange={(e) => setNewPatient({ ...newPatient, medicalHistory: e.target.value })}></textarea>
                       ) : (
                         <div className="p-4 bg-slate-100 rounded-xl text-slate-400 text-xs italic border border-dashed border-slate-200">
-                          Access Restricted: Clinical history is only viewable by Therapists and Admins.
+                          Access Restricted: Clinical history is only viewable by Physiotherapists and Admins.
                         </div>
                       )}
                     </div>
@@ -3163,7 +3373,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
     </div>
   );
 };
-const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, setViewTarget, printTx, setPrintTx, therapistName, setTherapistName }: { 
+const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, setViewTarget, printTx, setPrintTx, physiotherapistName, setPhysiotherapistName }: { 
   transactions: Transaction[], 
   patients: Patient[], 
   onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void,
@@ -3172,8 +3382,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
   setViewTarget?: any,
   printTx: Transaction | null,
   setPrintTx: (t: Transaction | null) => void,
-  therapistName: string,
-  setTherapistName: (n: string) => void
+  physiotherapistName: string,
+  setPhysiotherapistName: (n: string) => void
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [showBillingModal, setShowBillingModal] = useState(false);
@@ -3592,7 +3802,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
       </div>
 
         {/* Ledger Table */}
-        <div className="overflow-x-auto w-full">
+        <div className="overflow-x-hidden md:overflow-x-auto w-full">
           <table className="w-full text-left border-collapse min-w-full md:min-w-[700px]">
             <thead className="hidden md:table-header-group bg-white border-b border-slate-100">
               <tr>
@@ -3775,7 +3985,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                     </div>
 
                     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                       <div className="overflow-x-auto w-full">
+                       <div className="overflow-x-hidden md:overflow-x-auto w-full">
                          <table className="w-full text-left border-collapse min-w-full md:min-w-[600px]">
                            <thead className="hidden md:table-header-group">
                              <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -4137,10 +4347,10 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
     { text: `Expense ratio is currently ${analytics.revenue > 0 ? Math.round((analytics.expenses / analytics.revenue) * 100) : 0}% of total revenue.`, icon: <IndianRupee className="w-4 h-4 text-amber-500" /> }
   ];
 
-  const topTherapist = useMemo(() => {
+  const topPhysiotherapist = useMemo(() => {
     const counts: Record<string, number> = {};
-    appointments.filter(a => a.status === 'completed' && a.therapistName).forEach(a => {
-      counts[a.therapistName] = (counts[a.therapistName] || 0) + 1;
+    appointments.filter(a => a.status === 'completed' && a.physiotherapistName).forEach(a => {
+      counts[a.physiotherapistName] = (counts[a.physiotherapistName] || 0) + 1;
     });
     const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
     return sorted.length > 0 ? sorted[0] : null;
@@ -4285,7 +4495,7 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
               </div>
            </div>
            
-           <div className="h-[320px] w-full flex-none">
+           <div className="h-[360px] w-full flex-none">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                   <Pie
@@ -4312,15 +4522,19 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
                     }}
                   />
                   <Legend 
-                    verticalAlign="bottom" 
-                    iconType="circle" 
-                    wrapperStyle={{ 
-                      fontSize: '9px', 
-                      fontWeight: 800, 
-                      textTransform: 'uppercase',
-                      bottom: -10,
-                      paddingTop: '30px'
-                    }} 
+                    content={(props) => {
+                      const { payload } = props;
+                      return (
+                        <ul className="flex flex-wrap justify-center gap-2 pt-6 pb-2">
+                          {payload?.map((entry: any, index: number) => (
+                            <li key={`item-${index}`} className="flex items-center gap-2 bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-xl shadow-sm">
+                              <span className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: entry.color }} />
+                              <span className="text-[9px] font-black tracking-widest uppercase text-slate-600">{entry.value}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      );
+                    }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -4334,11 +4548,11 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
                     </div>
                     <div>
                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Top Performer</div>
-                       <div className="text-sm font-black text-slate-700">{topTherapist ? topTherapist[0] : 'N/A'}</div>
+                       <div className="text-sm font-black text-slate-700">{topPhysiotherapist ? topPhysiotherapist[0] : 'N/A'}</div>
                     </div>
                  </div>
                  <div className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
-                    {topTherapist ? topTherapist[1] : 0} Sessions
+                    {topPhysiotherapist ? topPhysiotherapist[1] : 0} Sessions
                  </div>
               </div>
 
@@ -4387,7 +4601,7 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
                  </div>
               </div>
 
-              <div className="overflow-x-auto w-full">
+              <div className="overflow-x-hidden md:overflow-x-auto w-full">
                  <table className="w-full text-left border-collapse min-w-full md:min-w-[800px]">
                     <thead className="hidden md:table-header-group bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">
                        <tr>
@@ -4595,7 +4809,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [viewType, setViewType] = useState<'day' | 'week'>('day');
-  const [therapistFilter, setTherapistFilter] = useState('all');
+  const [physiotherapistFilter, setPhysiotherapistFilter] = useState('all');
   
   useEffect(() => {
     if (showModal) {
@@ -4615,7 +4829,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
 
   const [newAppt, setNewAppt] = useState({ 
     patientId: '', 
-    therapistId: '',
+    physiotherapistId: '',
     time: '09:00 AM', 
     sessionType: 'Consultation',
     notes: '' 
@@ -4706,7 +4920,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
       setEditApptId(appt.id);
       setNewAppt({
         patientId: appt.patientId || '',
-        therapistId: appt.therapistId || '',
+        physiotherapistId: appt.physiotherapistId || '',
         time: appt.time,
         sessionType: appt.sessionType || 'Consultation',
         notes: appt.notes || ''
@@ -4725,7 +4939,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
 
       setNewAppt({ 
         patientId: defaultPatientId || '', 
-        therapistId: '',
+        physiotherapistId: '',
         time: targetTime, 
         sessionType: 'Consultation',
         notes: '' 
@@ -4790,7 +5004,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
         patientId = 'blocked';
       }
 
-      const therapist = members.find(m => m.id === newAppt.therapistId);
+      const physiotherapist = members.find(m => m.id === newAppt.physiotherapistId);
 
       const appointmentData: any = {
         date: selectedDate,
@@ -4799,8 +5013,8 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
         patientId,
         patientName,
         patientPhone,
-        therapistId: newAppt.therapistId,
-        therapistName: therapist?.name || 'Not Assigned',
+        physiotherapistId: newAppt.physiotherapistId,
+        physiotherapistName: physiotherapist?.name || 'Not Assigned',
         sessionType: newAppt.sessionType,
         status: editApptId ? appointments.find(a => a.id === editApptId)?.status : (isBlockedState ? 'blocked' : 'scheduled')
       };
@@ -4849,8 +5063,8 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
           <div className="flex items-center gap-2 hidden">
              <User2 className="w-4 h-4 text-slate-400" />
              <select 
-               value={therapistFilter}
-               onChange={e => setTherapistFilter(e.target.value)}
+               value={physiotherapistFilter}
+               onChange={e => setPhysiotherapistFilter(e.target.value)}
                className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer min-w-[140px]"
              >
                <option value="all">All Doctors</option>
@@ -5347,7 +5561,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
   const [pendingDelete, setPendingDelete] = useState<any>(null);
   const [editingMember, setEditingMember] = useState<any>(null);
   const [selectedMember, setSelectedMember] = useState<any>(null);
-  const [newMember, setNewMember] = useState({ name: '', role: 'therapist', phone: '', email: '', password: '' });
+  const [newMember, setNewMember] = useState({ name: '', role: 'physiotherapist', phone: '', email: '', password: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [creationError, setCreationError] = useState('');
   
@@ -5367,7 +5581,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
     setEditingMember(member);
     setNewMember({
       name: member.name || '',
-      role: member.role || 'therapist',
+      role: member.role || 'physiotherapist',
       phone: member.phone || '',
       email: member.email || '',
       password: member.password || ''
@@ -5380,7 +5594,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
       total: members.length,
       active: members.filter(m => m.isActive).length,
       inactive: members.filter(m => !m.isActive).length,
-      therapists: members.filter(m => m.role === 'therapist').length
+      physiotherapists: members.filter(m => m.role === 'physiotherapist').length
     };
   }, [members]);
 
@@ -5424,7 +5638,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
       }
       setShowMemberModal(false);
       setEditingMember(null);
-      setNewMember({ name: '', role: 'therapist', phone: '', email: '', password: '' });
+      setNewMember({ name: '', role: 'physiotherapist', phone: '', email: '', password: '' });
     } catch (err: any) {
       console.error("Member submit error:", err);
       setCreationError(err.message || 'Failed to process. Ensure email is unique and password is at least 6 characters.');
@@ -5483,7 +5697,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
         <SummaryCard title="Total Staff" value={stats.total} icon={<Users />} color="indigo" />
         <SummaryCard title="Active Now" value={stats.active} icon={<CheckCircle2 />} color="emerald" />
         <SummaryCard title="On Leave / Inactive" value={stats.inactive} icon={<AlertCircle />} color="rose" />
-        <SummaryCard title="Therapists" value={stats.therapists} icon={<Activity />} color="blue" />
+        <SummaryCard title="Physiotherapists" value={stats.physiotherapists} icon={<Activity />} color="blue" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
@@ -5508,7 +5722,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                  >
                     <option value="all">All Roles</option>
                     <option value="admin">Admins</option>
-                    <option value="therapist">Therapists</option>
+                    <option value="physiotherapist">Physiotherapists</option>
                     <option value="manager">Managers</option>
                  </select>
                  <select 
@@ -5524,7 +5738,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
 
            {/* Staff Table */}
            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
-              <div className="overflow-x-auto w-full">
+              <div className="overflow-x-hidden md:overflow-x-auto w-full">
                  <table className="w-full text-left border-collapse min-w-full md:min-w-[800px]">
                     <thead className="hidden md:table-header-group bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">
                        <tr>
@@ -5589,7 +5803,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                                   <span className={cn(
                                     "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest",
                                     member.role === 'admin' ? "bg-purple-50 text-purple-600" : 
-                                    member.role === 'therapist' ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-600"
+                                    member.role === 'physiotherapist' ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-600"
                                   )}>
                                      {member.role === 'admin' ? <Shield className="w-3 h-3" /> : <User2 className="w-3 h-3" />}
                                      {member.role}
@@ -5705,7 +5919,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
               <div className="space-y-6">
                  {[
                    { role: 'Admin', icon: <Shield className="w-4 h-4 text-purple-600" />, access: 'Full System Control' },
-                   { role: 'Therapist', icon: <Activity className="w-4 h-4 text-blue-600" />, access: 'Clinical & Patient Data' },
+                   { role: 'Physiotherapist', icon: <Activity className="w-4 h-4 text-blue-600" />, access: 'Clinical & Patient Data' },
                    { role: 'Manager', icon: <CalendarRange className="w-4 h-4 text-amber-600" />, access: 'Bookings & Billing' }
                  ].map((r, i) => (
                    <div key={i} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 group hover:border-indigo-200 transition-all flex items-center justify-between">
@@ -5823,7 +6037,7 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
                     onChange={e => setNewMember({...newMember, role: e.target.value})}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all appearance-none"
                   >
-                    <option value="therapist">Therapist</option>
+                    <option value="physiotherapist">Physiotherapist</option>
                     <option value="admin">Admin</option>
                     <option value="manager">Manager</option>
                   </select>
@@ -6118,7 +6332,7 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
     end: new Date().toISOString().substring(0, 10)
   });
 
-  const LATE_THRESHOLD = "09:15";
+  const LATE_THRESHOLD = "10:00";
 
   useEffect(() => {
     const unsubAttendance = getAttendance(selectedDate, setAttendance);
@@ -6152,6 +6366,18 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
       onNotify(`Attendance marked as ${finalStatus} for ${member.name}`);
     } catch (err: any) {
       onNotify(err.message || "Failed to mark attendance.", "error");
+    }
+  };
+
+  const markDutyOff = async (recordId: string) => {
+    try {
+      const now = new Date();
+      await updateAttendance(recordId, {
+        checkOut: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
+      onNotify("Duty off marked successfully");
+    } catch (err: any) {
+      onNotify(err.message || "Failed to mark duty off.", "error");
     }
   };
 
@@ -6199,16 +6425,19 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
     document.body.removeChild(link);
   };
 
-  const activeStaff = members.filter(m => m.isActive);
-  const presentCount = attendance.filter(a => a.status === 'present').length;
-  const lateCount = attendance.filter(a => a.status === 'late').length;
-  const absentCount = attendance.filter(a => a.status === 'absent').length;
+  const userMember = members.find(m => m.email === currentUserEmail);
+  const activeStaff = members.filter(m => m.isActive && (role === 'admin' || m.id === userMember?.id));
+  const filteredAttendance = role === 'admin' ? attendance : attendance.filter(a => a.memberId === userMember?.id);
+
+  const presentCount = filteredAttendance.filter(a => a.status === 'present').length;
+  const lateCount = filteredAttendance.filter(a => a.status === 'late').length;
+  const absentCount = filteredAttendance.filter(a => a.status === 'absent').length;
   const totalStaff = activeStaff.length;
 
   const visibleMembers = activeStaff.filter(m => {
     const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || m.role.toLowerCase() === roleFilter;
-    const record = attendance.find(a => a.memberId === m.id);
+    const record = filteredAttendance.find(a => a.memberId === m.id);
     let matchesStatus = true;
     if (statusFilter === 'present') matchesStatus = !!record && (record.status === 'present' || record.status === 'late');
     else if (statusFilter === 'absent') matchesStatus = !!record && record.status === 'absent';
@@ -6223,15 +6452,16 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
       d.setDate(d.getDate() - (6 - i));
       return d.toISOString().substring(0, 10);
     });
+    const userRangeAttendance = role === 'admin' ? rangeAttendance : rangeAttendance.filter(a => a.memberId === userMember?.id);
     return last7Days.map(date => {
-      const dayRecords = rangeAttendance.filter(a => a.date === date);
+      const dayRecords = userRangeAttendance.filter(a => a.date === date);
       return {
         date: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
         present: dayRecords.filter(r => r.status === 'present' || r.status === 'late').length,
         absent: dayRecords.filter(r => r.status === 'absent').length
       };
     });
-  }, [rangeAttendance, role, members, currentUserEmail]);
+  }, [rangeAttendance, role, userMember]);
 
   const filteredHistory = useMemo(() => {
     if (role === 'admin') return rangeAttendance;
@@ -6239,6 +6469,151 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
     if (!userMember) return [];
     return rangeAttendance.filter(a => a.memberId === userMember.id);
   }, [rangeAttendance, role, members, currentUserEmail]);
+
+  if (role !== 'admin' && userMember) {
+    const todayRecord = attendance.find(a => a.memberId === userMember.id);
+    const personalizedPresentCount = filteredHistory.filter(r => r.status === 'present').length;
+    const personalizedLateCount = filteredHistory.filter(r => r.status === 'late').length;
+    const personalizedAbsentCount = filteredHistory.filter(r => r.status === 'absent').length;
+
+    return (
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+          <div className="flex items-center gap-5">
+             <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-200 shrink-0">
+                <Clock className="w-8 h-8" />
+             </div>
+             <div>
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">My Attendance</h1>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Personal tracking • history</p>
+             </div>
+          </div>
+        </header>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+           <div className="bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100/50 shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 shadow-sm relative z-10">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div className="text-sm font-black text-emerald-700/60 uppercase tracking-widest relative z-10">Present (7 Days)</div>
+              <div className="text-4xl font-black text-emerald-700 mt-1 relative z-10">{personalizedPresentCount}</div>
+           </div>
+           <div className="bg-amber-50/50 p-6 rounded-3xl border border-amber-100/50 shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mb-4 shadow-sm relative z-10">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div className="text-sm font-black text-amber-700/60 uppercase tracking-widest relative z-10">Late (7 Days)</div>
+              <div className="text-4xl font-black text-amber-700 mt-1 relative z-10">{personalizedLateCount}</div>
+           </div>
+           <div className="bg-rose-50/50 p-6 rounded-3xl border border-rose-100/50 shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mb-4 shadow-sm relative z-10">
+                <XCircle className="w-6 h-6" />
+              </div>
+              <div className="text-sm font-black text-rose-700/60 uppercase tracking-widest relative z-10">Absent (7 Days)</div>
+              <div className="text-4xl font-black text-rose-700 mt-1 relative z-10">{personalizedAbsentCount}</div>
+           </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+           <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 text-center flex flex-col justify-center items-center">
+              <div className="w-20 h-20 rounded-[2rem] bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm relative mb-6">
+                 {(userMember.photoURL && userMember.photoURL.trim() !== '') ? (
+                    <img src={userMember.photoURL} alt={userMember.name} className="w-full h-full rounded-[2rem] object-cover" />
+                 ) : (
+                    <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userMember.name || 'User')}&background=e0e7ff&color=4f46e5`} alt={userMember.name} className="w-full h-full rounded-[2rem] object-cover" />
+                 )}
+              </div>
+              <h3 className="text-2xl font-black text-slate-800 mb-2">Today's Status</h3>
+              {todayRecord ? (
+               <div className="space-y-4 mt-8 w-full max-w-sm mx-auto">
+                    {/* Status Banner */}
+                    <div className={cn(
+                       "flex justify-center items-center gap-4 px-5 py-4 rounded-2xl border text-center", // 2xl is softer
+                       todayRecord.status === 'present' ? "bg-emerald-50/50 border-emerald-100 text-emerald-700" :
+                       todayRecord.status === 'late' ? "bg-amber-50/50 border-amber-100 text-amber-700" :
+                       "bg-rose-50/50 border-rose-100 text-rose-700"
+                    )}>
+                       <div className={cn(
+                         "p-3 rounded-xl border",
+                         todayRecord.status === 'present' ? "bg-emerald-100/50 border-emerald-200 text-emerald-600" :
+                         todayRecord.status === 'late' ? "bg-amber-100/50 border-amber-200 text-amber-600" :
+                         "bg-rose-100/50 border-rose-200 text-rose-600"
+                       )}>
+                        {todayRecord.status === 'present' && <CheckCircle2 className="w-6 h-6" />}
+                        {todayRecord.status === 'late' && <AlertCircle className="w-6 h-6" />}
+                        {todayRecord.status === 'absent' && <XCircle className="w-6 h-6" />}
+                       </div>
+                       <div className="flex flex-col text-left">
+                         <span className="text-xs font-bold uppercase tracking-widest opacity-60">Status</span>
+                         <span className="text-lg font-black capitalize tracking-tight leading-none mt-1">{todayRecord.status}</span>
+                       </div>
+                    </div>
+
+                    {/* Timings */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex flex-col items-center justify-center text-center">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Duty In</span>
+                        </div>
+                        <div className={cn("text-2xl font-black tracking-tight", todayRecord.checkIn ? "text-slate-800" : "text-slate-300")}>
+                          {todayRecord.checkIn || '--:--'}
+                        </div>
+                      </div>
+                      <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex flex-col items-center justify-center text-center">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Duty Off</span>
+                        </div>
+                        <div className={cn("text-2xl font-black tracking-tight", todayRecord.checkOut ? "text-slate-800" : "text-slate-300")}>
+                          {todayRecord.checkOut || '--:--'}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {!todayRecord.checkOut && (todayRecord.status === 'present' || todayRecord.status === 'late') && (
+                       <button onClick={() => markDutyOff(todayRecord.id)} className="w-full py-4 bg-slate-900 hover:bg-slate-800 focus:ring-4 focus:ring-slate-900/20 text-white rounded-2xl text-sm font-black transition-all shadow-lg shadow-slate-200 hover:-translate-y-0.5 active:scale-95 mt-2 flex items-center justify-center gap-2">
+                         <LogOut className="w-4 h-4" /> End Shift
+                       </button>
+                    )}
+                 </div>
+              ) : (
+                 <div className="space-y-6 w-full max-w-sm mt-4">
+                    <p className="text-sm font-bold text-slate-500">You haven't marked your attendance today.</p>
+                    <div className="grid grid-cols-2 gap-4">
+                       <button onClick={() => markAttendance(userMember, 'present')} className="px-4 xl:px-5 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs xl:text-sm font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-emerald-200 hover:-translate-y-0.5 active:scale-95 flex flex-col items-center justify-center gap-2">
+                          <CheckCircle2 className="w-6 h-6" /> Present
+                       </button>
+                       <button onClick={() => markAttendance(userMember, 'absent')} className="px-4 xl:px-5 py-4 bg-white border-2 border-rose-100 text-rose-600 hover:bg-rose-50 hover:border-rose-200 rounded-2xl text-xs xl:text-sm font-black uppercase tracking-widest transition-all shadow-sm hover:-translate-y-0.5 active:scale-95 flex flex-col items-center justify-center gap-2">
+                          <X className="w-6 h-6" /> Absent
+                       </button>
+                    </div>
+                 </div>
+              )}
+           </div>
+
+           <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40">
+              <div className="flex items-center justify-between mb-8">
+                 <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                   <BarChart3 className="w-5 h-5 text-blue-600" /> Weekly Trends
+                 </h3>
+              </div>
+              <div className="h-[250px] w-full">
+                 <ResponsiveContainer width="100%" height="100%">
+                   <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                     <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }} dy={10} />
+                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }} />
+                     <Tooltip cursor={{ fill: '#f9fafb' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold' }} />
+                     <Bar dataKey="present" fill="#2563eb" radius={[4, 4, 0, 0]} barSize={12} />
+                     <Bar dataKey="absent" fill="#fb7185" radius={[4, 4, 0, 0]} barSize={12} />
+                   </BarChart>
+                 </ResponsiveContainer>
+              </div>
+           </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -6404,7 +6779,7 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
                     >
                        <option value="all">All Roles</option>
                        <option value="admin">Admin</option>
-                       <option value="therapist">Therapist</option>
+                       <option value="physiotherapist">Physiotherapist</option>
                        <option value="manager">Manager</option>
                     </select>
                     <select 
@@ -6469,7 +6844,9 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
                                          )}>
                                            {record.status}
                                          </div>
-                                         <div className="text-[10px] font-bold text-slate-400 mt-0.5">Logged: {record.checkIn || '--:--'}</div>
+                                         <div className="text-[10px] font-bold text-slate-400 mt-0.5 whitespace-nowrap">
+                                           <span className="text-emerald-600/70 text-[9px]">IN:</span> {record.checkIn || '--:--'} <span className="mx-1 text-slate-200">|</span> <span className="text-blue-600/70 text-[9px]">OFF:</span> {record.checkOut || '--:--'}
+                                         </div>
                                       </div>
                                    </div>
                                  ) : (
@@ -6496,6 +6873,13 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
                                         <X className="w-3.5 h-3.5" /> Absent
                                       </button>
                                    </div>
+                                 ) : canMark && record && !record.checkOut && (record.status === 'present' || record.status === 'late') ? (
+                                    <button 
+                                      onClick={() => markDutyOff(record.id)} 
+                                      className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1.5"
+                                    >
+                                      Duty Off
+                                    </button>
                                  ) : record ? (
                                    <div className="p-2 bg-slate-50 text-slate-400 rounded-lg border border-slate-200">
                                       <CheckCircle2 className="w-5 h-5 text-slate-300" />
@@ -6568,13 +6952,13 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
                          className="bg-white border border-slate-200 px-3 py-2 rounded-lg text-xs font-bold text-slate-700 outline-none"
                        />
                     </div>
-                    <button className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md shadow-blue-100">
+                    <button onClick={() => onNotify("Filters applied", "success")} className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md shadow-blue-100">
                        <Filter className="w-4 h-4" />
                     </button>
                  </div>
               </div>
               
-              <div className="overflow-x-auto w-full">
+              <div className="overflow-x-hidden md:overflow-x-auto w-full">
                  <table className="w-full text-left border-collapse min-w-full md:min-w-[800px]">
                     <thead className="hidden md:table-header-group bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">
                        <tr>
@@ -6641,8 +7025,8 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
   );
 };
 
-const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'therapist') => void }) => {
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'manager' | 'therapist'>('therapist');
+const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'physiotherapist') => void }) => {
+  const [selectedRole, setSelectedRole] = useState<'admin' | 'manager' | 'physiotherapist'>('physiotherapist');
   const [identifier, setIdentifier] = useState(localStorage.getItem('fitrevive_remember_email') || '');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(!!localStorage.getItem('fitrevive_remember_email'));
@@ -6710,7 +7094,7 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
       console.log("Attempting login for:", emailInput, "Role:", selectedRole, "Password length:", passwordInput.length);
 
       // --- DEMO BYPASS (for testing ease) ---
-      if ((emailInput === 'admin' || emailInput === 'manager' || emailInput === 'therapist') && 
+      if ((emailInput === 'admin' || emailInput === 'manager' || emailInput === 'physiotherapist') && 
           passwordInput === emailInput) {
          console.log("Using demo bypass for:", emailInput);
          onDemoLogin(emailInput as any);
@@ -6725,7 +7109,8 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
       }
 
       // Check role mismatch early but with better feedback
-      const normalizedRole = memberData.role.toLowerCase();
+      let normalizedRole = memberData.role.toLowerCase();
+      if (normalizedRole === 'therapist') normalizedRole = 'physiotherapist';
       if (normalizedRole !== selectedRole) {
         console.warn(`Role mismatch: expected ${selectedRole}, found ${normalizedRole}`);
         throw new Error(`Account Role Mismatch: This account (${emailInput}) is registered as a ${normalizedRole}. Please select "${normalizedRole.charAt(0).toUpperCase() + normalizedRole.slice(1)}" in the role selector above and try again.`);
@@ -6814,7 +7199,7 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
     }
   };
 
-  const handleDemo = (role: 'admin' | 'manager' | 'therapist') => {
+  const handleDemo = (role: 'admin' | 'manager' | 'physiotherapist') => {
     setSelectedRole(role);
     setIdentifier(role);
     setPassword(role);
@@ -6867,7 +7252,7 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
           <div className="space-y-2">
             <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider pl-1">Sign in as</label>
             <div className="grid grid-cols-3 gap-2">
-              {(['admin', 'manager', 'therapist'] as const).map(role => (
+              {(['admin', 'manager', 'physiotherapist'] as const).map(role => (
                 <button
                   key={role}
                   type="button"
@@ -6974,14 +7359,15 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'the
 const ROLE_PERMISSIONS = {
   admin: ['dashboard', 'appointments', 'patients', 'finances', 'attendance', 'team', 'reports', 'sessions'],
   manager: ['dashboard', 'appointments', 'patients', 'finances', 'attendance'],
-  therapist: ['dashboard', 'patients', 'attendance', 'sessions']
+  physiotherapist: ['dashboard', 'patients', 'attendance', 'sessions']
 } as const;
 
 const SettingsView = ({ user, role, patients, transactions, appointments, members, onNotify, onLogout }: { user: User, role: string, patients: any[], transactions: any[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, onLogout: () => void }) => {
   const [activeCategory, setActiveCategory] = useState<'account'|'clinic'|'appearance'|'notifications'|'security'|'billing'>('account');
   const [displayName, setDisplayName] = useState(user.displayName || '');
   const [isSaving, setIsSaving] = useState(false);
-  const avatarUrl = useAvatar(user, displayName);
+  const currentMember = members.find(m => m.email?.toLowerCase() === user.email?.toLowerCase());
+  const avatarUrl = useAvatar(user, displayName, currentMember?.photoURL);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -7068,11 +7454,11 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
   }, []);
 
   const categories = [
-    { id: 'account', label: 'Profile & Account', icon: User2, allowed: ['admin', 'manager', 'therapist'] },
-    { id: 'clinic', label: 'Clinic Information', icon: Building2, allowed: ['admin', 'manager', 'therapist'] },
-    { id: 'appearance', label: 'Appearance', icon: Palette, allowed: ['admin', 'manager', 'therapist'] },
-    { id: 'notifications', label: 'Notifications', icon: Bell, allowed: ['admin', 'manager', 'therapist'] },
-    { id: 'security', label: 'Security & Data', icon: ShieldCheck, allowed: ['admin', 'manager', 'therapist'] },
+    { id: 'account', label: 'Profile & Account', icon: User2, allowed: ['admin', 'manager', 'physiotherapist'] },
+    { id: 'clinic', label: 'Clinic Information', icon: Building2, allowed: ['admin', 'manager', 'physiotherapist'] },
+    { id: 'appearance', label: 'Appearance', icon: Palette, allowed: ['admin', 'manager', 'physiotherapist'] },
+    { id: 'notifications', label: 'Notifications', icon: Bell, allowed: ['admin', 'manager', 'physiotherapist'] },
+    { id: 'security', label: 'Security & Data', icon: ShieldCheck, allowed: ['admin', 'manager', 'physiotherapist'] },
   ];
 
   const visibleCategories = categories.filter(c => c.allowed.includes(role));
@@ -7407,7 +7793,7 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<'admin' | 'manager' | 'therapist' | null>(null);
+  const [role, setRole] = useState<'admin' | 'manager' | 'physiotherapist' | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -7462,7 +7848,7 @@ export default function App() {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [printTx, setPrintTx] = useState<Transaction | null>(null);
-  const [therapistName, setTherapistName] = useState('FitRevive Clinical Team');
+  const [physiotherapistName, setPhysiotherapistName] = useState('FitRevive Clinical Team');
 
   const generatePDFFile = async (filename: string): Promise<File | null> => {
     const element = document.getElementById('receipt-section');
@@ -7786,8 +8172,18 @@ export default function App() {
               setLoading(false);
               return;
             }
-            const normalizedRole = memberData.role.toLowerCase() as 'admin' | 'manager' | 'therapist';
-            setRole(normalizedRole);
+            let normalizedRole = memberData.role.toLowerCase() as 'admin' | 'manager' | 'physiotherapist' | 'therapist';
+            if (normalizedRole === 'therapist') normalizedRole = 'physiotherapist';
+            setRole(normalizedRole as 'admin' | 'manager' | 'physiotherapist');
+            
+            // Auto-update last login daily if they open app after 9 AM
+            const now = new Date();
+            if (now.getHours() >= 9) {
+               const lastLoginDate = memberData.lastLogin ? new Date(memberData.lastLogin) : null;
+               if (!lastLoginDate || lastLoginDate.getDate() !== now.getDate() || lastLoginDate.getMonth() !== now.getMonth() || lastLoginDate.getFullYear() !== now.getFullYear()) {
+                 updateTeamMember(memberData.id, { lastLogin: now.toISOString() }).catch(() => {});
+               }
+            }
             
             // Validate current tab access
             if (localStorage.getItem('fitrevive_just_logged_in') === 'true') {
@@ -7869,7 +8265,7 @@ export default function App() {
     };
   }, [user]);
 
-  const handleDemoLogin = (roleAssigned: 'admin' | 'manager' | 'therapist') => {
+  const handleDemoLogin = (roleAssigned: 'admin' | 'manager' | 'physiotherapist') => {
     setIsDemoMode(true);
     setUser({ email: `${roleAssigned}@demo.clinic`, uid: `demo-${roleAssigned}-123`, displayName: `Demo ${roleAssigned}` } as any);
     setRole(roleAssigned);
@@ -7894,6 +8290,8 @@ export default function App() {
   // Patients: Number of new patients registered on the selected globalDate
   const newPatientsTodayCount = patients.filter(p => p.createdAt && (typeof p.createdAt === 'string' ? p.createdAt.startsWith(globalDate) : p.createdAt.toDate && p.createdAt.toDate().toISOString().substring(0, 10) === globalDate)).length;
 
+  const currentAppMember = members.find(m => m.email?.toLowerCase() === user?.email?.toLowerCase());
+
   return (
     <div className="min-h-[100dvh] bg-[#F8FAFC] overflow-x-hidden">
       <div className="print:hidden">
@@ -7912,6 +8310,7 @@ export default function App() {
           setIsCollapsed={setIsSidebarCollapsed}
           role={role}
           setRole={setRole}
+          memberPhotoURL={currentAppMember?.photoURL}
           badges={{
             appointments: scheduledApptsCount,
             finances: dailyFinEntriesCount,
@@ -8102,9 +8501,9 @@ export default function App() {
                     </span>
                   )}
                 </div>
-                <span className="text-[9px] font-bold z-10 relative">Bookings</span>
+                <span className="text-[9px] font-bold z-10 relative">Sessions</span>
              </button>
-             {role !== 'therapist' && (
+             {role !== 'physiotherapist' && (
                <button onClick={() => { setActiveTab('finances'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'finances' && !isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
                   {activeTab === 'finances' && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/50 rounded-xl z-0" />}
                   <div className="relative">
@@ -8133,9 +8532,9 @@ export default function App() {
 
           <div className="p-4 md:p-8 max-w-7xl mx-auto">
             {(activeTab === 'dashboard' || activeTab === 'more') && <Dashboard stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} role={role} setTab={setActiveTab} onNotify={showNotification} user={user!} onStatusUpdate={async (id, status) => { await updateAppointmentStatus(id, status); if (status === 'completed') { const appt = appointments.find(a => a.id === id); if (appt && appt.patientId) { setActiveTab('patients'); setViewTarget({ type: 'patient', id: appt.patientId, action: 'log-session' }); } } }} setViewTarget={setViewTarget} globalDate={globalDate} setGlobalDate={setGlobalDate} setPrintTx={setPrintTx} />}
-            {activeTab === 'appointments' && role !== 'therapist' && <AppointmentManager appointments={appointments} patients={patients} members={members} onNotify={showNotification} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} selectedDate={globalDate} setSelectedDate={setGlobalDate} />}
+            {activeTab === 'appointments' && role !== 'physiotherapist' && <AppointmentManager appointments={appointments} patients={patients} members={members} onNotify={showNotification} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} selectedDate={globalDate} setSelectedDate={setGlobalDate} />}
             {activeTab === 'patients' && <PatientManager patients={patients} appointments={appointments} transactions={transactions} onNotify={showNotification} role={role} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} />}
-            {activeTab === 'finances' && role !== 'therapist' && (
+            {activeTab === 'finances' && role !== 'physiotherapist' && (
               <FinanceTracker 
                 transactions={transactions} 
                 patients={patients} 
@@ -8145,8 +8544,8 @@ export default function App() {
                 setViewTarget={setViewTarget}
                 printTx={printTx}
                 setPrintTx={setPrintTx}
-                therapistName={therapistName}
-                setTherapistName={setTherapistName}
+                physiotherapistName={physiotherapistName}
+                setPhysiotherapistName={setPhysiotherapistName}
               />
             )}
             {activeTab === 'team' && role === 'admin' && <TeamManager role={role} members={members} onNotify={showNotification} />}

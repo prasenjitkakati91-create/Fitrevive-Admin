@@ -78,6 +78,10 @@ service cloud.firestore {
     }
 
     // 2.5 Patient Documents
+    match /{path=**}/documents/{documentId} {
+      allow read: if isSignedIn();
+    }
+    
     match /patients/{patientId}/documents/{documentId} {
       function isValidDocument(data) {
         return data.fileName is string && data.fileName.size() > 0 && data.fileName.size() <= 250
@@ -134,7 +138,7 @@ service cloud.firestore {
                      && isValidAppointment(incoming())
                      && (incoming().patientId == 'blocked' || exists(/databases/$(database)/documents/patients/$(incoming().patientId)));
       allow update: if isSignedIn() && isValidAppointment(incoming())
-                     && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'date', 'time', 'patientId', 'patientName', 'patientPhone', 'therapistId', 'therapistName', 'sessionType', 'updatedAt'])
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'date', 'time', 'patientId', 'patientName', 'patientPhone', 'physiotherapistId', 'physiotherapistName', 'sessionType', 'updatedAt'])
                      && (incoming().patientId == 'blocked' || exists(/databases/$(database)/documents/patients/$(incoming().patientId)));
       allow delete: if isSignedIn();
     }

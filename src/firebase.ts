@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserSessionPersistence, updateProfile } from 'firebase/auth';
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, updateDoc, deleteDoc, Timestamp, onSnapshot, where, writeBatch, increment } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, updateDoc, deleteDoc, Timestamp, onSnapshot, where, writeBatch, increment, collectionGroup } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -241,6 +241,21 @@ export const getPatientDocumentsMetadata = (patientId: string, callback: (docs: 
   return onSnapshot(q, (snapshot) => {
     const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(docs);
+  });
+};
+
+export const getRecentDocumentsMetadata = (callback: (docs: any[]) => void) => {
+  const q = query(collectionGroup(db, 'documents'), orderBy('uploadDate', 'desc'), limit(5));
+  return onSnapshot(q, (snapshot) => {
+    const docs = snapshot.docs.map(doc => ({
+      id: doc.id,
+      patientId: doc.ref.parent.parent?.id,
+      ...doc.data()
+    }));
+    callback(docs);
+  }, (error) => {
+    console.error("collectionGroup index missing or error:", error);
+    callback([]);
   });
 };
 
@@ -556,7 +571,13 @@ export const deletePatientDocument = async (fullPath: string) => {
 export const getTeamMembers = (callback: (members: any[]) => void) => {
   const q = query(collection(db, 'team'), orderBy('name', 'asc'));
   return onSnapshot(q, (snapshot) => {
-    const members = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const members = snapshot.docs.map(doc => {
+      const data = doc.data();
+      if (data.role && data.role.toLowerCase() === 'therapist') {
+        data.role = 'physiotherapist';
+      }
+      return { id: doc.id, ...data };
+    });
     callback(members);
   });
 };
@@ -577,6 +598,14 @@ export const logAttendance = async (attendanceData: {
   return addDoc(attendanceRef, {
     ...attendanceData,
     createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now()
+  });
+};
+
+export const updateAttendance = async (id: string, updates: any) => {
+  const docRef = doc(db, 'attendance', id);
+  return updateDoc(docRef, {
+    ...updates,
     updatedAt: Timestamp.now()
   });
 };

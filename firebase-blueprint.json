@@ -56,8 +56,8 @@
         "time": { "type": "string", "format": "time" },
         "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled", "blocked"] },
         "notes": { "type": "string" },
-        "therapistId": { "type": "string" },
-        "therapistName": { "type": "string" },
+        "physiotherapistId": { "type": "string" },
+        "physiotherapistName": { "type": "string" },
         "sessionType": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
