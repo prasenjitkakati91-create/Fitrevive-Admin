@@ -331,7 +331,7 @@ const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, 
             {!isCollapsed && (
               <div className="flex flex-col animate-in fade-in slide-in-from-left-2 duration-300">
                 <span className="text-xl font-black text-slate-800 tracking-tight leading-tight">FitRevive</span>
-                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest leading-none">Physiotherapy Clinic</span>
+                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest leading-none">Physiotherapy</span>
               </div>
             )}
           </div>
@@ -2233,8 +2233,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
     }
 
     // Increased strictness on size due to Firestore 1MB limits
-    if (file.size > 5 * 1024 * 1024) {
-       onNotify("File size must be less than 5MB", "error");
+    if (file.size > 800 * 1024) {
+       onNotify("File size must be less than 800KB due to database limits.", "error");
        if (fileInputRef.current) fileInputRef.current.value = '';
        return;
     }
@@ -2245,12 +2245,24 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
     
     try {
         setUploadProgress(40);
-        // Returns base64 representation of the file/image
-        const base64Data = await compressImage(file);
+        
+        let base64Data: string;
+        if (file.type === 'application/pdf') {
+          // Do not compress PDFs using Image canvas, just convert to Base64
+          base64Data = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = error => reject(error);
+          });
+        } else {
+          // Compress images
+          base64Data = await compressImage(file);
+        }
         
         // Firestore limit is ~1,048,487 bytes. Base64 encoding inflates by 33%.
         if (base64Data.length > 900000) {
-           throw new Error("File too large after compression. Max allowed size reached.");
+           throw new Error("File too large after compression. Max allowed size reached (approx 650KB).");
         }
         
         setUploadProgress(80);
@@ -4613,6 +4625,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
 
   const closeModal = () => {
     setShowModal(false);
+    setEditApptId(null);
     if (returnToTab && setTab) {
       setTab(returnToTab);
       setReturnToTab(null);
@@ -4655,7 +4668,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
     return dateMatch && statusMatch;
   });
 
-  const getSlotStatus = (slotTime: string) => {
+  const getSlotStatus = (slotTime: string, checkDateStr?: string) => {
     // Parse 12h format: "09:45 AM"
     const [time, modifier] = slotTime.split(' ');
     let [hours, minutes] = time.split(':').map(Number);
@@ -4663,7 +4676,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
     if (modifier === 'PM' && hours < 12) hours += 12;
     if (modifier === 'AM' && hours === 12) hours = 0;
 
-    const slotDate = new Date(selectedDate);
+    const slotDate = new Date(checkDateStr || selectedDate);
     slotDate.setHours(hours, minutes, 0, 0);
 
     const now = currentTime;
@@ -4704,9 +4717,9 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
       // Find direct available slot if not provided, or check if provided is occupied
       let targetTime = defaultTime;
       const targetDate = defaultDate || selectedDate;
-      const availableSlots = slots.filter(s => !isSlotOccupied(targetDate, s));
+      const availableSlots = slots.filter(s => !isSlotOccupied(targetDate, s) && getSlotStatus(s, targetDate) !== 'past');
       
-      if (!targetTime || isSlotOccupied(targetDate, targetTime)) {
+      if (!targetTime || isSlotOccupied(targetDate, targetTime) || getSlotStatus(targetTime, targetDate) === 'past') {
         targetTime = availableSlots.length > 0 ? availableSlots[0] : (defaultTime || '09:00 AM');
       }
 
@@ -4782,7 +4795,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
       const appointmentData: any = {
         date: selectedDate,
         time: newAppt.time,
-        notes: newAppt.notes,
+        notes: newAppt.notes || '',
         patientId,
         patientName,
         patientPhone,
@@ -4910,6 +4923,9 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
                     <div className="flex items-center gap-2">
                        <Clock3 className={cn("w-3.5 h-3.5", isActuallyOccupied && !isOngoing ? "text-blue-500" : isOngoing && isActuallyOccupied ? "text-white" : "text-slate-400")} />
                        <span className={cn("text-sm font-black tabular-nums tracking-tight", isOngoing && isActuallyOccupied ? "text-white" : "text-slate-800")}>{slot}</span>
+                       {!isActuallyOccupied && isPast && (
+                         <span className="ml-2 text-[10px] font-black uppercase text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Unavailable</span>
+                       )}
                     </div>
                     {!isActuallyOccupied && !isPast && (
                       <div className="w-6 h-6 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all">
@@ -5192,7 +5208,11 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
                             onChange={e => setNewAppt({...newAppt, time: e.target.value})} 
                             className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-orange-100 focus:border-orange-400 focus:bg-white transition-all appearance-none cursor-pointer"
                           >
-                             {slots.filter(s => !isSlotOccupied(selectedDate, s, editApptId)).map(s => <option key={s} value={s}>{s}</option>)}
+                             {slots.filter(s => {
+                               if (isSlotOccupied(selectedDate, s, editApptId)) return false;
+                               if (getSlotStatus(s, selectedDate) === 'past' && (!editApptId || newAppt.time !== s)) return false;
+                               return true;
+                             }).map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
                        </div>
                     </div>
