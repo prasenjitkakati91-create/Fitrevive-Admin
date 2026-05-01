@@ -78,7 +78,9 @@ import {
   Moon,
   Sun,
   Banknote,
-  Camera
+  Camera,
+  Sparkles,
+  Bot
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -149,6 +151,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { AskMode } from './components/AskMode';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -256,6 +259,14 @@ interface Appointment {
 
 // --- Utilities ---
 const getLocalYMD = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const isValidPhone = (phone: string) => {
+  const digits = phone.replace(/\D/g, '');
+  return digits.length === 10;
+};
+const formatTime12h = (date: Date | string) => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+};
 
 // --- Components ---
 
@@ -684,7 +695,7 @@ const Dashboard = ({
         amount: amount,
         category: serviceNames[quickBill.service] || 'Therapy',
         date: getLocalYMD(), 
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        time: formatTime12h(new Date()),
         type: 'income' as const,
         description: `Quick Billing: ${serviceNames[quickBill.service] || 'Therapy Session'} for ${patient?.name}`,
         patientId: quickBill.patientId,
@@ -2052,7 +2063,7 @@ const Dashboard = ({
                                 {(() => {
                                   if (!tx.createdAt) return tx.time || '--:--';
                                   const date = (tx.createdAt as any).toDate ? (tx.createdAt as any).toDate() : new Date(tx.createdAt);
-                                  return isNaN(date.getTime()) ? (tx.time || '--:--') : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                  return isNaN(date.getTime()) ? (tx.time || '--:--') : formatTime12h(date);
                                 })()}
                               </span>
                             </div>
@@ -2329,7 +2340,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
   });
   const [newSession, setNewSession] = useState({ 
     date: new Date().toISOString().substring(0, 10), 
-    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }), 
+    time: formatTime12h(new Date()), 
     paymentStatus: 'paid' as 'paid' | 'unpaid',
     paymentMethod: 'cash' as 'cash' | 'upi',
     amount: '500', notes: '' 
@@ -2381,6 +2392,10 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isValidPhone(newPatient.phone)) {
+      onNotify("Please enter a valid 10-digit mobile number.", "error");
+      return;
+    }
     try {
       if (editPatientId) {
         await updatePatient(editPatientId, {
@@ -2447,7 +2462,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
       closePatientModals();
       setNewSession({
         date: new Date().toISOString().substring(0, 10),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+        time: formatTime12h(new Date()),
         paymentStatus: 'paid', paymentMethod: 'cash', amount: '500', notes: ''
       });
     } catch (err: any) {
@@ -3404,7 +3419,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
                        </div>
                        <div>
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Time</label>
-                          <input type="time" required value={newSession.time} onChange={e => setNewSession({...newSession, time: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-purple-100 focus:border-purple-500 focus:bg-white transition-all shadow-sm" />
+                          <input type="text" placeholder="HH:MM AM/PM" required value={newSession.time} onChange={e => setNewSession({...newSession, time: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-purple-100 focus:border-purple-500 focus:bg-white transition-all shadow-sm" />
                        </div>
                     </div>
                   </div>
@@ -3487,7 +3502,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
     amount: '', 
     category: 'Consultation', 
     date: new Date().toISOString().substring(0, 10), 
-    time: new Date().toTimeString().substring(0, 5),
+    time: formatTime12h(new Date()),
     type: 'income' as 'income' | 'expense', 
     description: '',
     patientId: '',
@@ -3521,7 +3536,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
       amount: '', 
       category: 'Consultation', 
       date: new Date().toISOString().substring(0, 10), 
-      time: new Date().toTimeString().substring(0, 5),
+      time: formatTime12h(new Date()),
       type: 'income', 
       description: '',
       patientId: '',
@@ -3553,7 +3568,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
       
       const today = new Date();
       const dateStr = today.toISOString().substring(0, 10);
-      const timeStr = today.toTimeString().substring(0, 5);
+      const timeStr = formatTime12h(today);
 
       const txId = await payUnpaidSessions(
         selectedBillingPatient.id,
@@ -3921,7 +3936,7 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                             {t.time && (
                               <>
                                 <span className="text-slate-300 text-[10px]">•</span>
-                                <span className="text-[10px] font-bold text-slate-500">{new Date(`2000-01-01T${t.time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit'})}</span>
+                                <span className="text-[10px] font-bold text-slate-500">{t.time.includes('M') ? t.time : formatTime12h(new Date(`2000-01-01T${t.time}`))}</span>
                               </>
                             )}
                          </div>
@@ -4266,8 +4281,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
                      </div>
                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
-                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Time</label>
-                           <input type="time" value={newTx.time} onChange={e => setNewTx({...newTx, time: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 shadow-sm" />
+                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Time (12h)</label>
+                           <input type="text" placeholder="HH:MM AM/PM" value={newTx.time} onChange={e => setNewTx({...newTx, time: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 shadow-sm" />
                         </div>
                         <div>
                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Notes / Description</label>
@@ -5076,6 +5091,9 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
           if (!newPatientData.name || !newPatientData.phone) {
             throw new Error("Patient name and phone are required");
           }
+          if (!isValidPhone(newPatientData.phone)) {
+            throw new Error("Please enter a valid 10-digit mobile number.");
+          }
           const patientDoc = await savePatient({
             name: newPatientData.name,
             phone: newPatientData.phone,
@@ -5800,6 +5818,10 @@ const TeamManager = ({ role, members, onNotify }: { role: string, members: any[]
 
   const handleMemberSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (newMember.phone && !isValidPhone(newMember.phone)) {
+      onNotify("Please enter a valid 10-digit mobile number.", "error");
+      return;
+    }
     setIsSubmitting(true);
     setCreationError('');
     try {
@@ -6537,7 +6559,7 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
   const markAttendance = async (member: any, status: 'present' | 'absent' | 'late') => {
     try {
       const now = new Date();
-      const checkInTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+      const checkInTime = formatTime12h(now);
       let finalStatus = status;
       if (status === 'present' && checkInTime > LATE_THRESHOLD) {
         finalStatus = 'late';
@@ -6546,7 +6568,7 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
         memberId: member.id,
         memberName: member.name,
         date: selectedDate,
-        checkIn: status === 'absent' ? '' : now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        checkIn: status === 'absent' ? '' : formatTime12h(now),
         status: finalStatus
       });
       onNotify(`Attendance marked as ${finalStatus} for ${member.name}`);
@@ -6559,7 +6581,7 @@ const AttendanceManager = ({ role, members, currentUserEmail, onNotify, selected
     try {
       const now = new Date();
       await updateAttendance(recordId, {
-        checkOut: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        checkOut: formatTime12h(now)
       });
       onNotify("Duty off marked successfully");
     } catch (err: any) {
@@ -7569,7 +7591,7 @@ const ROLE_PERMISSIONS = {
   physiotherapist: ['dashboard', 'appointments', 'patients', 'attendance', 'sessions']
 } as const;
 
-const SettingsView = ({ user, role, patients, transactions, appointments, members, onNotify, onLogout, refreshData }: { user: User, role: string, patients: any[], transactions: any[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, onLogout: () => void, refreshData?: (type: any, force?: boolean) => Promise<void> }) => {
+const SettingsView = ({ user, role, patients, transactions, appointments, members, onNotify, onLogout, refreshData, showAI, setShowAI }: { user: User, role: string, patients: any[], transactions: any[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, onLogout: () => void, refreshData?: (type: any, force?: boolean) => Promise<void>, showAI: boolean, setShowAI: (val: boolean) => void }) => {
   const [activeCategory, setActiveCategory] = useState<'account'|'clinic'|'appearance'|'notifications'|'security'|'billing'>('account');
   const [displayName, setDisplayName] = useState(user.displayName || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -7652,6 +7674,7 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
               if (data.clinicPhone) setClinicPhone(data.clinicPhone);
               if (data.clinicCurrency) setClinicCurrency(data.clinicCurrency);
               if (data.clinicAddress) setClinicAddress(data.clinicAddress);
+              if (data.showAI !== undefined) setShowAI(data.showAI);
            }
         } catch(err) {
            console.error("Failed to load clinic settings", err);
@@ -7684,6 +7707,10 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
   };
 
   const handleSaveClinic = async () => {
+    if (!isValidPhone(clinicPhone)) {
+      onNotify("Please enter a valid 10-digit mobile number for the clinic.", "error");
+      return;
+    }
     try {
        await setDoc(doc(db, 'settings', 'clinic'), {
           clinicName,
@@ -7691,6 +7718,7 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
           clinicPhone,
           clinicCurrency,
           clinicAddress,
+          showAI,
           updatedAt: new Date().toISOString()
        }, { merge: true });
        onNotify("Clinic configuration saved.", "success");
@@ -7890,6 +7918,23 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Primary Phone</label>
                       <input type="text" disabled={role !== 'admin'} value={clinicPhone} onChange={(e) => setClinicPhone(e.target.value)} className="w-full text-sm font-semibold bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-slate-900 transition-all text-slate-800 dark:text-slate-200 disabled:opacity-70 disabled:cursor-not-allowed" />
                    </div>
+                   <div className="space-y-1.5 sm:col-span-2">
+                      <div className="flex items-center justify-between p-4 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/40 rounded-xl mt-4">
+                         <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                               <Bot className="w-5 h-5" />
+                            </div>
+                            <div>
+                               <h4 className="font-bold text-slate-800 dark:text-slate-200">AI Clinic Assistant</h4>
+                               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Enable smart queries and automated insights via FitRevive AI.</p>
+                            </div>
+                         </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                             <input type="checkbox" disabled={role !== 'admin'} checked={showAI} onChange={(e) => setShowAI(e.target.checked)} className="sr-only peer" />
+                             <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600 peer-disabled:opacity-50"></div>
+                          </label>
+                      </div>
+                   </div>
                  </div>
                  {role === 'admin' && (
                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex">
@@ -8075,6 +8120,7 @@ export default function App() {
   }, [debouncedGlobalSearch, patients, appointments, transactions]);
 
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [showAI, setShowAI] = useState(true);
   const [loading, setLoading] = useState(true);
   const [isRoleLoading, setIsRoleLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -8864,7 +8910,7 @@ export default function App() {
             {activeTab === 'attendance' && <AttendanceManager role={role} members={members} currentUserEmail={user?.email || null} onNotify={showNotification} selectedDate={globalDate} setSelectedDate={setGlobalDate} />}
             {activeTab === 'sessions' && role !== 'manager' && <SessionManager appointments={appointments} onNotify={showNotification} selectedDate={globalDate} setSelectedDate={setGlobalDate} setTab={setActiveTab} setViewTarget={setViewTarget} />}
             {activeTab === 'reports' && role === 'admin' && <Reports stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} onNotify={showNotification} />}
-            {activeTab === 'settings' && <SettingsView user={user!} role={role} patients={patients} transactions={transactions} appointments={appointments} members={members} onNotify={showNotification} onLogout={logOut} refreshData={refreshData} />}
+            {activeTab === 'settings' && <SettingsView user={user!} role={role} patients={patients} transactions={transactions} appointments={appointments} members={members} onNotify={showNotification} onLogout={logOut} refreshData={refreshData} showAI={showAI} setShowAI={setShowAI} />}
           </div>
         </main>
       </div>
@@ -9130,6 +9176,14 @@ export default function App() {
                   </div>
                </div>
           </div>
+    )}
+    {showAI && (
+      <AskMode 
+        patients={patients} 
+        appointments={appointments} 
+        transactions={transactions} 
+        stats={stats} 
+      />
     )}
     </div>
   );
