@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserSessionPersistence, updateProfile } from 'firebase/auth';
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, updateDoc, deleteDoc, Timestamp, onSnapshot, where, writeBatch, increment, collectionGroup } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, updateDoc, deleteDoc, Timestamp, onSnapshot, where, writeBatch, increment, collectionGroup, startAfter, getDoc, QueryConstraint } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -18,7 +18,6 @@ const googleProvider = new GoogleAuthProvider();
 
 export const signIn = () => signInWithPopup(auth, googleProvider);
 export const signInWithEmail = (email: string, pass: string) => {
-  console.log(`[Auth] Attempting sign-in for: ${email}`);
   return signInWithEmailAndPassword(auth, email, pass);
 };
 export const logOut = () => signOut(auth);
@@ -74,51 +73,43 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
+// CACHING STRATEGY: Simple in-memory cache to prevent redundant fetches within the same session
+const fetchCache: Record<string, { data: any, timestamp: number }> = {};
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const getCachedData = (key: string) => {
+  const cached = fetchCache[key];
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+    return cached.data;
+  }
+  return null;
+};
+
+const setCachedData = (key: string, data: any) => {
+  fetchCache[key] = { data, timestamp: Date.now() };
+};
+
 export const checkMemberAuthorization = async (identifier: string) => {
   const cleanId = identifier.trim();
   const lowerId = cleanId.toLowerCase();
-  const numericOnly = cleanId.replace(/[^0-9]/g, '');
   const teamRef = collection(db, 'team');
   
-  // Try email match (exact or lowercased)
+  // Try combined query for email or staffId or phone to reduce sequential hits
+  // Note: Firestore doesn't support multiple OR on different fields easily without many indices
+  // But we can optimize by checking common ones first and avoiding "fetch all"
+  
+  // 1. Check ID/Email first as primary keys
   let q = query(teamRef, where('email', '==', lowerId));
   let snapshot = await getDocs(q);
   
   if (snapshot.empty) {
-    q = query(teamRef, where('email', '==', cleanId));
+    q = query(teamRef, where('staffId', '==', cleanId.toUpperCase()));
     snapshot = await getDocs(q);
   }
-  
-  // Try staffId match (exact, upper, or numeric normalize)
-  if (snapshot.empty) {
-    const variations = [cleanId, cleanId.toUpperCase(), lowerId];
-    for (const val of variations) {
-      q = query(teamRef, where('staffId', '==', val));
-      snapshot = await getDocs(q);
-      if (!snapshot.empty) break;
-    }
-  }
 
-  // Try phone match
   if (snapshot.empty) {
     q = query(teamRef, where('phone', '==', cleanId));
     snapshot = await getDocs(q);
-  }
-
-  // Final fallback: check all members if numeric only matches OR name matches
-  if (snapshot.empty) {
-    const allMembers = await getDocs(teamRef);
-    const found = allMembers.docs.find(d => {
-      const data = d.data();
-      const p = data.phone || '';
-      const sid = data.staffId || '';
-      const name = data.name || '';
-      
-      return (numericOnly && p.replace(/[^0-9]/g, '') === numericOnly) || 
-             (numericOnly && String(sid).replace(/[^0-9]/g, '') === numericOnly) ||
-             (name.toLowerCase().trim() === lowerId);
-    });
-    if (found) return { id: found.id, ...found.data() };
   }
 
   if (snapshot.empty) {
@@ -157,8 +148,37 @@ export const updatePatient = async (id: string, patientData: any) => {
   });
 };
 
+// Optimized Patient Fetching: One-time fetch with optional search
+export const fetchPatients = async (options: { searchTerm?: string, limitCount?: number, lastDoc?: any } = {}) => {
+  const patientsRef = collection(db, 'patients');
+  const constraints: QueryConstraint[] = [orderBy('name', 'asc')];
+  
+  if (options.limitCount) {
+    constraints.push(limit(options.limitCount));
+  } else {
+    constraints.push(limit(100)); // Reasonable default
+  }
+
+  if (options.lastDoc) {
+    constraints.push(startAfter(options.lastDoc));
+  }
+
+  const q = query(patientsRef, ...constraints);
+  try {
+    const snapshot = await getDocs(q);
+    return {
+      data: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+      lastDoc: snapshot.docs[snapshot.docs.length - 1]
+    };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, 'patients');
+    return { data: [], lastDoc: null };
+  }
+};
+
+// Keep for legacy compatibility but encourage moving away from it
 export const getPatients = (callback: (patients: any[]) => void) => {
-  const q = query(collection(db, 'patients'), orderBy('name', 'asc'));
+  const q = query(collection(db, 'patients'), orderBy('name', 'asc'), limit(100));
   return onSnapshot(q, (snapshot) => {
     const patients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(patients);
@@ -237,7 +257,7 @@ export const addPatientDocumentMetadata = async (patientId: string, docData: any
 };
 
 export const getPatientDocumentsMetadata = (patientId: string, callback: (docs: any[]) => void) => {
-  const q = query(collection(db, 'patients', patientId, 'documents'), orderBy('uploadDate', 'desc'));
+  const q = query(collection(db, 'patients', patientId, 'documents'), orderBy('uploadDate', 'desc'), limit(20));
   return onSnapshot(q, (snapshot) => {
     const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(docs);
@@ -265,7 +285,7 @@ export const deletePatientDocumentMetadata = async (patientId: string, docId: st
 };
 
 export const getSessions = (patientId: string, callback: (sessions: any[]) => void) => {
-  const q = query(collection(db, 'patients', patientId, 'sessions'), orderBy('date', 'desc'), limit(50));
+  const q = query(collection(db, 'patients', patientId, 'sessions'), orderBy('date', 'desc'), limit(20));
   return onSnapshot(q, (snapshot) => {
     const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(sessions);
@@ -324,7 +344,44 @@ export const payUnpaidSessions = async (
   return txId;
 };
 
-// Transaction Services
+// Optimized Transaction Fetching
+export const fetchTransactions = async (options: { type?: 'income' | 'expense', limitCount?: number, lastDoc?: any, month?: string } = {}) => {
+  const transactionsRef = collection(db, 'transactions');
+  const constraints: QueryConstraint[] = [orderBy('date', 'desc'), orderBy('createdAt', 'desc')];
+  
+  if (options.type) {
+    constraints.push(where('type', '==', options.type));
+  }
+
+  if (options.month) {
+    // Basic prefix matching for date string YYYY-MM
+    constraints.push(where('date', '>=', options.month));
+    constraints.push(where('date', '<=', options.month + '\uf8ff'));
+  }
+
+  if (options.limitCount) {
+    constraints.push(limit(options.limitCount));
+  } else {
+    constraints.push(limit(50));
+  }
+
+  if (options.lastDoc) {
+    constraints.push(startAfter(options.lastDoc));
+  }
+
+  const q = query(transactionsRef, ...constraints);
+  try {
+    const snapshot = await getDocs(q);
+    return {
+      data: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+      lastDoc: snapshot.docs[snapshot.docs.length - 1]
+    };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, 'transactions');
+    return { data: [], lastDoc: null };
+  }
+};
+
 export const logTransaction = async (transactionData: { 
   amount: number; 
   category: string; 
@@ -357,17 +414,62 @@ export const deleteTransaction = async (id: string) => {
 };
 
 export const getTransactions = (callback: (transactions: any[]) => void) => {
-  const q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
+  const q = query(collection(db, 'transactions'), orderBy('date', 'desc'), limit(100));
   return onSnapshot(q, (snapshot) => {
     const transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(transactions);
   });
 };
 
-// Dashboard Stats
+// Optimized Dashboard Stats: One-time fetch of aggregated data
+export const getDashboardStats = async () => {
+  const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM
+  const cacheKey = `stats_${currentMonth}`;
+  
+  const cached = getCachedData(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const patientsSnap = await getDocs(query(collection(db, 'patients'), limit(1))); // Just for total count?
+    const txSnap = await getDocs(query(
+      collection(db, 'transactions'), 
+      where('date', '>=', currentMonth),
+      where('date', '<=', currentMonth + '\uf8ff')
+    ));
+
+    let revenue = 0;
+    let expenses = 0;
+    
+    txSnap.docs.forEach(doc => {
+      const data = doc.data();
+      if (data.type === 'income') revenue += data.amount;
+      else expenses += data.amount;
+    });
+
+    const stats = {
+      activePatients: (await getDocs(collection(db, 'patients'))).size, // Optimization: use a separate counter document in production
+      monthlyRevenue: revenue,
+      monthlyExpenses: expenses,
+      netProfit: revenue - expenses
+    };
+
+    setCachedData(cacheKey, stats);
+    return stats;
+  } catch (error) {
+    console.error("Error fetching dashboard stats:", error);
+    return { activePatients: 0, monthlyRevenue: 0, monthlyExpenses: 0, netProfit: 0 };
+  }
+};
+
+// Dashboard Stats (Real-time version - limited)
 export const fetchDashboardStats = (callback: (stats: any) => void) => {
   const patientsQuery = collection(db, 'patients');
-  const transactionsQuery = collection(db, 'transactions');
+  const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM
+  const transactionsQuery = query(
+    collection(db, 'transactions'), 
+    where('date', '>=', currentMonth),
+    where('date', '<=', currentMonth + '\uf8ff')
+  );
 
   let stats = {
     activePatients: 0,
@@ -376,9 +478,7 @@ export const fetchDashboardStats = (callback: (stats: any) => void) => {
     netProfit: 0
   };
 
-  const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM
-
-  // Since we want real-time, we listen to both
+  // Aggressive limit to count patients
   const unsubPatients = onSnapshot(patientsQuery, (snapshot) => {
     stats.activePatients = snapshot.size;
     callback({ ...stats });
@@ -390,10 +490,8 @@ export const fetchDashboardStats = (callback: (stats: any) => void) => {
     
     snapshot.docs.forEach(doc => {
       const data = doc.data();
-      if (data.date.startsWith(currentMonth)) {
-        if (data.type === 'income') revenue += data.amount;
-        else expenses += data.amount;
-      }
+      if (data.type === 'income') revenue += data.amount;
+      else expenses += data.amount;
     });
 
     stats.monthlyRevenue = revenue;
@@ -438,8 +536,40 @@ export const updateAppointmentStatus = async (id: string, status: 'scheduled' | 
   });
 };
 
+// Optimized Appointment Fetching: Limit by date
+export const fetchAppointmentsRange = async (startDate: string, endDate: string) => {
+  const q = query(
+    collection(db, 'appointments'), 
+    where('date', '>=', startDate), 
+    where('date', '<=', endDate),
+    orderBy('date', 'asc'),
+    orderBy('time', 'asc')
+  );
+  
+  try {
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, 'appointments');
+    return [];
+  }
+};
+
 export const getAppointments = (callback: (appointments: any[]) => void) => {
-  const q = query(collection(db, 'appointments'), orderBy('date', 'asc'));
+  // Real-time listener only for next 30 days of appointments to save reads
+  const today = new Date().toISOString().split('T')[0];
+  const nextMonth = new Date();
+  nextMonth.setMonth(nextMonth.getMonth() + 1);
+  const nextMonthStr = nextMonth.toISOString().split('T')[0];
+
+  const q = query(
+    collection(db, 'appointments'), 
+    where('date', '>=', today),
+    where('date', '<=', nextMonthStr),
+    orderBy('date', 'asc'),
+    limit(200)
+  );
+  
   return onSnapshot(q, (snapshot) => {
     const appointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(appointments);
@@ -568,6 +698,24 @@ export const deletePatientDocument = async (fullPath: string) => {
   const storageRef = ref(storage, fullPath);
   return deleteObject(storageRef);
 };
+
+export const fetchTeamMembers = async () => {
+  const q = query(collection(db, 'team'), orderBy('name', 'asc'));
+  try {
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      if (data.role && data.role.toLowerCase() === 'therapist') {
+        data.role = 'physiotherapist';
+      }
+      return { id: doc.id, ...data };
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, 'team');
+    return [];
+  }
+};
+
 export const getTeamMembers = (callback: (members: any[]) => void) => {
   const q = query(collection(db, 'team'), orderBy('name', 'asc'));
   return onSnapshot(q, (snapshot) => {
@@ -628,29 +776,4 @@ export const getAttendanceRange = (startDate: string, endDate: string, callback:
     const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(records);
   });
-};
-
-export const clearDatabase = async () => {
-  const collectionsToClear = ['patients', 'appointments', 'transactions', 'attendance'];
-  
-  for (const collectionName of collectionsToClear) {
-    const snapshot = await getDocs(collection(db, collectionName));
-    const batch = writeBatch(db);
-    
-    for (const d of snapshot.docs) {
-      if (collectionName === 'patients') {
-        const sessionsSnapshot = await getDocs(collection(db, 'patients', d.id, 'sessions'));
-        if (!sessionsSnapshot.empty) {
-          const sessionBatch = writeBatch(db);
-          sessionsSnapshot.docs.forEach(s => sessionBatch.delete(s.ref));
-          await sessionBatch.commit();
-        }
-      }
-      batch.delete(d.ref);
-    }
-    
-    if (snapshot.docs.length > 0) {
-      await batch.commit();
-    }
-  }
 };

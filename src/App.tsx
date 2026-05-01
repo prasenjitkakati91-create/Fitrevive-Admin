@@ -12,7 +12,6 @@ import {
   Search, 
   Menu, 
   X,
-  Globe,
   TrendingUp,
   TrendingDown,
   Activity,
@@ -22,6 +21,7 @@ import {
   Filter,
   CalendarCheck,
   Calendar,
+  CalendarPlus,
   Clock,
   BadgeCheck,
   MessageSquare,
@@ -65,16 +65,15 @@ import {
   Eye,
   EyeOff,
   Lock,
-  Stethoscope,
   HelpCircle,
   Settings,
   Building2,
   Palette,
   Bell,
   Database,
-  Monitor,
   DownloadCloud,
   UploadCloud,
+  RefreshCw,
   ShieldAlert,
   Moon,
   Sun,
@@ -119,6 +118,11 @@ import {
   deleteTransaction,
   getTransactions, 
   fetchDashboardStats,
+  getDashboardStats,
+  fetchPatients,
+  fetchTransactions,
+  fetchAppointmentsRange,
+  fetchTeamMembers,
   saveAppointment,
   updateAppointmentStatus,
   getAppointments,
@@ -131,7 +135,6 @@ import {
   getAttendanceRange,
   logAttendance,
   updateAttendance,
-  clearDatabase,
   uploadPatientDocument,
   deletePatientDocument,
   addPatientDocumentMetadata,
@@ -276,7 +279,7 @@ const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose, isCollapsed, 
       roles: ['admin', 'manager', 'physiotherapist'],
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'physiotherapist'] },
-        { id: 'appointments', label: 'Appointments', icon: Calendar, roles: ['admin', 'manager'], badge: badges.appointments },
+        { id: 'appointments', label: 'Appointments', icon: Calendar, roles: ['admin', 'manager', 'physiotherapist'], badge: badges.appointments },
         { id: 'sessions', label: 'Sessions', icon: Activity, roles: ['admin', 'physiotherapist'] },
       ]
     },
@@ -502,7 +505,8 @@ const Dashboard = ({
   setViewTarget,
   globalDate,
   setGlobalDate,
-  setPrintTx
+  setPrintTx,
+  refreshData
 }: { 
   stats: DashboardStats, 
   transactions: Transaction[], 
@@ -517,7 +521,8 @@ const Dashboard = ({
   setViewTarget?: any,
   globalDate: string,
   setGlobalDate: (d: string) => void,
-  setPrintTx: (tx: Transaction | null) => void
+  setPrintTx: (tx: Transaction | null) => void,
+  refreshData: (type: any, force?: boolean) => Promise<void>
 }) => {
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '6m'>('30d');
   const [patientSearch, setPatientSearch] = useState('');
@@ -687,6 +692,8 @@ const Dashboard = ({
       };
 
       const docRef = await logTransaction(transactionData);
+      refreshData('transactions', true);
+      refreshData('stats', true);
       
       setPrintTx({
         id: docRef.id,
@@ -928,7 +935,7 @@ const Dashboard = ({
             </div>
           </div>
           <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" className="focus:outline-none">
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis 
@@ -962,7 +969,7 @@ const Dashboard = ({
         >
           <h3 className="font-bold text-slate-800 mb-6">Expense Breakdown</h3>
           <div className="h-[240px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" className="focus:outline-none">
               <PieChart>
                 <Pie
                   data={expensePieData.length > 0 ? expensePieData : [{ name: 'No Data', value: 1 }]}
@@ -1128,157 +1135,188 @@ const Dashboard = ({
           </div>
 
           {/* 4. TODAY’S APPOINTMENTS (CORE SECTION) */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden min-h-[400px]">
-             <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
-                <div className="flex items-center gap-3">
-                   <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700"><Clock className="w-5 h-5 text-blue-600 dark:text-blue-500" /></div>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden min-h-[500px] flex flex-col">
+             <div className="px-8 py-7 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900 relative z-10">
+                <div className="flex items-center gap-4">
+                   <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center shadow-inner group transition-all">
+                      <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+                   </div>
                    <div>
-                     <h2 className="text-lg font-black text-slate-900 dark:text-white">Daily Schedule</h2>
-                     <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{new Date(globalDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                      <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Daily Schedule</h2>
+                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">{new Date(globalDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</p>
                    </div>
                 </div>
                 <button 
                   onClick={() => { if(setViewTarget) { setViewTarget({ type: 'book-appointment', id: 'new', returnTo: 'dashboard' }); } setTab('appointments'); }}
-                  className="flex items-center gap-2 text-xs font-black text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg transition-all"
+                  className="group flex items-center gap-2 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-100 dark:shadow-none hover:-translate-y-0.5 active:scale-95"
                 >
-                  <Plus className="w-4 h-4" /> Book Appointment
+                  <Plus className="w-4 h-4 transition-transform group-hover:rotate-90" /> 
+                  <span className="hidden sm:inline">Add Event</span>
                 </button>
              </div>
-             <div className="overflow-x-hidden md:overflow-x-auto w-full">
-               <table className="w-full border-collapse min-w-full">
-                 <thead className="hidden md:table-header-group">
-                   <tr className="bg-slate-50/30 text-left">
-                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Time</th>
-                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient</th>
-                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Physiotherapist</th>
-                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                     <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Actions</th>
-                   </tr>
-                 </thead>
-                 <tbody className="divide-y divide-slate-50 block md:table-row-group">
-                   {todayAppts.length > 0 ? todayAppts.map(appt => (
-                     <tr key={appt.id} className="group hover:bg-blue-50/20 dark:hover:bg-blue-900/10 transition-all block md:table-row pb-4 md:pb-0 pt-2 md:pt-0 border-b border-slate-100 dark:border-slate-800 md:border-none relative">
-                       <td className="px-4 md:px-8 py-2 md:py-5 block md:table-cell md:border-none">
-                         <div className="flex items-center justify-between md:justify-start gap-2">
-                           <div className="flex items-center gap-2">
-                             <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                             <span className="font-black text-slate-950 dark:text-slate-50 text-base">{appt.time}</span>
-                           </div>
-                           <span className={cn(
-                             "md:hidden px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
-                             appt.status === 'completed' ? "bg-emerald-50 text-emerald-600" :
-                             appt.status === 'cancelled' ? "bg-rose-50 text-rose-600" :
-                             "bg-blue-50 text-blue-600"
-                           )}>
-                             {appt.status}
-                           </span>
-                         </div>
-                       </td>
-                       <td className="px-4 md:px-8 py-2 md:py-5 block md:table-cell md:border-none">
-                         <div className="flex flex-col">
-                           <span className="font-bold text-slate-800 dark:text-slate-200 tracking-tight">{appt.patientName}</span>
-                           <span className="text-[11px] text-slate-400 font-bold">{appt.sessionType || 'Session'}</span>
-                         </div>
-                       </td>
-                       <td className="px-4 py-2 md:px-8 md:py-5 text-sm font-bold text-slate-500 block md:table-cell border-none md:ml-16">
-                         <div className="flex items-center gap-2">
-                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest md:hidden">Physiotherapist:</span>
-                           {appt.physiotherapistName || <span className="text-rose-400 italic">Not assigned</span>}
-                         </div>
-                       </td>
-                       <td className="hidden md:table-cell px-8 py-5">
-                         <span className={cn(
-                           "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
-                           appt.status === 'completed' ? "bg-emerald-50 text-emerald-600" :
-                           appt.status === 'cancelled' ? "bg-rose-50 text-rose-600" :
-                           "bg-blue-50 text-blue-600"
-                         )}>
-                           {appt.status}
-                         </span>
-                       </td>
-                       <td className="px-4 py-3 md:px-8 md:py-5 md:text-right border-t border-slate-50 md:border-none block md:table-cell md:ml-16">
-                         <div className="flex justify-between md:justify-end items-center gap-2 transition-opacity">
-                            <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase md:hidden">Actions</span>
-                            <div className="flex items-center gap-2">
-                              {appt.status !== 'completed' && (
-                                <button 
-                                  onClick={async () => {
-                                    if (onStatusUpdate) {
-                                      try {
-                                        await onStatusUpdate(appt.id, 'completed');
-                                        onNotify(`Checked in ${appt.patientName}`);
-                                      } catch (err) {
-                                        onNotify("Check-in failed", "error");
-                                      }
-                                    }
-                                  }}
-                                  className="p-2 bg-emerald-50 md:bg-transparent md:hover:bg-emerald-50 rounded-lg text-emerald-600 md:text-slate-400 hover:text-emerald-600 transition-all font-bold flex items-center gap-1.5 border border-emerald-200 md:border-transparent" 
-                                  title="Check-in Patient"
-                                >
-                                   <BadgeCheck className="w-4 h-4" />
-                                   <span className="text-[10px] uppercase">Check-in</span>
-                                </button>
-                              )}
-                              {appt.status !== 'completed' && appt.status !== 'cancelled' && (
-                                <button 
-                                  onClick={async () => {
-                                    if (onStatusUpdate) {
-                                      try {
-                                        await onStatusUpdate(appt.id, 'cancelled');
-                                        onNotify(`Marked ${appt.patientName} as not present`);
-                                      } catch (err) {
-                                        onNotify("Update failed", "error");
-                                      }
-                                    }
-                                  }}
-                                  className="p-2 bg-rose-50 md:bg-transparent md:hover:bg-rose-50 rounded-lg text-rose-600 md:text-slate-400 hover:text-rose-600 transition-all font-bold flex items-center gap-1.5 border border-rose-200 md:border-transparent" 
-                                  title="Patient Not Present"
-                                >
-                                   <UserX className="w-4 h-4" />
-                                   <span className="text-[10px] uppercase hidden md:inline">Absent</span>
-                                </button>
-                              )}
-                              {appt.status === 'completed' && (
-                                <button 
-                                  onClick={async () => {
-                                    if (onStatusUpdate) {
-                                      try {
-                                        await onStatusUpdate(appt.id, 'scheduled');
-                                        onNotify(`Marked ${appt.patientName} as incomplete`);
-                                      } catch (err) {
-                                        onNotify("Update failed", "error");
-                                      }
-                                    }
-                                  }}
-                                  className="p-2 bg-amber-50 md:bg-transparent md:hover:bg-amber-50 rounded-lg text-amber-600 md:text-slate-400 hover:text-amber-600 transition-all font-bold flex items-center gap-1.5 border border-amber-200 md:border-transparent" 
-                                  title="Mark as Not Complete"
-                                >
-                                   <XCircle className="w-4 h-4" />
-                                   <span className="text-[10px] uppercase hidden md:inline">Incomplete</span>
-                                </button>
-                              )}
-                              <button onClick={() => { if(setViewTarget && setTab) { setViewTarget({ type: 'patient', id: appt.patientId, returnTo: 'dashboard' }); setTab('patients'); } }} className="p-2 bg-white md:bg-transparent border border-slate-200 md:border-transparent md:hover:bg-blue-50 rounded-lg text-slate-400 hover:text-blue-600 transition-all" title="View Patient Profile">
-                                 <ArrowUpRight className="w-4 h-4" />
-                              </button>
+
+             <div className="flex-1 p-6 md:p-10 bg-slate-50/30 dark:bg-slate-900/50 relative">
+                {/* Timeline vertical line */}
+                {todayAppts.length > 0 && (
+                  <div className="absolute left-[3.25rem] md:left-[4.25rem] top-10 bottom-10 w-0.5 bg-slate-100 dark:bg-slate-800 hidden sm:block"></div>
+                )}
+
+                <div className="space-y-6 relative z-10">
+                  {todayAppts.length > 0 ? todayAppts.map((appt, idx) => (
+                    <motion.div 
+                      key={appt.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="flex gap-4 md:gap-8 group"
+                    >
+                      {/* Time Label & Dot */}
+                      <div className="flex flex-col items-center pt-2 min-w-[3.5rem] md:min-w-[4.5rem]">
+                        <span className="text-xs font-black text-slate-900 dark:text-slate-200 mb-2">{appt.time}</span>
+                        <div className={cn(
+                          "w-4 h-4 rounded-full border-4 border-white dark:border-slate-900 shadow-sm relative z-20 transition-all group-hover:scale-125",
+                          appt.status === 'completed' ? "bg-emerald-500" :
+                          appt.status === 'cancelled' ? "bg-rose-500" :
+                          "bg-blue-500"
+                        )}></div>
+                      </div>
+
+                      {/* Content Card */}
+                      <div className={cn(
+                        "flex-1 bg-white dark:bg-slate-800 p-5 rounded-2xl border transition-all shadow-sm group-hover:shadow-md group-hover:border-blue-100 dark:group-hover:border-slate-700 relative overflow-hidden",
+                        appt.status === 'completed' ? "border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50" : "border-slate-100 dark:border-slate-800"
+                      )}>
+                        {/* Status accent bar */}
+                        <div className={cn(
+                          "absolute left-0 top-0 bottom-0 w-1.5",
+                          appt.status === 'completed' ? "bg-emerald-500" :
+                          appt.status === 'cancelled' ? "bg-rose-500" :
+                          "bg-blue-500"
+                        )}></div>
+
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center text-slate-400 font-black text-lg shadow-inner">
+                              {appt.patientName.charAt(0)}
                             </div>
-                         </div>
-                       </td>
-                     </tr>
-                   )) : (
-                     <tr className="block md:table-row w-full">
-                        <td colSpan={5} className="py-20 block md:table-cell w-full md:w-auto">
-                           <div className="flex flex-col items-center justify-center text-center">
-                              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                                 <Calendar className="w-8 h-8 text-slate-300" />
+                            <div>
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <h4 className={cn(
+                                  "text-base font-bold tracking-tight",
+                                  appt.status === 'completed' ? "text-slate-500 line-through decoration-emerald-500/30" : "text-slate-900 dark:text-white"
+                                )}>
+                                  {appt.patientName}
+                                </h4>
+                                <span className={cn(
+                                  "text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider",
+                                  appt.status === 'completed' ? "bg-emerald-100 text-emerald-700" :
+                                  appt.status === 'cancelled' ? "bg-rose-100 text-rose-700" :
+                                  "bg-blue-100 text-blue-700"
+                                )}>
+                                  {appt.status}
+                                </span>
                               </div>
-                              <p className="text-slate-400 font-bold italic">Zero appointments found for today</p>
-                              <button onClick={() => setTab('appointments')} className="mt-4 text-blue-600 font-black text-sm hover:underline tracking-tight">+ Book First Appointment</button>
-                           </div>
-                        </td>
-                     </tr>
-                   )}
-                 </tbody>
-               </table>
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                                <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+                                  <Activity className="w-3 h-3 text-blue-500" /> {appt.sessionType || 'General Session'}
+                                </span>
+                                <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+                                  <User2 className="w-3 h-3 text-indigo-400" /> {appt.physiotherapistName || 'Not assigned'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 py-1.5 px-2 rounded-xl border border-slate-100 dark:border-slate-800 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {appt.status !== 'completed' && (
+                              <button 
+                                onClick={async () => {
+                                  if (onStatusUpdate) {
+                                    try {
+                                      await onStatusUpdate(appt.id, 'completed');
+                                      onNotify(`Session with ${appt.patientName} completed!`, 'success');
+                                      if (setViewTarget && setTab) {
+                                        setTab('patients');
+                                        setViewTarget({ 
+                                          type: 'patient', 
+                                          id: appt.patientId, 
+                                          action: 'log-session',
+                                          returnTo: 'dashboard',
+                                          prefill: {
+                                            notes: appt.sessionType ? `Session: ${appt.sessionType}` : 'Regular therapy session',
+                                            amount: 500
+                                          }
+                                        });
+                                      }
+                                    } catch (err) {
+                                      onNotify("Update failed", "error");
+                                    }
+                                  }
+                                }}
+                                className="p-2 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-lg transition-all" 
+                                title="Complete & Log Session"
+                              >
+                                 <BadgeCheck className="w-4 h-4" />
+                              </button>
+                            )}
+                            {appt.status !== 'completed' && appt.status !== 'cancelled' && (
+                              <button 
+                                onClick={async () => {
+                                  if (onStatusUpdate) {
+                                    try {
+                                      await onStatusUpdate(appt.id, 'cancelled');
+                                      onNotify(`Marked ${appt.patientName} as absent`, 'info');
+                                    } catch (err) {
+                                      onNotify("Update failed", "error");
+                                    }
+                                  }
+                                }}
+                                className="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition-all" 
+                                title="Patient Absent"
+                              >
+                                 <UserX className="w-4 h-4" />
+                              </button>
+                            )}
+                            {appt.status === 'completed' && (
+                              <button 
+                                onClick={async () => {
+                                  if (onStatusUpdate) {
+                                    try {
+                                      await onStatusUpdate(appt.id, 'scheduled');
+                                      onNotify(`Reverted ${appt.patientName} check-in`, 'info');
+                                    } catch (err) {
+                                      onNotify("Update failed", "error");
+                                    }
+                                  }
+                                }}
+                                className="p-2 hover:bg-amber-50 text-slate-400 hover:text-amber-600 rounded-lg transition-all" 
+                                title="Revert to Scheduled"
+                              >
+                                 <XCircle className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => { if(setViewTarget && setTab) { setViewTarget({ type: 'patient', id: appt.patientId, returnTo: 'dashboard' }); setTab('patients'); } }} 
+                              className="p-2 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-lg transition-all" 
+                              title="Go to Patient Profile"
+                            >
+                               <ArrowUpRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )) : (
+                    <div className="py-24 flex flex-col items-center justify-center text-center">
+                       <div className="w-24 h-24 bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-center mb-6">
+                          <Calendar className="w-10 h-10 text-slate-200 dark:text-slate-700" />
+                       </div>
+                       <h4 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Quiet day ahead...</h4>
+                       <p className="text-slate-400 font-bold max-w-xs mx-auto mt-2 text-sm italic">You have no appointments scheduled for this date.</p>
+                       <button onClick={() => setTab('appointments')} className="mt-8 px-6 py-3 bg-blue-50 text-blue-600 rounded-xl font-black text-sm hover:bg-blue-100 transition-all tracking-tight active:scale-95 shadow-sm">Schedule Now</button>
+                    </div>
+                  )}
+                </div>
              </div>
           </div>
         </div>
@@ -1410,13 +1448,32 @@ const Dashboard = ({
               <div className="flex items-center gap-2 mt-1">
                 <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
                   <Calendar className="w-3.5 h-3.5" /> 
-                  {new Date(globalDate).toLocaleDateString(undefined, { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
+                  {(() => {
+                    // split by dash to avoid timezone shifts and invalid strings
+                    const parts = globalDate.split('-');
+                    let d = new Date();
+                    if (parts.length === 3) {
+                      d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    } else {
+                      d = new Date(globalDate);
+                    }
+                    
+                    return isNaN(d.getTime()) 
+                      ? globalDate 
+                      : d.toLocaleDateString(undefined, { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' });
+                  })()}
                 </span>
               </div>
             </div>
           </div>
           
           <div className="flex flex-wrap items-center gap-4">
+            <button 
+              onClick={() => { setViewTarget({ type: 'book-appointment', id: 'new', returnTo: 'dashboard' }); setTab('appointments'); }}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-200 active:scale-95"
+            >
+              <CalendarPlus className="w-4 h-4" /> Book Appointment
+            </button>
             <div className="flex items-center gap-3 bg-slate-50 rounded-2xl p-2 px-4 border border-slate-100">
                <span className="text-xs font-bold text-slate-600">Availability:</span>
                <button 
@@ -1544,19 +1601,27 @@ const Dashboard = ({
                     </span>
                  </div>
                </div>
-               <div className="h-56 w-full">
-                 <ResponsiveContainer width="100%" height="100%">
-                   <BarChart data={transactions.reduce((acc: any[], curr) => {
-                       if (curr.type === 'income') {
-                         const existing = acc.find(a => a.date === curr.date);
-                         if (existing) {
-                           existing.amount += Number(curr.amount);
-                         } else {
-                           acc.push({ date: curr.date.substring(5), amount: Number(curr.amount) });
-                         }
+               <div className="h-56 w-full focus:outline-none">
+                 <ResponsiveContainer width="100%" height="100%" className="focus:outline-none">
+                   <BarChart data={(() => {
+                     const groups: { [key: string]: number } = {};
+                     const now = new Date();
+                     for (let i = 6; i >= 0; i--) {
+                       const d = new Date();
+                       d.setDate(now.getDate() - i);
+                       const key = d.toISOString().split('T')[0];
+                       groups[key] = 0;
+                     }
+                     transactions.forEach(t => {
+                       if (t.type === 'income' && groups[t.date] !== undefined) {
+                         groups[t.date] += Number(t.amount);
                        }
-                       return acc;
-                   }, []).slice(-7)}>
+                     });
+                     return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])).map(([date, amount]) => ({
+                       date: date.substring(5),
+                       amount
+                     }));
+                   })()}>
                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} dy={10} />
                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} tickFormatter={(value) => `₹${value}`} dx={-10} />
@@ -1984,7 +2049,11 @@ const Dashboard = ({
                             <div className="flex items-center gap-2 mt-2">
                               <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
                                 <Clock3 className="w-3.5 h-3.5" />
-                                {new Date(tx.createdAt || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {(() => {
+                                  if (!tx.createdAt) return tx.time || '--:--';
+                                  const date = (tx.createdAt as any).toDate ? (tx.createdAt as any).toDate() : new Date(tx.createdAt);
+                                  return isNaN(date.getTime()) ? (tx.time || '--:--') : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                })()}
                               </span>
                             </div>
                           </div>
@@ -2133,7 +2202,7 @@ const Dashboard = ({
   );
 };
 
-const PatientManager = ({ patients, appointments, transactions, onNotify, role, viewTarget, setViewTarget, setTab }: { 
+const PatientManager = ({ patients, appointments, transactions, onNotify, role, viewTarget, setViewTarget, setTab, refreshData }: { 
   patients: Patient[], 
   appointments: any[], 
   transactions: Transaction[], 
@@ -2141,7 +2210,8 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
   role?: string,
   viewTarget?: {type: string, id: string, action?: string, returnTo?: any} | null,
   setViewTarget?: any,
-  setTab?: any
+  setTab?: any,
+  refreshData: (type: any, force?: boolean) => Promise<void>
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -2215,9 +2285,17 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
        const p = patients.find(p => p.id === viewTarget.id);
        if (p) {
          setSelectedPatient(p);
-         if ((viewTarget as any).action === 'log-session') {
-           setShowSessionModal(true);
-         } else {
+          if ((viewTarget as any).action === 'log-session') {
+            const prefill = (viewTarget as any).prefill;
+            if (prefill) {
+              setNewSession(prev => ({
+                ...prev,
+                notes: prefill.notes || prev.notes,
+                amount: String(prefill.amount || prev.amount)
+              }));
+            }
+            setShowSessionModal(true);
+          } else {
            setShowHistoryModal(true);
            if ((viewTarget as any).action === 'upload') {
              setTimeout(() => {
@@ -2316,6 +2394,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
           treatmentStatus: newPatient.treatmentStatus
         });
         onNotify("Patient record updated successfully!");
+        refreshData('patients', true);
         
         // Also update selected patient if it's the one being edited
         if (selectedPatient && selectedPatient.id === editPatientId) {
@@ -2342,6 +2421,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
           medicalHistory: newPatient.medicalHistory,
           treatmentStatus: newPatient.treatmentStatus
         });
+        refreshData('patients', true);
         onNotify("Patient record created successfully!");
       }
       setNewPatient({ name: '', phone: '', age: '', gender: 'Male', condition: '', address: '', medicalHistory: '', treatmentStatus: 'Active' });
@@ -2360,6 +2440,9 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
         ...newSession,
         amount: Math.max(0, parseFloat(newSession.amount) || 0)
       });
+      refreshData('transactions', true);
+      refreshData('stats', true);
+      refreshData('patients', true);
       onNotify(`Session logged for ${selectedPatient.name}`);
       closePatientModals();
       setNewSession({
@@ -3374,7 +3457,7 @@ const PatientManager = ({ patients, appointments, transactions, onNotify, role, 
     </div>
   );
 };
-const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, setViewTarget, printTx, setPrintTx, physiotherapistName, setPhysiotherapistName }: { 
+const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, setViewTarget, printTx, setPrintTx, physiotherapistName, setPhysiotherapistName, refreshData }: { 
   transactions: Transaction[], 
   patients: Patient[], 
   onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void,
@@ -3384,7 +3467,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
   printTx: Transaction | null,
   setPrintTx: (t: Transaction | null) => void,
   physiotherapistName: string,
-  setPhysiotherapistName: (n: string) => void
+  setPhysiotherapistName: (n: string) => void,
+  refreshData: (type: any, force?: boolean) => Promise<void>
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [showBillingModal, setShowBillingModal] = useState(false);
@@ -3481,6 +3565,10 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
         timeStr
       );
       
+      refreshData('transactions', true);
+      refreshData('stats', true);
+      refreshData('patients', true);
+
       onNotify(`Bill generated successfully for ₹${totalAmount}`, "success");
       
       if (totalAmount > 0 && txId) {
@@ -3529,6 +3617,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
     if (transactionToDelete) {
       try {
         await deleteTransaction(transactionToDelete.id);
+        refreshData('transactions', true);
+        refreshData('stats', true);
         onNotify("Transaction deleted successfully");
       } catch (err: any) {
         onNotify(err.message || "Failed to delete transaction", "error");
@@ -3551,6 +3641,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
           patientId: newTx.patientId,
           paymentMethod: newTx.paymentMethod
         });
+        refreshData('transactions', true);
+        refreshData('stats', true);
         onNotify("Transaction updated successfully!");
       } else {
         await logTransaction({
@@ -3563,6 +3655,8 @@ const FinanceTracker = ({ transactions, patients, onNotify, role, viewTarget, se
           patientId: newTx.patientId,
           paymentMethod: newTx.paymentMethod
         });
+        refreshData('transactions', true);
+        refreshData('stats', true);
         onNotify(`${newTx.type === 'income' ? 'Revenue' : 'Expense'} logged successfully!`);
       }
       setEditTxId(null);
@@ -4496,9 +4590,9 @@ const ReportsByRange = ({ stats, transactions, appointments, patients, members, 
               </div>
            </div>
            
-           <div className="h-[360px] w-full flex-none">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+           <div className="h-[360px] w-full flex-none focus:outline-none">
+              <ResponsiveContainer width="100%" height="100%" className="focus:outline-none">
+                <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }} className="focus:outline-none">
                   <Pie
                     data={currentPieData}
                     cx="50%"
@@ -4803,7 +4897,7 @@ const KPICard = ({ title, value, trend, icon, color, highlighted = false, hideCu
   );
 };
 
-const AppointmentManager = ({ patients, appointments, members, onNotify, viewTarget, setViewTarget, setTab, selectedDate, setSelectedDate }: { patients: Patient[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, viewTarget?: {type: string, id: string, returnTo?: string, action?: string} | null, setViewTarget?: any, setTab?: (tab: string) => void, selectedDate: string, setSelectedDate: (d: string) => void }) => {
+const AppointmentManager = ({ patients, appointments, members, onNotify, viewTarget, setViewTarget, setTab, selectedDate, setSelectedDate, refreshData }: { patients: Patient[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, viewTarget?: {type: string, id: string, returnTo?: string, action?: string} | null, setViewTarget?: any, setTab?: (tab: string) => void, selectedDate: string, setSelectedDate: (d: string) => void, refreshData: (type: any, force?: boolean) => Promise<void> }) => {
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editApptId, setEditApptId] = useState<string | null>(null);
@@ -4990,6 +5084,7 @@ const AppointmentManager = ({ patients, appointments, members, onNotify, viewTar
             condition: 'New Patient Registration',
             medicalHistory: 'Registered via Appointment Schedule'
           });
+          refreshData('patients', true);
           patientId = patientDoc.id;
           patientName = newPatientData.name;
           patientPhone = newPatientData.phone;
@@ -5491,10 +5586,18 @@ const SessionManager = ({ appointments, onNotify, selectedDate, setSelectedDate,
   const handleFinalize = async (appt: Appointment) => {
     try {
       await updateAppointmentStatus(appt.id, 'completed');
-      onNotify(`Session with ${appt.patientName} marked as completed!`);
+      onNotify(`Session with ${appt.patientName} marked as completed! Ready to log details.`);
       if (setTab && setViewTarget) {
         setTab('patients');
-        setViewTarget({ type: 'patient', id: appt.patientId, action: 'log-session' });
+        setViewTarget({ 
+            type: 'patient', 
+            id: appt.patientId, 
+            action: 'log-session',
+            prefill: {
+                notes: appt.sessionType ? `Session: ${appt.sessionType}` : 'Regular therapy session',
+                amount: 500
+            }
+        });
       }
     } catch (err: any) {
       onNotify(err.message || "Failed to finalize session.", "error");
@@ -5511,47 +5614,129 @@ const SessionManager = ({ appointments, onNotify, selectedDate, setSelectedDate,
            <div>
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Daily Schedule</h1>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Manage & complete patient sessions</p>
-           </div>
-        </div>
+            </div>
+         </div>
       </header>
 
-       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {sessions.map(s => (
-            <div key={s.id} className={cn("card p-5 space-y-4 hover:border-blue-300 transition-all cursor-pointer flex flex-col", selectedSession?.id === s.id ? "ring-2 ring-blue-500 border-blue-500" : "")} onClick={() => setSelectedSession(s)}>
-               <div className="flex justify-between items-start">
-                  <div>
-                    <div className="text-xs font-bold text-blue-600 mb-1 flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> {s.time}</div>
-                    <h3 className="text-lg font-bold text-slate-800 leading-tight">{s.patientName}</h3>
-                    <p className="text-sm text-slate-500 mt-1">{s.sessionType}</p>
-                  </div>
-               </div>
-               
-               {selectedSession?.id === s.id && (
-                 <div className="mt-4 pt-4 border-t border-slate-100 flex-1 flex flex-col">
-                    <div className="mb-4">
-                       <label className="label">Recent History</label>
-                       <div className="space-y-2 mt-1">
-                          {history.slice(0, 2).map((h, i) => (
-                            <div key={i} className="px-3 py-2 bg-slate-50 border border-slate-200 rounded text-xs">
-                               <div className="font-semibold text-slate-700">{h.date}</div>
-                               <div className="text-slate-500 line-clamp-2 mt-0.5">{h.notes || 'No notes.'}</div>
-                            </div>
-                          ))}
-                          {history.length === 0 && <div className="text-xs text-slate-400 italic py-2 border border-dashed border-slate-200 rounded text-center">No previous records.</div>}
-                       </div>
-                    </div>
-                    <div className="flex-1 flex flex-col justify-end">
-                       <button onClick={(e) => { e.stopPropagation(); handleFinalize(s); }} className="w-full btn-primary py-2.5">Mark as Complete</button>
-                    </div>
-                 </div>
-               )}
-            </div>
-          ))}
-          {sessions.length === 0 && (
-            <div className="col-span-full py-20 text-center bg-slate-50 rounded-lg border border-slate-200 border-dashed">
-               <span className="text-sm font-semibold text-slate-500">No appointments scheduled for today</span>
-            </div>
+       <div className="relative pt-4">
+          {/* Timeline vertical line */}
+          {sessions.length > 0 && (
+            <div className="absolute left-[1.625rem] top-0 bottom-0 w-0.5 bg-slate-100 dark:bg-slate-800 hidden sm:block"></div>
           )}
+
+          <div className="space-y-8 relative z-10">
+            {sessions.length > 0 ? sessions.map((s, idx) => (
+              <motion.div 
+                key={s.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                className="flex gap-6 group"
+              >
+                {/* Status indicator dot */}
+                <div className="flex flex-col items-center pt-1.5 hidden sm:flex">
+                   <div className={cn(
+                     "w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 shadow-sm transition-all group-hover:scale-125 z-20",
+                     selectedSession?.id === s.id ? "bg-violet-600 scale-110" : "bg-slate-300 dark:bg-slate-700"
+                   )}></div>
+                </div>
+
+                {/* Session Card */}
+                <div 
+                  onClick={() => setSelectedSession(s)}
+                  className={cn(
+                    "flex-1 bg-white dark:bg-slate-800 p-6 rounded-2xl border transition-all cursor-pointer relative overflow-hidden",
+                    selectedSession?.id === s.id 
+                      ? "border-violet-500 shadow-lg shadow-violet-50 dark:shadow-none ring-1 ring-violet-500/20" 
+                      : "border-slate-100 dark:border-slate-800 hover:border-violet-200 shadow-sm"
+                  )}
+                >
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-400 font-black text-lg shadow-inner">
+                        {s.patientName.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-black text-violet-600 dark:text-violet-400 uppercase tracking-widest">{s.time}</span>
+                          <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                          <span className="text-xs font-bold text-slate-400">{s.sessionType || 'Session'}</span>
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-white leading-none">{s.patientName}</h3>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                       {selectedSession?.id === s.id ? (
+                         <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-300">
+                           <button 
+                             onClick={(e) => { e.stopPropagation(); handleFinalize(s); }}
+                             className="px-5 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-black rounded-xl transition-all shadow-md shadow-violet-100 flex items-center gap-2"
+                           >
+                             <BadgeCheck className="w-4 h-4" /> Finalize Session
+                           </button>
+                         </div>
+                       ) : (
+                         <button className="p-2 text-slate-300 group-hover:text-violet-400 transition-colors">
+                           <ArrowUpRight className="w-5 h-5" />
+                         </button>
+                       )}
+                    </div>
+                  </div>
+
+                  {selectedSession?.id === s.id && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-700/50"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Patient History</h4>
+                          <div className="space-y-3">
+                            {history.slice(0, 2).map((h, i) => (
+                              <div key={i} className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="text-[10px] font-bold text-slate-400">{h.date}</span>
+                                  <span className="text-[10px] font-black text-violet-500 uppercase">Previous</span>
+                                </div>
+                                <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">{h.notes || 'No clinical notes provided.'}</p>
+                              </div>
+                            ))}
+                            {history.length === 0 && (
+                              <div className="py-8 text-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl">
+                                <p className="text-xs text-slate-400 font-medium italic">No previous session history found</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col justify-between">
+                           <div className="bg-violet-50 dark:bg-violet-900/10 p-4 rounded-2xl border border-violet-100 dark:border-violet-900/20">
+                              <h4 className="text-[10px] font-black text-violet-600 dark:text-violet-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <AlertCircle className="w-3 h-3" /> Quick Tip
+                              </h4>
+                              <p className="text-xs text-violet-700 dark:text-violet-300 leading-relaxed">
+                                Review the progress notes before starting. Ensure all clinical parameters are captured during the logout process.
+                              </p>
+                           </div>
+                           <p className="text-[10px] text-slate-400 font-bold mt-4 text-center md:text-left">Click the button above to complete treatment and open the billing logger.</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              </motion.div>
+            )) : (
+              <div className="py-24 flex flex-col items-center justify-center text-center">
+                 <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center mb-6">
+                    <Calendar className="w-8 h-8 text-slate-200 dark:text-slate-700" />
+                 </div>
+                 <h3 className="text-lg font-black text-slate-900 dark:text-white">All caught up!</h3>
+                 <p className="text-sm text-slate-400 font-bold max-w-xs mx-auto mt-2">Zero scheduled sessions remain for this date.</p>
+              </div>
+            )}
+          </div>
        </div>
     </div>
   );
@@ -7103,7 +7288,6 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'phy
       }
       
       const memberData = await checkMemberAuthorization(emailInput);
-      console.log("Member lookup result:", memberData ? "Found" : "Not Found");
       
       if (!memberData) {
         throw new Error('Account not found. Please check your Staff ID or Email.');
@@ -7113,7 +7297,6 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'phy
       let normalizedRole = memberData.role.toLowerCase();
       if (normalizedRole === 'therapist') normalizedRole = 'physiotherapist';
       if (normalizedRole !== selectedRole) {
-        console.warn(`Role mismatch: expected ${selectedRole}, found ${normalizedRole}`);
         throw new Error(`Account Role Mismatch: This account (${emailInput}) is registered as a ${normalizedRole}. Please select "${normalizedRole.charAt(0).toUpperCase() + normalizedRole.slice(1)}" in the role selector above and try again.`);
       }
 
@@ -7383,10 +7566,10 @@ const Login = ({ onDemoLogin }: { onDemoLogin: (role: 'admin' | 'manager' | 'phy
 const ROLE_PERMISSIONS = {
   admin: ['dashboard', 'appointments', 'patients', 'finances', 'attendance', 'team', 'reports', 'sessions'],
   manager: ['dashboard', 'appointments', 'patients', 'finances', 'attendance'],
-  physiotherapist: ['dashboard', 'patients', 'attendance', 'sessions']
+  physiotherapist: ['dashboard', 'appointments', 'patients', 'attendance', 'sessions']
 } as const;
 
-const SettingsView = ({ user, role, patients, transactions, appointments, members, onNotify, onLogout }: { user: User, role: string, patients: any[], transactions: any[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, onLogout: () => void }) => {
+const SettingsView = ({ user, role, patients, transactions, appointments, members, onNotify, onLogout, refreshData }: { user: User, role: string, patients: any[], transactions: any[], appointments: any[], members: any[], onNotify: (msg: string, type?: 'success' | 'error' | 'info') => void, onLogout: () => void, refreshData?: (type: any, force?: boolean) => Promise<void> }) => {
   const [activeCategory, setActiveCategory] = useState<'account'|'clinic'|'appearance'|'notifications'|'security'|'billing'>('account');
   const [displayName, setDisplayName] = useState(user.displayName || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -7803,6 +7986,36 @@ const SettingsView = ({ user, role, patients, transactions, appointments, member
                         </div>
                         <button onClick={handleBackupDatabase} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-all focus:outline-none whitespace-nowrap">Download Backup</button>
                      </div>
+
+                     {refreshData && (
+                        <div className="md:hidden p-5 border border-indigo-100 dark:border-indigo-900/40 rounded-xl bg-indigo-50/30 dark:bg-indigo-900/10 flex flex-col items-center text-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-sm">
+                            <RefreshCw className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-800 dark:text-slate-200">Manual Sync / Refresh</h4>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Force refresh data</p>
+                          </div>
+                          <button 
+                            onClick={async () => {
+                              try {
+                                await Promise.all([
+                                  refreshData('patients', true),
+                                  refreshData('transactions', true),
+                                  refreshData('stats', true),
+                                  refreshData('members', true)
+                                ]);
+                                onNotify("Full data sync successful", "success");
+                              } catch (err) {
+                                onNotify("Sync failed. Check connection.", "error");
+                              }
+                            }} 
+                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl text-xs transition-all focus:outline-none flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-indigo-100/50"
+                          >
+                            <RefreshCw className="w-4 h-4" /> Sync Now
+                          </button>
+                        </div>
+                     )}
                    </div>
                  </div>
                </div>
@@ -8271,23 +8484,69 @@ export default function App() {
     return () => unsubAuth();
   }, [isDemoMode]);
 
+  const [lastFetched, setLastFetched] = useState<Record<string, number>>({});
+  const [isDataLoading, setIsDataLoading] = useState<Record<string, boolean>>({});
+
+  // Optimized fetching logic
+  const refreshData = async (type: 'patients' | 'transactions' | 'members' | 'stats' | 'appointments', force = false) => {
+    if (!user) return;
+    
+    const now = Date.now();
+    if (!force && lastFetched[type] && (now - lastFetched[type] < 60000)) {
+      return; // Fetch once per minute max
+    }
+
+    setIsDataLoading(prev => ({ ...prev, [type]: true }));
+    try {
+      switch (type) {
+        case 'patients':
+          const pResult = await fetchPatients({ limitCount: 100 });
+          setPatients(pResult.data);
+          break;
+        case 'transactions':
+          const tResult = await fetchTransactions({ limitCount: 100 });
+          setTransactions(tResult.data);
+          break;
+        case 'members':
+          const mResult = await fetchTeamMembers();
+          setMembers(mResult);
+          break;
+        case 'stats':
+          const sResult = await getDashboardStats();
+          setStats(sResult);
+          break;
+      }
+      setLastFetched(prev => ({ ...prev, [type]: now }));
+    } catch (err) {
+      console.error(`Error refreshing ${type}:`, err);
+    } finally {
+      setIsDataLoading(prev => ({ ...prev, [type]: false }));
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
-
-    const unsubPatients = getPatients(setPatients);
+    
+    // Initial fetch for essential dashboard data
+    refreshData('stats');
+    refreshData('members');
+    
+    // Appointments stay as a limited real-time listener for scheduling efficiency
     const unsubAppointments = getAppointments(setAppointments);
-    const unsubTransactions = getTransactions(setTransactions);
-    const unsubStats = fetchDashboardStats(setStats);
-    const unsubMembers = getTeamMembers(setMembers);
-
+    
     return () => {
-      unsubPatients();
       unsubAppointments();
-      unsubTransactions();
-      unsubStats();
-      unsubMembers();
     };
   }, [user]);
+
+  // Tab-based lazy loading
+  useEffect(() => {
+    if (!user) return;
+    if (activeTab === 'patients') refreshData('patients');
+    if (activeTab === 'finances') refreshData('transactions');
+    if (activeTab === 'team') refreshData('members');
+    if (activeTab === 'dashboard') refreshData('stats');
+  }, [activeTab, user]);
 
   const handleDemoLogin = (roleAssigned: 'admin' | 'manager' | 'physiotherapist') => {
     setIsDemoMode(true);
@@ -8493,7 +8752,21 @@ export default function App() {
             </div>
 
             {/* Desktop right alignment spacer if needed */}
-            <div className="hidden md:flex w-10 shrink-0"></div>
+            <div className="hidden md:flex shrink-0">
+               <button 
+                 onClick={() => refreshData(activeTab as any, true)}
+                 disabled={Object.values(isDataLoading).some(v => v)}
+                 className={cn(
+                   "p-2.5 rounded-xl border transition-all flex items-center justify-center",
+                   Object.values(isDataLoading).some(v => v)
+                     ? "bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed"
+                     : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-500 hover:text-blue-600 hover:border-blue-200 shadow-sm active:scale-95"
+                 )}
+                 title="Force sync data"
+               >
+                 <Activity className={cn("w-5 h-5", Object.values(isDataLoading).some(v => v) && "animate-spin")} />
+               </button>
+            </div>
           </div>
 
           {/* Mobile Bottom Nav */}
@@ -8515,10 +8788,24 @@ export default function App() {
                 </div>
                 <span className="text-[9px] font-bold z-10 relative">Patients</span>
              </button>
-             <button onClick={() => { setActiveTab('appointments'); setIsSidebarOpen(false); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", activeTab === 'appointments' && !isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
-                {activeTab === 'appointments' && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/50 rounded-xl z-0" />}
+             <button 
+               onClick={() => { 
+                 const targetTab = role === 'physiotherapist' ? 'sessions' : 'appointments';
+                 setActiveTab(targetTab); 
+                 setIsSidebarOpen(false); 
+               }} 
+               className={cn(
+                 "flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", 
+                 (activeTab === 'appointments' || activeTab === 'sessions') && !isSidebarOpen ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"
+               )}
+             >
+                {(activeTab === 'appointments' || activeTab === 'sessions') && !isSidebarOpen && <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/50 rounded-xl z-0" />}
                 <div className="relative">
-                  <Calendar className="w-5 h-5 mb-1 z-10 relative" />
+                  {role === 'physiotherapist' ? (
+                    <Activity className="w-5 h-5 mb-1 z-10 relative" />
+                  ) : (
+                    <Calendar className="w-5 h-5 mb-1 z-10 relative" />
+                  )}
                   {scheduledApptsCount > 0 && (
                     <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-bold px-1 min-w-[15px] h-[15px] rounded-full flex items-center justify-center ring-2 ring-white shadow-sm z-20">
                       {scheduledApptsCount}
@@ -8541,17 +8828,23 @@ export default function App() {
                   <span className="text-[9px] font-bold z-10 relative">Billing</span>
                </button>
              )}
-             <button onClick={() => { setIsSidebarOpen(prev => !prev); }} className={cn("flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", !['dashboard', 'patients', 'appointments', 'finances'].includes(activeTab) || isSidebarOpen ? "text-blue-600" : "text-slate-400")}>
-                {(!['dashboard', 'patients', 'appointments', 'finances'].includes(activeTab) || isSidebarOpen) && <div className="absolute inset-0 bg-blue-50 rounded-xl z-0" />}
+             <button 
+               onClick={() => { setIsSidebarOpen(prev => !prev); }} 
+               className={cn(
+                 "flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-colors relative", 
+                 (!['dashboard', 'patients', 'appointments', 'sessions', 'finances'].includes(activeTab) || isSidebarOpen) ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"
+               )}
+             >
+                {(!['dashboard', 'patients', 'appointments', 'sessions', 'finances'].includes(activeTab) || isSidebarOpen) && <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/40 rounded-xl z-0" />}
                 <Menu className="w-5 h-5 mb-1 z-10 relative" />
                 <span className="text-[9px] font-bold z-10 relative">More</span>
              </button>
           </div>
 
           <div className="p-4 md:p-8 max-w-7xl mx-auto">
-            {(activeTab === 'dashboard' || activeTab === 'more') && <Dashboard stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} role={role} setTab={setActiveTab} onNotify={showNotification} user={user!} onStatusUpdate={async (id, status) => { await updateAppointmentStatus(id, status); if (status === 'completed') { const appt = appointments.find(a => a.id === id); if (appt && appt.patientId) { setActiveTab('patients'); setViewTarget({ type: 'patient', id: appt.patientId, action: 'log-session' }); } } }} setViewTarget={setViewTarget} globalDate={globalDate} setGlobalDate={setGlobalDate} setPrintTx={setPrintTx} />}
-            {activeTab === 'appointments' && role !== 'physiotherapist' && <AppointmentManager appointments={appointments} patients={patients} members={members} onNotify={showNotification} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} selectedDate={globalDate} setSelectedDate={setGlobalDate} />}
-            {activeTab === 'patients' && <PatientManager patients={patients} appointments={appointments} transactions={transactions} onNotify={showNotification} role={role} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} />}
+            {(activeTab === 'dashboard' || activeTab === 'more') && <Dashboard stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} role={role} setTab={setActiveTab} onNotify={showNotification} user={user!} onStatusUpdate={async (id, status) => { await updateAppointmentStatus(id, status); if (status === 'completed') { const appt = appointments.find(a => a.id === id); if (appt && appt.patientId) { setActiveTab('patients'); setViewTarget({ type: 'patient', id: appt.patientId, action: 'log-session', prefill: { notes: appt.sessionType ? `Session: ${appt.sessionType}` : 'Regular therapy session', amount: 500 } }); } } }} setViewTarget={setViewTarget} globalDate={globalDate} setGlobalDate={setGlobalDate} setPrintTx={setPrintTx} refreshData={refreshData} />}
+            {activeTab === 'appointments' && <AppointmentManager appointments={appointments} patients={patients} members={members} onNotify={showNotification} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} selectedDate={globalDate} setSelectedDate={setGlobalDate} refreshData={refreshData} />}
+            {activeTab === 'patients' && <PatientManager patients={patients} appointments={appointments} transactions={transactions} onNotify={showNotification} role={role} viewTarget={viewTarget} setViewTarget={setViewTarget} setTab={setActiveTab} refreshData={refreshData} />}
             {activeTab === 'finances' && role !== 'physiotherapist' && (
               <FinanceTracker 
                 transactions={transactions} 
@@ -8564,13 +8857,14 @@ export default function App() {
                 setPrintTx={setPrintTx}
                 physiotherapistName={physiotherapistName}
                 setPhysiotherapistName={setPhysiotherapistName}
+                refreshData={refreshData}
               />
             )}
             {activeTab === 'team' && role === 'admin' && <TeamManager role={role} members={members} onNotify={showNotification} />}
             {activeTab === 'attendance' && <AttendanceManager role={role} members={members} currentUserEmail={user?.email || null} onNotify={showNotification} selectedDate={globalDate} setSelectedDate={setGlobalDate} />}
             {activeTab === 'sessions' && role !== 'manager' && <SessionManager appointments={appointments} onNotify={showNotification} selectedDate={globalDate} setSelectedDate={setGlobalDate} setTab={setActiveTab} setViewTarget={setViewTarget} />}
             {activeTab === 'reports' && role === 'admin' && <Reports stats={stats} transactions={transactions} appointments={appointments} patients={patients} members={members} onNotify={showNotification} />}
-            {activeTab === 'settings' && <SettingsView user={user!} role={role} patients={patients} transactions={transactions} appointments={appointments} members={members} onNotify={showNotification} onLogout={logOut} />}
+            {activeTab === 'settings' && <SettingsView user={user!} role={role} patients={patients} transactions={transactions} appointments={appointments} members={members} onNotify={showNotification} onLogout={logOut} refreshData={refreshData} />}
           </div>
         </main>
       </div>

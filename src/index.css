@@ -472,3 +472,28 @@ html.dark {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Remove focus outlines from Recharts charts and SVGs */
+.recharts-responsive-container:focus,
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-sector:focus,
+.recharts-curve:focus,
+.recharts-rectangle:focus,
+.recharts-layer:focus,
+svg,
+svg:focus,
+svg *:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Also hide tap highlight and accidental boundaries for any child element within charts */
+.recharts-responsive-container *,
+.recharts-wrapper *,
+.recharts-surface * {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
